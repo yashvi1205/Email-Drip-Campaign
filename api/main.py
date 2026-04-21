@@ -12,6 +12,11 @@ from database.db import SessionLocal
 from database.models import Lead, Event, EmailSequence
 
 
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 app = FastAPI(title="LinkedIn Scraper API")
 
 # Enable CORS for frontend integration
@@ -385,4 +390,5 @@ def trigger_scrape():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)
