@@ -4,19 +4,49 @@ from datetime import datetime
 import os
 
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 # Define the scope
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Use absolute path for credentials
-base_path = os.path.dirname(os.path.abspath(__file__))
-creds_path = os.path.join(base_path, "credentials.json")
+# Map environment variables to the format expected by Google Auth
+info = {
+    "type": os.getenv("GOOGLE_TYPE"),
+    "project_id": os.getenv("GOOGLE_PROJECT_ID"),
+    "private_key_id": os.getenv("GOOGLE_PRIVATE_KEY_ID"),
+    "private_key": os.getenv("GOOGLE_PRIVATE_KEY", "").replace("\\n", "\n"),
+    "client_email": os.getenv("GOOGLE_CLIENT_EMAIL"),
+    "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+    "auth_uri": os.getenv("GOOGLE_AUTH_URI"),
+    "token_uri": os.getenv("GOOGLE_TOKEN_URI"),
+    "auth_provider_x509_cert_url": os.getenv("GOOGLE_AUTH_PROVIDER_CERT_URL"),
+    "client_x509_cert_url": os.getenv("GOOGLE_CLIENT_CERT_URL"),
+    "universe_domain": os.getenv("GOOGLE_UNIVERSE_DOMAIN")
+}
 
-# Modern authentication using google-auth
-creds = Credentials.from_service_account_file(creds_path, scopes=scope)
-client = gspread.authorize(creds)
+# Check if essential credentials are present
+if not info["private_key"] or not info["client_email"]:
+    print("WARNING: Google Sheets credentials not found in environment variables. Falling back to credentials.json if available.")
+    creds_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
+    if os.path.exists(creds_path):
+        creds = Credentials.from_service_account_file(creds_path, scopes=scope)
+    else:
+        print("ERROR: No Google Sheets credentials found. Functionality will be limited.")
+        creds = None
+else:
+    # Modern authentication using service account info from environment variables
+    creds = Credentials.from_service_account_info(info, scopes=scope)
+
+if creds:
+    client = gspread.authorize(creds)
+else:
+    client = None
 
 # Standard sheet for existing functionality
 sheet = client.open("LinkedIn_Profile_DataScraper").sheet1
