@@ -1,0 +1,28 @@
+# Environment & Build
+venv/
+__pycache__/
+.env
+.DS_Store
+
+# Security - Sensitive JSON files
+# We allow package.json but ignore keys and local data
+*.json
+!package.json
+!package-lock.json
+credentials.json
+config.json
+last_posts.json
+scraper_status.json
+
+# Scraper - Session & Debug data
+scraper/cookies.pkl
+scraper/*.pkl
+scraper/*.png
+scraper/*.html
+scraper/*.log
+scraper.log
+
+# IDE & OS
+.idea/
+.vscode/
+Thumbs.db
