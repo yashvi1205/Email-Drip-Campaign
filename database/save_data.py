@@ -25,7 +25,9 @@ def save_lead(linkedin_url, name=None, email=None, company=None, role=None, head
     else:
         # Update existing lead info if provided
         if name: lead.name = name
-        if email: lead.email = email
+        # Only update email if it's a real email and not 'Contact Restricted'
+        if email and email.lower() != "contact restricted" and "@" in email:
+            lead.email = email
         if company: lead.company = company
         if role: lead.role = role
         if headline: lead.headline = headline
@@ -57,8 +59,13 @@ def get_or_create_sequence(lead_id, step_number=1):
     ).first()
     
     if not seq:
+        # Fetch lead name for denormalization
+        lead = db.query(Lead).filter(Lead.id == lead_id).first()
+        lead_name = lead.name if lead else None
+        
         seq = EmailSequence(
             lead_id=lead_id,
+            lead_name=lead_name,
             step_number=step_number,
             status="pending"
         )

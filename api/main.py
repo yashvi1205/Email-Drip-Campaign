@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from google_sheets import get_last_entries, get_latest_post_for_profile, get_profile_urls, get_enhanced_profile_data
 from database.db import SessionLocal
 from database.models import Lead, Event, EmailSequence
+from api.tracking import router as tracking_router
 
 
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="LinkedIn Scraper API")
+app.include_router(tracking_router, prefix="/api/tracking")
 
 # Enable CORS for frontend integration
 app.add_middleware(
@@ -26,6 +28,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "healthy", "version": "1.1.0", "endpoints": ["/api/dashboard/drip", "/api/profiles/raw"]}
 
 PROFILES_FILE = os.path.join(os.path.dirname(__file__), "..", "profiles.txt")
 LAST_POSTS_FILE = os.path.join(os.path.dirname(__file__), "..", "last_posts.json")
@@ -232,49 +238,28 @@ def get_profiles():
         })
     return clean_result
 
-@app.get("/api/profiles/raw")
-def get_profiles_raw():
-    # This endpoint provides the full data needed for the premium UI
+def fetch_profiles_raw_data():
+    """Helper to gather full profile data from all sources."""
     profiles = read_profiles()
     last_posts = load_last_posts()
-    updated = False
-    
     result = []
+    
     for url in profiles:
         username = url.split("/in/")[1].split("/")[0].replace("-", " ").title() if "/in/" in url else url
         entry = last_posts.get(url)
         
+        # Extract basic info from last_posts cache if it's a dict
         if isinstance(entry, dict):
             post_text = entry.get("text", "No text found")
-            photo_url = entry.get("photo_url", "")
-            post_time = entry.get("post_time", "")
-            is_repost = entry.get("is_repost", False)
-            reposter_name = entry.get("reposter_name", "")
-            reposter_photo = entry.get("reposter_photo", "")
-            original_author_name = entry.get("original_author_name", "")
-            recent_posts = entry.get("recent_posts", [])
-            stats = {
-                "likes": entry.get("likes", 0),
-                "comments": entry.get("comments", 0),
-                "reposts": entry.get("reposts", 0)
-            }
+            headline = entry.get("headline", "")
+            about = entry.get("about", "")
+            work_description = entry.get("work_description", "")
+            company = entry.get("company", "")
+            role = entry.get("role", "")
+            email = entry.get("email", "")
         else:
             post_text = entry
-            photo_url = ""
-            post_time = ""
-            is_repost = False
-            reposter_name = ""
-            reposter_photo = ""
-            original_author_name = ""
-            recent_posts = []
-            stats = {"likes": 0, "comments": 0, "reposts": 0}
-
-        headline = entry.get("headline", "") if isinstance(entry, dict) else ""
-        about = entry.get("about", "") if isinstance(entry, dict) else ""
-        work_description = entry.get("work_description", "") if isinstance(entry, dict) else ""
-        company = entry.get("company", "") if isinstance(entry, dict) else ""
-        role = entry.get("role", "") if isinstance(entry, dict) else ""
-        email = entry.get("email", "") if isinstance(entry, dict) else ""
+            headline = about = work_description = company = role = email = ""
 
         db = SessionLocal()
         lead = db.query(Lead).filter(Lead.linkedin_url == url).first()
@@ -288,16 +273,10 @@ def get_profiles_raw():
             "role": role or (lead.role if lead else ""),
             "about": about or (lead.about if lead else ""),
             "work_description": work_description or (lead.work_description if lead else ""),
-            "recent_activity": [],
-            "is_repost": is_repost,
-            "reposter_name": reposter_name,
-            "reposter_photo": reposter_photo,
-            "original_author_name": original_author_name,
-            "photo_url": photo_url,
-            "post_time": post_time,
-            "stats": stats,
             "email": email or (lead.email if lead else ""),
-            "status": lead.status if lead else "active"
+            "status": lead.status if lead else "active",
+            "recent_activity": [],
+            "has_new_activity": False
         }
 
         db = SessionLocal()
@@ -306,15 +285,20 @@ def get_profiles_raw():
             Event.event_type == "interaction_summary"
         ).order_by(Event.timestamp.desc()).first()
         
-        if latest_event and "recent_activity" in latest_event.additional_data:
-            p_data["recent_activity"] = latest_event.additional_data["recent_activity"]
+        if latest_event:
+            if "recent_activity" in latest_event.additional_data:
+                p_data["recent_activity"] = latest_event.additional_data["recent_activity"]
+            p_data["has_new_activity"] = latest_event.additional_data.get("has_new_activity", False)
         elif post_text and post_text != "No activity tracked yet":
             p_data["recent_activity"] = [post_text]
         
         result.append(p_data)
         db.close()
-    
     return result
+
+@app.get("/api/profiles/raw")
+def get_profiles_raw():
+    return fetch_profiles_raw_data()
 
 @app.get("/api/leads")
 def get_leads():
@@ -337,6 +321,69 @@ def get_leads():
         })
     db.close()
     return result
+
+@app.get("/api/dashboard/drip")
+def get_drip_dashboard():
+    db = SessionLocal()
+    try:
+        leads = db.query(Lead).all()
+        result = []
+        
+        for lead in leads:
+            # Get latest sequence for this lead
+            latest_seq = db.query(EmailSequence).filter(
+                EmailSequence.lead_id == lead.id
+            ).order_by(EmailSequence.id.desc()).first()
+            
+            # Count events
+            sent_count = db.query(Event).filter(
+                Event.lead_id == lead.id,
+                Event.event_type == "sent"
+            ).count()
+            
+            click_count = db.query(Event).filter(
+                Event.lead_id == lead.id,
+                Event.event_type == "click"
+            ).count()
+            
+            open_count = db.query(Event).filter(
+                Event.lead_id == lead.id,
+                Event.event_type == "open"
+            ).count()
+            
+            # Check for delete event
+            deleted = db.query(Event).filter(
+                Event.lead_id == lead.id,
+                Event.event_type == "delete"
+            ).first() is not None
+            
+            result.append({
+                "lead_id": lead.id,
+                "name": lead.name,
+                "email": lead.email,
+                "company": lead.company,
+                "role": lead.role,
+                "status": lead.status,
+                "sequence": {
+                    "step": latest_seq.step_number if latest_seq else None,
+                    "status": latest_seq.status if latest_seq else "not_started",
+                    "sent_at": latest_seq.sent_at if latest_seq else None,
+                    "opened_at": latest_seq.opened_at if latest_seq else None,
+                    "replied": latest_seq.replied if latest_seq else False,
+                    "tracking_id": latest_seq.tracking_id if latest_seq else None,
+                    "clicked": click_count > 0,
+                    "click_count": click_count,
+                    "open_count": open_count,
+                    "sent_count": sent_count,
+                    "deleted": deleted
+                } if latest_seq else None
+            })
+        return result
+    except Exception as e:
+        print(f"Error in drip dashboard: {e}")
+        return []
+    finally:
+        db.close()
 
 @app.get("/api/leads/{lead_id}/events")
 def get_lead_events(lead_id: int):
@@ -382,9 +429,19 @@ def get_scraper_status():
 @app.post("/api/scrape")
 def trigger_scrape():
     try:
-        # Run scraper in the background
-        subprocess.Popen([sys.executable, SCRAPER_SCRIPT])
-        return {"status": "Scraper started"}
+        # Run scraper and WAIT for it to finish (Synchronous for n8n)
+        process = subprocess.run([sys.executable, SCRAPER_SCRIPT], capture_output=True, text=True)
+        
+        if process.returncode != 0:
+            print(f"Scraper error: {process.stderr}")
+            raise HTTPException(status_code=500, detail="Scraper failed to complete successfully.")
+
+        # Gather and return the final data after the scrape
+        return {
+            "status": "success",
+            "message": "Scrape completed",
+            "data": fetch_profiles_raw_data()
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

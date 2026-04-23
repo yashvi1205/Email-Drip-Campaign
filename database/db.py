@@ -1,6 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from contextlib import contextmanager
 
 # Get database URL from environment or fallback to local
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -15,3 +18,12 @@ else:
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(bind=engine)
+
+@contextmanager
+def get_db_conn():
+    """Reusable database connection helper using psycopg2."""
+    conn = psycopg2.connect(DATABASE_URL)
+    try:
+        yield conn
+    finally:
+        conn.close()

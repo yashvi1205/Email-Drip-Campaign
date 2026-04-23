@@ -16,3 +16,4 @@ pickle.dump(cookies, open("cookies.pkl", "wb"))
 print("Cookies saved successfully")
 
 driver.quit()
+

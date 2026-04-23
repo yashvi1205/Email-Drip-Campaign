@@ -4,19 +4,20 @@ import {
   Activity,
   Database,
   Send,
-  Menu,
   LogOut,
   ExternalLink,
   MessageSquare,
   ThumbsUp,
   Repeat,
   RefreshCw,
-  Clock
+  Clock,
+  MousePointerClick,
+  Trash2
 } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE = 'http://192.168.1.38:8001/api';
+const API_BASE = 'http://localhost:8001/api';
 
 function App() {
   const [profiles, setProfiles] = useState([]);
@@ -24,6 +25,8 @@ function App() {
   const [scraping, setScraping] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString());
   const [toasts, setToasts] = useState([]);
+  const [view, setView] = useState('monitor'); // 'monitor' or 'drip'
+  const [dripData, setDripData] = useState([]);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now();
@@ -48,6 +51,10 @@ function App() {
       setProfiles(profilesRes.data || []);
       setLastUpdated(new Date().toLocaleTimeString());
       setLoading(false);
+      
+      // Also fetch drip data
+      const dripRes = await axios.get(`${API_BASE}/dashboard/drip?t=${timestamp}`);
+      setDripData(dripRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
       addToast("Failed to sync with backend", "error");
@@ -63,7 +70,6 @@ function App() {
       await axios.post(`${API_BASE}/scrape`);
       addToast("Scraper is now running in the background", "success");
       
-      // Start polling for completion
       const pollInterval = setInterval(async () => {
         try {
           const statusRes = await axios.get(`${API_BASE}/scraper-status?t=${Date.now()}`);
@@ -87,12 +93,12 @@ function App() {
             } else if (status === 'error') {
               addToast(`Scraper error: ${error || "Unknown error"}`, "error");
             }
-            fetchData(); // Refresh UI with new data
+            fetchData();
           }
         } catch (err) {
           console.error("Polling error:", err);
         }
-      }, 5000); // Poll every 5 seconds
+      }, 5000);
       
     } catch (error) {
       console.error("Error triggering scraper:", error);
@@ -136,12 +142,13 @@ function App() {
             <span style={{ fontWeight: 600 }}>Tracked Profiles ({profiles.length})</span>
           </div>
           <div style={{ marginLeft: '2rem', marginBottom: '2rem' }}>
-            {profiles.map(p => (
+            {profiles.slice(0, 5).map(p => (
               <div key={p.url} style={{ fontSize: '0.8rem', color: '#b0b0b0', marginBottom: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 • {p.name}
               </div>
             ))}
           </div>
+          
           <motion.a
             href="https://docs.google.com/spreadsheets/d/1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo/edit?usp=sharing"
             target="_blank"
@@ -152,6 +159,24 @@ function App() {
             <Database size={20} />
             <span>Open Google Sheet</span>
           </motion.a>
+
+          <div 
+            className={`nav-item ${view === 'monitor' ? 'active' : ''}`}
+            onClick={() => setView('monitor')}
+            style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: view === 'monitor' ? '#0a66c2' : '#b0b0b0', marginBottom: '1.5rem', cursor: 'pointer' }}
+          >
+            <Activity size={20} />
+            <span>Social Monitor</span>
+          </div>
+
+          <div 
+            className={`nav-item ${view === 'drip' ? 'active' : ''}`}
+            onClick={() => setView('drip')}
+            style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: view === 'drip' ? '#0a66c2' : '#b0b0b0', marginBottom: '1.5rem', cursor: 'pointer' }}
+          >
+            <Send size={20} />
+            <span>Drip Dashboard</span>
+          </div>
         </nav>
 
         <div className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
@@ -164,16 +189,13 @@ function App() {
       <main className="main-content">
         <header className="header">
           <div>
-            <h1>Activity Dashboard</h1>
+            <h1>{view === 'monitor' ? 'Social Activity' : 'Drip Campaign'} Dashboard</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#b0b0b0', fontSize: '0.9rem' }}>
               <Clock size={14} />
               <span>Last updated: {lastUpdated}</span>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <span style={{ color: '#b0b0b0', fontSize: '0.8rem', fontStyle: 'italic' }}>
-              Auto-saves to sheet on new posts only
-            </span>
             <button
               className="btn"
               style={{ background: '#353535', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
@@ -203,92 +225,158 @@ function App() {
           </div>
         ) : (
           <>
-            {/* Main Profiles Grid (The original view user liked) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
-              <Users size={24} color="#0a66c2" />
-              <h2>Monitored Profiles</h2>
-            </div>
-            <div className="grid" style={{ marginBottom: '4rem' }}>
-              <AnimatePresence>
-                {profiles.map((profile, index) => (
-                  <motion.div
-                    key={profile.url}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="card"
-                  >
-                    {profile.is_repost && (
-                      <div className="repost-indicator">
-                        <Repeat size={14} color="#0a66c2" />
-                        <span className="repost-badge">Repost</span>
-                        <span>by <strong>{profile.reposter_name || profile.name}</strong></span>
-                      </div>
-                    )}
-
-                    <div className="card-header">
-                      <div className="avatar-stack">
-                        {profile.photo_url ? (
-                          <img
-                            src={profile.photo_url}
-                            alt={profile.original_author_name || profile.username}
-                            className="profile-photo"
-                          />
-                        ) : (
-                          <div className="avatar">
-                            {(profile.original_author_name || profile.name).charAt(0)}
+            {view === 'monitor' ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                  <Users size={24} color="#0a66c2" />
+                  <h2>Monitored Profiles</h2>
+                </div>
+                <div className="grid" style={{ marginBottom: '4rem' }}>
+                  <AnimatePresence>
+                    {profiles.map((profile, index) => (
+                      <motion.div
+                        key={profile.url || index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="card"
+                      >
+                        {profile.is_repost && (
+                          <div className="repost-indicator">
+                            <Repeat size={14} color="#0a66c2" />
+                            <span className="repost-badge">Repost</span>
+                            <span>by <strong>{profile.reposter_name || profile.name}</strong></span>
                           </div>
                         )}
-                        {profile.is_repost && profile.reposter_photo && (
-                          <img 
-                            src={profile.reposter_photo} 
-                            alt={profile.reposter_name} 
-                            className="secondary-avatar"
-                            title={`Reposted by ${profile.reposter_name}`}
-                          />
-                        )}
-                      </div>
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h3 style={{ fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {profile.original_author_name || profile.name}
-                        </h3>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                          <a href={profile.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#0a66c2', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                            View {profile.is_repost ? 'Reposter' : 'Profile'} <ExternalLink size={12} />
-                          </a>
-                        </div>
-                      </div>
-                      <span className={`status-badge ${profile.is_repost ? 'status-repost' : 'status-synced'}`}>
-                        {profile.is_repost ? 'Repost' : 'Active'}
-                      </span>
-                    </div>
+                        <div className="card-header">
+                          <div className="avatar-stack">
+                            {profile.photo_url ? (
+                              <img src={profile.photo_url} alt={profile.name} className="profile-photo" />
+                            ) : (
+                              <div className="avatar">{(profile.original_author_name || profile.name).charAt(0)}</div>
+                            )}
+                            {profile.is_repost && profile.reposter_photo && (
+                              <img src={profile.reposter_photo} alt="Reposter" className="secondary-avatar" />
+                            )}
+                          </div>
 
-                    <div className="post-content" style={{ fontSize: '0.85rem' }}>
-                      {profile.recent_activity && profile.recent_activity.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          <span style={{ color: '#0a66c2', fontWeight: 600 }}>Recent Activity:</span>
-                          {profile.recent_activity.map((act, i) => (
-                            <div key={i} style={{ borderLeft: '2px solid #0a66c2', paddingLeft: '0.5rem', color: '#e0e0e0' }}>
-                              {act}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h3 style={{ fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {profile.original_author_name || profile.name}
+                            </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
+                              <a href={profile.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: '#0a66c2', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                View Profile <ExternalLink size={12} />
+                              </a>
+                              {profile.company && (
+                                <span style={{ fontSize: '0.8rem', color: '#b0b0b0' }}>
+                                  at <strong>{profile.company}</strong>
+                                </span>
+                              )}
                             </div>
-                          ))}
+                          </div>
+                          <span className={`status-badge ${profile.is_repost ? 'status-repost' : 'status-synced'}`}>
+                            {profile.is_repost ? 'Repost' : 'Active'}
+                          </span>
                         </div>
-                      ) : (
-                        "No recent activity tracked"
-                      )}
-                    </div>
 
-                    <div className="stats" style={{ borderTop: '1px solid #353535', paddingTop: '0.8rem', marginTop: 'auto' }}>
-                      <div className="stat-item"><ThumbsUp size={14} /> {profile.stats?.likes || 0}</div>
-                      <div className="stat-item"><MessageSquare size={14} /> {profile.stats?.comments || 0}</div>
-                      <div className="stat-item"><Repeat size={14} /> {profile.stats?.reposts || 0}</div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
+                        <div className="post-content">
+                          {profile.recent_activity && profile.recent_activity.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                              <span style={{ color: '#0a66c2', fontWeight: 600 }}>Recent Activity:</span>
+                              {profile.recent_activity.map((act, i) => (
+                                <div key={i} style={{ borderLeft: '2px solid #0a66c2', paddingLeft: '0.5rem', color: '#e0e0e0' }}>
+                                  {act}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            "No recent activity tracked"
+                          )}
+                        </div>
 
+                        <div className="stats">
+                          <div className="stat-item"><ThumbsUp size={14} /> {profile.stats?.likes || 0}</div>
+                          <div className="stat-item"><MessageSquare size={14} /> {profile.stats?.comments || 0}</div>
+                          <div className="stat-item"><Repeat size={14} /> {profile.stats?.reposts || 0}</div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </>
+            ) : (
+              <div className="drip-dashboard">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                  <Send size={24} color="#0a66c2" />
+                  <h2>Drip Campaign Status</h2>
+                </div>
+                
+                <div className="table-container card">
+                  <table className="drip-table">
+                    <thead>
+                      <tr>
+                        <th>Lead</th>
+                        <th>Role & Company</th>
+                        <th>Email Status</th>
+                        <th>Engagement</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dripData.map((item) => (
+                        <tr key={item.lead_id}>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{item.name}</div>
+                            <div style={{ fontSize: '0.8rem', color: '#b0b0b0' }}>
+                              {item.email && item.email.includes('@') && item.email.toLowerCase() !== 'contact restricted' 
+                                ? item.email 
+                                : <span style={{ fontStyle: 'italic', opacity: 0.7 }}>No contact info found</span>}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '0.9rem' }}>{item.role || "Lead"}</div>
+                            <div style={{ fontSize: '0.8rem', color: '#0a66c2' }}>{item.company}</div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <span className={`badge ${item.sequence?.sent_at ? 'badge-success' : 'badge-neutral'}`}>
+                                <Send size={12} /> {item.sequence?.sent_at ? `Sent (${item.sequence.sent_count || 1})` : "Pending"}
+                              </span>
+                              {item.sequence?.sent_at && (
+                                <span style={{ fontSize: '0.7rem', color: '#b0b0b0' }}>
+                                  {new Date(item.sequence.sent_at).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="engagement-track">
+                              <div className={`engagement-step ${item.sequence?.opened_at ? 'completed' : ''}`}>
+                                <Clock size={14} />
+                                <span>Opened {item.sequence?.open_count > 1 ? `(${item.sequence.open_count})` : ''}</span>
+                              </div>
+                              <div className={`engagement-step ${item.sequence?.clicked ? 'completed' : ''}`}>
+                                <MousePointerClick size={14} />
+                                <span>Clicked {item.sequence?.click_count > 1 ? `(${item.sequence.click_count})` : ''}</span>
+                              </div>
+                              <div className={`engagement-step ${item.sequence?.replied ? 'completed' : ''}`}>
+                                <MessageSquare size={14} />
+                                <span>Replied</span>
+                              </div>
+                              <div className={`engagement-step ${item.sequence?.deleted ? 'completed-danger' : ''}`}>
+                                <Trash2 size={14} />
+                                <span>Deleted</span>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
