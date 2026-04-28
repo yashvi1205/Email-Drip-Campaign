@@ -7,6 +7,8 @@ import io
 import re
 import random
 from datetime import datetime
+from selenium.webdriver.chrome.service import Service
+
 
 # FORCE UTF-8 FOR PRINTING
 if sys.stdout.encoding != 'utf-8':
@@ -96,7 +98,9 @@ def scrape_profile_details(driver, profile_url):
     # 1. PASS 1: MAIN PROFILE PAGE (Identity & Headline)
     try:
         driver.get(profile_url)
-        time.sleep(10)
+        WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
         
         # Specific LinkedIn Name Selector
         name_selectors = [
@@ -181,7 +185,10 @@ def scrape_profile_details(driver, profile_url):
     # 2. ZONE B: EMAIL EXTRACTION (Bounty Hunter Dual Path)
     print("   -> Extracting Contact Info (Plus Premium Check)...")
     driver.get(profile_url.rstrip("/") + "/overlay/contact-info/")
-    time.sleep(15)
+    
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.TAG_NAME, "body"))
+    )
     
     page_source = driver.page_source
     if "Try Premium" in page_source or "Premium for free" in page_source:
@@ -381,12 +388,21 @@ def run_scraper():
     urls = get_profile_urls()
     
     chrome_options = Options()
+
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
+
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
+    chrome_options.add_experimental_option("useAutomationExtension", False)
+
+    chrome_options.add_argument("--remote-debugging-port=9222")
+
+    driver = webdriver.Chrome(service=Service(), options=chrome_options)
     
-    driver = webdriver.Chrome(options=chrome_options)
     
     try:
         driver.get("https://www.linkedin.com/login")
