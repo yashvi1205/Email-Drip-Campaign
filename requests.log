@@ -1,0 +1,8 @@
+[17:14:40] GET http://localhost:8001/api/profiles/raw?t=1777376679845 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+[17:14:43] GET http://localhost:8001/api/dashboard/drip?t=1777376679845 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+[17:15:39] GET http://localhost:8001/api/profiles/raw?t=1777376739858 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+[17:15:43] GET http://localhost:8001/api/dashboard/drip?t=1777376739858 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+[17:16:40] GET http://localhost:8001/api/profiles/raw?t=1777376799851 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+[17:16:43] GET http://localhost:8001/api/dashboard/drip?t=1777376799851 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+[17:17:40] GET http://localhost:8001/api/profiles/raw?t=1777376859847 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
+[17:17:43] GET http://localhost:8001/api/dashboard/drip?t=1777376859847 | UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
