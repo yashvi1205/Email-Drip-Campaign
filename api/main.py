@@ -429,22 +429,50 @@ def get_scraper_status():
 @app.post("/api/scrape")
 def trigger_scrape():
     try:
-        # Run scraper and WAIT for it to finish (Synchronous for n8n)
-        process = subprocess.run([sys.executable, SCRAPER_SCRIPT], capture_output=True, text=True)
-        
-        if process.returncode != 0:
-            print(f"Scraper error: {process.stderr}")
-            raise HTTPException(status_code=500, detail="Scraper failed to complete successfully.")
+        print("🚀 API HIT: Starting scraper...")
 
-        # Gather and return the final data after the scrape
+        process = subprocess.run(
+            [sys.executable, SCRAPER_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=300  # ⏱ 5 min timeout
+        )
+
+        print("✅ Scraper process finished")
+
+        # 🔥 PRINT EVERYTHING (VERY IMPORTANT)
+        print("📤 STDOUT:\n", process.stdout)
+
+        if process.stderr:
+            print("❌ STDERR:\n", process.stderr)
+
+        # ❌ If scraper failed
+        if process.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Scraper failed:\n{process.stderr}"
+            )
+
+        # ✅ Fetch DB data after scrape
+        data = fetch_profiles_raw_data()
+
+        print(f"📊 Records fetched from DB: {len(data)}")
+
         return {
             "status": "success",
             "message": "Scrape completed",
-            "data": fetch_profiles_raw_data()
+            "data": data
         }
+
+    except subprocess.TimeoutExpired:
+        print("⏱ ERROR: Scraper timed out")
+        raise HTTPException(status_code=500, detail="Scraper timeout")
+
     except Exception as e:
+        print(f"🔥 ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+        
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8001))
