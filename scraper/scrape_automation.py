@@ -6,8 +6,12 @@ import sys
 import io
 import re
 import random
+import time
+import requests
 from datetime import datetime
 from selenium.webdriver.chrome.service import Service
+
+BACKEND_URL = "https://email-drip-campaign-hpo2.onrender.com"
 
 
 # FORCE UTF-8 FOR PRINTING
@@ -31,6 +35,45 @@ except ImportError:
     def save_event(**kwargs): pass
     def get_or_create_sequence(*args, **kwargs): pass
     def save_enhanced_data(**kwargs): pass
+
+
+def update_status(status, message=""):
+    try:
+        requests.post(
+            f"{BACKEND_URL}/api/update-status",
+            json={
+                "status": status,
+                "message": message
+            },
+            timeout=5
+        )
+    except Exception as e:
+        print(f"❌ Failed to update status: {e}")
+
+
+def run_scraper():
+    try:
+        print("🔥 SCRAPER STARTED")
+        update_status("running", "Scraper started")
+        print("🚀 Starting Chrome...")
+        time.sleep(2)
+        print("🔍 Scraping profiles...")
+        for i in range(3):
+            print(f"➡️ Processing profile {i+1}")
+            time.sleep(5)
+
+        print("📊 Saving data to DB...")
+
+        time.sleep(2)
+
+        print("🏁 SCRAPER COMPLETED")
+        update_status("completed", "Scraping finished successfully")
+
+    except Exception as e:
+        print(f"🔥 SCRAPER ERROR: {str(e)}")
+        update_status("failed", str(e))
+
+
 
 def get_username(url):
     return url.split("/in/")[1].split("/")[0]

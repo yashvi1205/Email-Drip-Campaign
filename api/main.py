@@ -5,6 +5,7 @@ import json
 import subprocess
 import sys
 
+
 # Add project root to path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from google_sheets import get_last_entries, get_latest_post_for_profile, get_profile_urls, get_enhanced_profile_data
@@ -428,49 +429,30 @@ def get_scraper_status():
 
 @app.post("/api/scrape")
 def trigger_scrape():
-    try:
-        print("🚀 API HIT: Starting scraper...")
+    import subprocess, sys
 
-        process = subprocess.run(
-            [sys.executable, SCRAPER_SCRIPT],
-            capture_output=True,
-            text=True,
-            timeout=300  # ⏱ 5 min timeout
-        )
+    subprocess.Popen([sys.executable, SCRAPER_SCRIPT])
 
-        print("✅ Scraper process finished")
+    return {
+        "status": "started",
+        "message": "Scraper running in background"
+    }
 
-        # 🔥 PRINT EVERYTHING (VERY IMPORTANT)
-        print("📤 STDOUT:\n", process.stdout)
 
-        if process.stderr:
-            print("❌ STDERR:\n", process.stderr)
+SCRAPER_STATUS = {
+    "status": "idle",
+    "message": ""
+}
 
-        # ❌ If scraper failed
-        if process.returncode != 0:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Scraper failed:\n{process.stderr}"
-            )
+@app.post("/api/update-status")
+def update_status(data: dict):
+    global SCRAPER_STATUS
+    SCRAPER_STATUS.update(data)
+    return {"ok": True}
 
-        # ✅ Fetch DB data after scrape
-        data = fetch_profiles_raw_data()
-
-        print(f"📊 Records fetched from DB: {len(data)}")
-
-        return {
-            "status": "success",
-            "message": "Scrape completed",
-            "data": data
-        }
-
-    except subprocess.TimeoutExpired:
-        print("⏱ ERROR: Scraper timed out")
-        raise HTTPException(status_code=500, detail="Scraper timeout")
-
-    except Exception as e:
-        print(f"🔥 ERROR: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/api/scrape/status")
+def get_status():
+    return SCRAPER_STATUS
 
         
 if __name__ == "__main__":
