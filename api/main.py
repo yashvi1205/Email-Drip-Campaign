@@ -430,6 +430,21 @@ def get_scraper_status():
 @app.post("/api/scrape")
 def trigger_scrape():
     import subprocess, sys
+    global SCRAPER_STATUS
+
+    SCRAPER_STATUS["status"] = "running"
+    SCRAPER_STATUS["message"] = "Scraper started"
+
+    subprocess.Popen([sys.executable, SCRAPER_SCRIPT])
+
+    return {
+        "status": "started",
+        "message": "Scraper running in background"
+    }
+
+
+def trigger_scrape():
+    import subprocess, sys
 
     subprocess.Popen([sys.executable, SCRAPER_SCRIPT])
 
