@@ -6,8 +6,6 @@ import io
 import re
 import random
 import json
-
-
 from datetime import datetime
 
 # FORCE UTF-8 FOR PRINTING
@@ -18,12 +16,10 @@ if sys.stdout.encoding != 'utf-8':
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-
 
 try:
     from database.save_data import save_lead, save_event, get_or_create_sequence
@@ -120,18 +116,6 @@ def clean_scraped_text(text):
             
     return base_text.replace("… more", "").replace("see more", "").strip()
 
-def is_bad_company(text):
-    if not text:
-        return True
-
-    bad_words = [
-        "self-employed", "freelance", "independent",
-        "linkedin", "experience", "full-time", "part-time"
-    ]
-
-    t = text.lower()
-    return any(b in t for b in bad_words)
-
 def normalize_url(url):
     """Converts localized subdomains (nl., in., etc) to standard www. to avoid 404s."""
     if not url: return url
@@ -148,10 +132,8 @@ def scrape_profile_details(driver, profile_url):
     # 1. PASS 1: MAIN PROFILE PAGE (Identity & Headline)
     try:
         driver.get(profile_url)
+        time.sleep(10)
         
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )        
         # Specific LinkedIn Name Selector
         name_selectors = [
             "h1.text-heading-xlarge",
@@ -227,11 +209,9 @@ def scrape_profile_details(driver, profile_url):
                 if txt.lower() == details["full_name"].lower() or (details["role"] and txt.lower() == details["role"].lower()):
                     continue
                 if txt and len(txt) > 2 and txt.lower() not in ["experience", "self-employed"]:
-                    cleaned = clean_scraped_text(txt)
-                    if not is_bad_company(cleaned):
-                        details["company"] = cleaned
-                        print(f"   -> LAYER 1 (Right Panel) Company: {details['company']}")
-                        break
+                    details["company"] = clean_scraped_text(txt)
+                    print(f"   -> LAYER 1 (Right Panel) Company: {details['company']}")
+                    break
         except: pass
 
         print(f"   -> IDENTITY SECURED: {details['full_name']}")
@@ -252,97 +232,17 @@ def scrape_profile_details(driver, profile_url):
                     # Force update if company is missing, junk, or matches role
                     if not details["company"] or details["company"].lower() in ["self-employed", "independent", "freelance", "experience", details["role"].lower()]:
                         if h_company.lower() != details["role"].lower():
-                            if not is_bad_company(h_company):
-                                details["company"] = h_company
-                                print(f"   -> LAYER 2 (Headline Split) Company: {details['company']}")
+                            details["company"] = h_company
+                            print(f"   -> LAYER 2 (Headline Split) Company: {details['company']}")
                     break
     except Exception as e: 
         print(f"   -> [!] Failed to secure Identity on Main Page: {e}")
 
+    # 2. PASS 2: EXPERIENCE SUB-PAGE
     try:
         print("   -> Navigating to dedicated Experience Page...")
         driver.get(normalize_url(profile_url.rstrip('/') + '/details/experience/'))
         time.sleep(12)
-
-        try:
-            driver.get(profile_url + "/details/experience/")
-            time.sleep(3)
-
-            items = driver.find_elements("xpath", "//li[contains(@class,'artdeco-list__item')]")
-
-            for item in items:
-                try:
-                    text = item.text.strip()
-                    if not text:
-                        continue
-
-                    # ROLE (top line)
-                    role = item.find_element("xpath", ".//span[1]").text.strip()
-
-                    company = None
-
-                    # 🔥 Try structured company extraction
-                    spans = item.find_elements("xpath", ".//span[contains(@class,'t-14')]")
-
-                    for sp in spans:
-                        candidate = clean_scraped_text(sp.text.strip())
-
-                        if not is_bad_company(candidate) and len(candidate) > 2:
-                            company = candidate
-                            break
-
-                    # 🔥 APPLY IF CURRENT ROLE
-                    if "present" in text.lower() and company:
-                        details["company"] = company
-                        details["role"] = role
-
-                        print("   -> EXPERIENCE FIX Company:", company)
-                        print("   -> EXPERIENCE FIX Role:", role)
-                        break
-
-                except:
-                    continue
-
-            # ================= HEADLINE FALLBACK =================
-            if not details.get("company") or is_bad_company(details["company"]):
-
-                headline = details.get("headline", "")
-                company_candidate = None
-
-                # CASE 1: Founder/CEO at Company
-                match = re.search(r'(founder|co-founder|ceo|owner|director)\s+(at|@)\s+(.+)', headline, re.IGNORECASE)
-                if match:
-                    company_candidate = match.group(3).strip()
-
-                # CASE 2: Founder Company
-                if not company_candidate:
-                    match = re.search(r'(founder|co-founder|ceo|owner|director)\s+(.+)', headline, re.IGNORECASE)
-                    if match:
-                        company_candidate = match.group(2).strip()
-
-                # CASE 3: Generic split
-                if not company_candidate:
-                    for sep in [" at ", " @ ", "|", "-", ":"]:
-                        if sep in headline:
-                            parts = headline.split(sep)
-                            company_candidate = parts[-1].strip()
-                            break
-
-                # APPLY
-                if company_candidate:
-                    company_candidate = clean_scraped_text(company_candidate)
-
-                    if not is_bad_company(company_candidate) and len(company_candidate) > 2:
-                        details["company"] = company_candidate
-                        print("   -> HEADLINE FIX Company:", company_candidate)
-
-                # ================= FINAL FALLBACK =================
-            if not details.get("company") or is_bad_company(details["company"]):
-                details["company"] = "Self-Employed"
-                print("   -> FINAL FALLBACK: Self-Employed")
-
-        except Exception as e:
-            print("   -> Experience extraction failed:", e)
     except: pass
 
     # 3. RELIABLE DREDGE (JavaScript Layer)
@@ -371,44 +271,49 @@ def scrape_profile_details(driver, profile_url):
 
     if exp_data:
         details["role"] = clean_scraped_text(exp_data.get("role", ""))
-        candidate = clean_scraped_text(exp_data.get("company", ""))
-        if not is_bad_company(candidate):
-            details["company"] = candidate
-        
-    # FINAL SMART FALLBACK
-    if details.get("company") and not is_bad_company(details["company"]):
-        pass  # keep company from experience
-    else:
-        h = details.get("headline", "")
-        found = False
-
-        for sep in [" at ", " @ ", "@", "|", "-", ":"]:
+        details["company"] = clean_scraped_text(exp_data.get("company", ""))
+    # FINAL SAFETY GUARD: Deep Symbol Extraction
+    if not details["company"] or details["company"].lower() in [details["full_name"].lower(), "independent", "self-employed", "freelance", "linkedin", "testing", "experience"]:
+        h = details["headline"]
+        # Try all common separators in order of reliability
+        for sep in [" at ", " @ ", "@", " : ", ":", " | ", " - "]:
             if sep in h:
                 parts = h.split(sep)
+                
+                # OPTION A: Take the part after the symbol (Standard)
+                potential = parts[-1].split('|')[0].split('-')[0].split('·')[0].strip()
+                
+                # OPTION B: If after-part is junk, take the part BEFORE the symbol (Reverse)
+                if potential.lower() in ["self-employed", "freelance", "independent", "linkedin"] and len(parts) > 1:
+                    first_part = parts[0]
+                    # Scan for keywords
+                    keywords = ['Founder', 'CEO', 'Manager', 'Owner', 'Partner', 'Lead', 'Co-Founder']
+                    for k in keywords:
+                        if k in first_part:
+                            potential = first_part.split(k)[-1].strip()
+                            break
+                    if potential.lower() in ["self-employed", "freelance", "independent", "linkedin"]:
+                        # If still no keyword found, take the whole first part but remove acronyms
+                        potential = first_part.replace("CEO", "").replace("CTO", "").replace("Founder", "").strip()
 
-                candidate = parts[-1].strip()
-
-                if not is_bad_company(candidate) and len(candidate) > 2:
-                    details["company"] = candidate
-                    found = True
+                if len(potential) > 2 and potential.lower() != details["full_name"].lower():
+                    details["company"] = potential
                     break
+        
+        # FINAL HEADLINE SPLIT: If still nothing, try the very first part of a " | " separated headline
+        if not details["company"] or details["company"].lower() in ["self-employed", "freelance"]:
+            if " | " in h:
+                potential = h.split(" | ")[0].strip()
+                if len(potential) > 2 and potential.lower() != details["full_name"].lower():
+                    details["company"] = potential
 
-                candidate = parts[0].strip()
-
-                if not is_bad_company(candidate) and len(candidate) > 2:
-                    details["company"] = candidate
-                    found = True
-                    break
-
-        if not found:
+        if not details["company"]:
             details["company"] = "Self-Employed"
-
+    
     # 4. FINAL CLEANUP & FORMATTING
     details['company'] = clean_scraped_text(details['company'])
     if details['company'].lower() == details['full_name'].lower():
         details['company'] = "Self-Employed"
-
-    print("   -> FINAL COMPANY:", details["company"])
         
     # Professional Capitalization for Role & Company
     if details['role'] and details['role'] == details['role'].lower():
@@ -439,10 +344,6 @@ def scrape_profile_details(driver, profile_url):
         else:
             driver.get(profile_url)
             time.sleep(15)
-
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-                )
             try:
                 contact_btn = driver.find_element(By.PARTIAL_LINK_TEXT, "Contact info")
                 driver.execute_script("arguments[0].click();", contact_btn)
@@ -467,10 +368,6 @@ def scrape_profile_details(driver, profile_url):
     if not ("linkedin.com/in/" in driver.current_url and "/overlay/" not in driver.current_url):
         driver.get(profile_url)
         time.sleep(12)
-
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
 
     # About (Scroll-and-Capture v14)
     try:
@@ -535,39 +432,6 @@ import hashlib
 def get_content_hash(text):
     if not text: return ""
     return hashlib.md5(text.encode('utf-8')).hexdigest()
-
-
-def is_logged_in(driver):
-    current_url = driver.current_url.lower()
-    page = driver.page_source.lower()
-
-    if "login" in current_url or "signup" in current_url:
-        return False
-
-    if "join linkedin" in page or "sign in" in page:
-        return False
-
-    return True    
-def with_retry(fn, retries=2, delay=3):
-    for i in range(retries + 1):
-        try:
-            return fn()
-        except Exception as e:
-            if i == retries:
-                raise
-            print(f"   -> retrying ({i+1})...")
-            time.sleep(delay)
-
-def relogin(driver):
-    print("🔐 Session expired. Login required...")
-
-    driver.get("https://www.linkedin.com/login")
-    input("👉 LOGIN manually once, then press ENTER...")
-
-    driver.get("https://www.linkedin.com/feed/")
-    time.sleep(5)
-
-    print("✅ Session restored and saved")
 
 def scrape_profile(driver, profile_url):
     details = scrape_profile_details(driver, profile_url)
@@ -657,40 +521,22 @@ def scrape_profile(driver, profile_url):
     
     return True
 
-
+def save_cookies(driver):
+    """Saves the current session cookies to a file."""
+    try:
+        pickle.dump(driver.get_cookies(), open("scraper/cookies.pkl", "wb"))
+        print("   -> [SUCCESS] Fresh cookies saved for future sessions.")
+    except Exception as e:
+        print(f"   -> [!] Failed to save cookies: {e}")
 
 def run_scraper():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Deploying v14 'Auto-Learning' Scraper.")
-
     from google_sheets import get_profile_urls
     urls = get_profile_urls()
-
+    
     chrome_options = Options()
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
-
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-<<<<<<< HEAD
-    chrome_options.add_argument("--remote-debugging-port=9222")
-
-    chrome_options.add_argument(r"--user-data-dir=C:\selenium-profile")
-
-    service = Service(r"C:\chromedriver\chromedriver.exe")
-
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-
-    driver.get("https://www.linkedin.com/feed/")
-    time.sleep(5)
-
-    if not is_logged_in(driver):
-        relogin(driver)
-        driver.get("https://www.linkedin.com/feed/")
-        time.sleep(5)
-=======
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
 
@@ -715,33 +561,6 @@ def run_scraper():
     finally:
         print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser automatically.")
         driver.quit()
->>>>>>> b9e809e (Fixed Tracker)
 
-    print("✅ Session ready")
-
-    print("🔍 Testing profile access...")
-
-    driver.get("https://www.linkedin.com/in/yashvi-pavagadhi-9a172b298/")
-    time.sleep(4)
-
-    try:
-        name = driver.find_element("tag name", "h1").text
-    except:
-        name = "N/A"
-
-    print("Test Name:", name)
-
-    for url in urls:
-        print(f"🔗 Processing: {url}")
-        try:
-            with_retry(lambda: scrape_profile(driver, url))
-            print(f"   -> SYNC COMPLETE: {url}")
-            time.sleep(random.randint(5, 9))
-
-        except Exception as e:
-            print("❌ ERROR:", e)
-
-    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser.")
-    driver.quit()
 if __name__ == "__main__":
     run_scraper()
