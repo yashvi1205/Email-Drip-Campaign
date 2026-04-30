@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
@@ -308,7 +308,6 @@ def get_profile_urls(sheet_name="Profiles"):
     except Exception as e:
         print(f"Error fetching profile URLs from Google Sheet '{sheet_name}': {e}")
         return []
-=======
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
@@ -813,4 +812,3 @@ def get_profile_email_map(sheet_name="Profiles"):
     except Exception as e:
         print(f"Error fetching email map from sheet: {e}")
         return {}
->>>>>>> b9e809e (Fixed Tracker)
