@@ -4,6 +4,10 @@ import os
 import json
 import subprocess
 import sys
+import logging
+from logger import setup_logging
+
+setup_logging()
 
 
 
@@ -24,6 +28,7 @@ load_dotenv()
 
 app = FastAPI(title="LinkedIn Scraper API")
 app.include_router(tracking_router, prefix="/api/tracking")
+logger = logging.getLogger(__name__)
 
 # Enable CORS for frontend integration
 app.add_middleware(

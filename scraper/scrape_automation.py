@@ -121,6 +121,11 @@ def normalize_url(url):
     if not url: return url
     return url.replace("nl.linkedin.com", "www.linkedin.com").replace("in.linkedin.com", "www.linkedin.com").replace("uk.linkedin.com", "www.linkedin.com")
 
+def safe_set(details, key, value):
+    if value and value.strip():
+        if not details.get(key) or details[key] in ["N/A", "Sign Up", "0 Notifications"]:
+            details[key] = value.strip()
+
 def scrape_profile_details(driver, profile_url):
     profile_url = normalize_url(profile_url)
     print(f"Scraping detailed info for: {profile_url}")
@@ -209,7 +214,7 @@ def scrape_profile_details(driver, profile_url):
                 if txt.lower() == details["full_name"].lower() or (details["role"] and txt.lower() == details["role"].lower()):
                     continue
                 if txt and len(txt) > 2 and txt.lower() not in ["experience", "self-employed"]:
-                    details["company"] = clean_scraped_text(txt)
+                    safe_set(details, "company", clean_scraped_text(txt))
                     print(f"   -> LAYER 1 (Right Panel) Company: {details['company']}")
                     break
         except: pass
@@ -232,7 +237,8 @@ def scrape_profile_details(driver, profile_url):
                     # Force update if company is missing, junk, or matches role
                     if not details["company"] or details["company"].lower() in ["self-employed", "independent", "freelance", "experience", details["role"].lower()]:
                         if h_company.lower() != details["role"].lower():
-                            details["company"] = h_company
+                            safe_set(details, "company", h_company)
+                            safe_set(details, "role", h_role)
                             print(f"   -> LAYER 2 (Headline Split) Company: {details['company']}")
                     break
     except Exception as e: 
@@ -270,8 +276,12 @@ def scrape_profile_details(driver, profile_url):
     """, details["full_name"])
 
     if exp_data:
-        details["role"] = clean_scraped_text(exp_data.get("role", ""))
-        details["company"] = clean_scraped_text(exp_data.get("company", ""))
+        role_candidate = clean_scraped_text(exp_data.get("role", ""))
+        company_candidate = clean_scraped_text(exp_data.get("company", ""))
+
+        safe_set(details, "role", role_candidate)
+        safe_set(details, "company", company_candidate)
+        
     # FINAL SAFETY GUARD: Deep Symbol Extraction
     if not details["company"] or details["company"].lower() in [details["full_name"].lower(), "independent", "self-employed", "freelance", "linkedin", "testing", "experience"]:
         h = details["headline"]
@@ -297,7 +307,7 @@ def scrape_profile_details(driver, profile_url):
                         potential = first_part.replace("CEO", "").replace("CTO", "").replace("Founder", "").strip()
 
                 if len(potential) > 2 and potential.lower() != details["full_name"].lower():
-                    details["company"] = potential
+                    safe_set(details, "company", potential)
                     break
         
         # FINAL HEADLINE SPLIT: If still nothing, try the very first part of a " | " separated headline
@@ -305,7 +315,7 @@ def scrape_profile_details(driver, profile_url):
             if " | " in h:
                 potential = h.split(" | ")[0].strip()
                 if len(potential) > 2 and potential.lower() != details["full_name"].lower():
-                    details["company"] = potential
+                    safe_set(details, "company", potential)
 
         if not details["company"]:
             details["company"] = "Self-Employed"
