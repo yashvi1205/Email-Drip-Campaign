@@ -1,18 +1,14 @@
 import time
 import os
-import json
 import pickle
 import sys
 import io
 import re
 import random
-import time
-import requests
+import json
+
+
 from datetime import datetime
-from selenium.webdriver.chrome.service import Service
-
-BACKEND_URL = "https://email-drip-campaign-hpo2.onrender.com"
-
 
 # FORCE UTF-8 FOR PRINTING
 if sys.stdout.encoding != 'utf-8':
@@ -22,10 +18,12 @@ if sys.stdout.encoding != 'utf-8':
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
 
 try:
     from database.save_data import save_lead, save_event, get_or_create_sequence
@@ -35,45 +33,6 @@ except ImportError:
     def save_event(**kwargs): pass
     def get_or_create_sequence(*args, **kwargs): pass
     def save_enhanced_data(**kwargs): pass
-
-
-def update_status(status, message=""):
-    try:
-        requests.post(
-            f"{BACKEND_URL}/api/update-status",
-            json={
-                "status": status,
-                "message": message
-            },
-            timeout=5
-        )
-    except Exception as e:
-        print(f"❌ Failed to update status: {e}")
-
-
-def run_scraper():
-    try:
-        print("🔥 SCRAPER STARTED")
-        update_status("running", "Scraper started")
-        print("🚀 Starting Chrome...")
-        time.sleep(2)
-        print("🔍 Scraping profiles...")
-        for i in range(3):
-            print(f"➡️ Processing profile {i+1}")
-            time.sleep(5)
-
-        print("📊 Saving data to DB...")
-
-        time.sleep(2)
-
-        print("🏁 SCRAPER COMPLETED")
-        update_status("completed", "Scraping finished successfully")
-
-    except Exception as e:
-        print(f"🔥 SCRAPER ERROR: {str(e)}")
-        update_status("failed", str(e))
-
-
 
 def get_username(url):
     return url.split("/in/")[1].split("/")[0]
@@ -125,6 +84,18 @@ def clean_scraped_text(text):
             
     return base_text.replace("… more", "").replace("see more", "").strip()
 
+def is_bad_company(text):
+    if not text:
+        return True
+
+    bad_words = [
+        "self-employed", "freelance", "independent",
+        "linkedin", "experience", "full-time", "part-time"
+    ]
+
+    t = text.lower()
+    return any(b in t for b in bad_words)
+
 def normalize_url(url):
     """Converts localized subdomains (nl., in., etc) to standard www. to avoid 404s."""
     if not url: return url
@@ -141,10 +112,10 @@ def scrape_profile_details(driver, profile_url):
     # 1. PASS 1: MAIN PROFILE PAGE (Identity & Headline)
     try:
         driver.get(profile_url)
-        WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
         
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )        
         # Specific LinkedIn Name Selector
         name_selectors = [
             "h1.text-heading-xlarge",
@@ -163,16 +134,179 @@ def scrape_profile_details(driver, profile_url):
         if not details["full_name"]:
             details["full_name"] = driver.title.split("|")[0].strip()
             
-        details["headline"] = clean_scraped_text(driver.find_element(By.XPATH, "//div[contains(@class, 'text-body-medium')]").text)
-        print(f"   -> IDENTITY SECURED: {details['full_name']}")
-    except: 
-        print("   -> [!] Failed to secure Identity on Main Page.")
+        # PASS 0: LAZY-LOAD TRIGGER
+        driver.execute_script("window.scrollTo(0, 500);")
+        time.sleep(3)
+        driver.execute_script("window.scrollTo(0, 0);")
+        time.sleep(2)
 
-    # 2. PASS 2: EXPERIENCE SUB-PAGE
+        # Bulletproof JavaScript Headline Extraction (3-Try Resilience)
+        for attempt in range(3):
+            details["headline"] = driver.execute_script(r"""
+                function findHeadline() {
+                    // Method 1: The Left Panel container
+                    let leftPanel = document.querySelector('.pv-text-details__left-panel');
+                    if (leftPanel) {
+                        let textEls = Array.from(leftPanel.querySelectorAll('div, span, p'));
+                        let candidate = textEls.find(el => el.innerText.length > 10 && !el.querySelector('h1') && !el.innerText.includes(document.title.split('|')[0].trim()));
+                        if (candidate) return candidate.innerText.trim();
+                    }
+                    
+                    // Method 2: Specific classes
+                    let specific = document.querySelector('.text-body-medium.break-words');
+                    if (specific) return specific.innerText.trim();
+                    
+                    // Method 3: Broad text search near the top
+                    let topCard = document.querySelector('main');
+                    if (topCard) {
+                        let text = topCard.innerText.split('\n').filter(t => t.length > 20 && t.length < 200)[0];
+                        if (text) return text.trim();
+                    }
+                    return "";
+                }
+                return findHeadline();
+            """)
+            
+            if details["headline"] and len(details["headline"]) > 10 and "LinkedIn" not in details["headline"]:
+                break
+            print(f"   -> [!] Headline missing or junk, scrolling to re-trigger (Attempt {attempt+1})...")
+            driver.execute_script(f"window.scrollTo(0, {200 * (attempt + 1)});")
+            time.sleep(4)
+        
+        if not details["headline"] or len(details["headline"]) < 5:
+            details["headline"] = "Professional at LinkedIn"
+        
+        # HEADER CARD COMPANY (The "Right Side" button/logo)
+        # This is often the most accurate source for the current company
+        # --- LAYER 1: HEADER CARD DETECTION ---
+        try:
+            # The right panel often has two lines: [Company] and [Education]
+            right_panel = driver.find_elements(By.CSS_SELECTOR, ".pv-text-details__right-panel li")
+            for li in right_panel:
+                txt = li.text.strip().split("\n")[0].strip()
+                # If it's education, skip it
+                if any(k in txt.lower() for k in ["university", "college", "school", "institute", "darshan"]):
+                    continue
+                # If it matches the name or role, skip it
+                if txt.lower() == details["full_name"].lower() or (details["role"] and txt.lower() == details["role"].lower()):
+                    continue
+                if txt and len(txt) > 2 and txt.lower() not in ["experience", "self-employed"]:
+                    cleaned = clean_scraped_text(txt)
+                    if not is_bad_company(cleaned):
+                        details["company"] = cleaned
+                        print(f"   -> LAYER 1 (Right Panel) Company: {details['company']}")
+                        break
+        except: pass
+
+        print(f"   -> IDENTITY SECURED: {details['full_name']}")
+
+        # --- LAYER 2: HEADLINE INTELLIGENCE (Force-Check) ---
+        h = details["headline"]
+        if h and len(h) > 5:
+            # Pattern: "Role at Company"
+            for sep in [" at ", " @ ", "@"]:
+                if sep in h.lower():
+                    # Find the last occurrence of the separator to be safe
+                    idx = h.lower().rfind(sep)
+                    h_role = h[:idx].strip().split("|")[-1].split("-")[-1].strip()
+                    h_company = h[idx+len(sep):].split("|")[0].split("-")[0].split("·")[0].strip()
+                    
+                    if not details["role"] or details["role"].lower() == "experience":
+                        details["role"] = h_role
+                    # Force update if company is missing, junk, or matches role
+                    if not details["company"] or details["company"].lower() in ["self-employed", "independent", "freelance", "experience", details["role"].lower()]:
+                        if h_company.lower() != details["role"].lower():
+                            if not is_bad_company(h_company):
+                                details["company"] = h_company
+                                print(f"   -> LAYER 2 (Headline Split) Company: {details['company']}")
+                    break
+    except Exception as e: 
+        print(f"   -> [!] Failed to secure Identity on Main Page: {e}")
+
     try:
         print("   -> Navigating to dedicated Experience Page...")
         driver.get(normalize_url(profile_url.rstrip('/') + '/details/experience/'))
         time.sleep(12)
+
+        try:
+            driver.get(profile_url + "/details/experience/")
+            time.sleep(3)
+
+            items = driver.find_elements("xpath", "//li[contains(@class,'artdeco-list__item')]")
+
+            for item in items:
+                try:
+                    text = item.text.strip()
+                    if not text:
+                        continue
+
+                    # ROLE (top line)
+                    role = item.find_element("xpath", ".//span[1]").text.strip()
+
+                    company = None
+
+                    # 🔥 Try structured company extraction
+                    spans = item.find_elements("xpath", ".//span[contains(@class,'t-14')]")
+
+                    for sp in spans:
+                        candidate = clean_scraped_text(sp.text.strip())
+
+                        if not is_bad_company(candidate) and len(candidate) > 2:
+                            company = candidate
+                            break
+
+                    # 🔥 APPLY IF CURRENT ROLE
+                    if "present" in text.lower() and company:
+                        details["company"] = company
+                        details["role"] = role
+
+                        print("   -> EXPERIENCE FIX Company:", company)
+                        print("   -> EXPERIENCE FIX Role:", role)
+                        break
+
+                except:
+                    continue
+
+            # ================= HEADLINE FALLBACK =================
+            if not details.get("company") or is_bad_company(details["company"]):
+
+                headline = details.get("headline", "")
+                company_candidate = None
+
+                # CASE 1: Founder/CEO at Company
+                match = re.search(r'(founder|co-founder|ceo|owner|director)\s+(at|@)\s+(.+)', headline, re.IGNORECASE)
+                if match:
+                    company_candidate = match.group(3).strip()
+
+                # CASE 2: Founder Company
+                if not company_candidate:
+                    match = re.search(r'(founder|co-founder|ceo|owner|director)\s+(.+)', headline, re.IGNORECASE)
+                    if match:
+                        company_candidate = match.group(2).strip()
+
+                # CASE 3: Generic split
+                if not company_candidate:
+                    for sep in [" at ", " @ ", "|", "-", ":"]:
+                        if sep in headline:
+                            parts = headline.split(sep)
+                            company_candidate = parts[-1].strip()
+                            break
+
+                # APPLY
+                if company_candidate:
+                    company_candidate = clean_scraped_text(company_candidate)
+
+                    if not is_bad_company(company_candidate) and len(company_candidate) > 2:
+                        details["company"] = company_candidate
+                        print("   -> HEADLINE FIX Company:", company_candidate)
+
+                # ================= FINAL FALLBACK =================
+            if not details.get("company") or is_bad_company(details["company"]):
+                details["company"] = "Self-Employed"
+                print("   -> FINAL FALLBACK: Self-Employed")
+
+        except Exception as e:
+            print("   -> Experience extraction failed:", e)
     except: pass
 
     # 3. RELIABLE DREDGE (JavaScript Layer)
@@ -181,7 +315,7 @@ def scrape_profile_details(driver, profile_url):
             let elements = Array.from(document.querySelectorAll('span, div, a, h3'));
             let rows = elements.map(e => e.innerText ? e.innerText.trim() : "").filter(t => t.length > 2);
             
-            let keywords = ['Founder', 'CEO', 'Manager', 'Lead', 'Engineer', 'Director', 'Owner', 'Partner', 'Developer', 'Specialist', 'Consultant'];
+            let keywords = ['Founder', 'CEO', 'Manager', 'Lead', 'Engineer', 'Director', 'Owner', 'Partner', 'Developer', 'Specialist', 'Consultant', 'Tester', 'Analyst'];
             let foundRole = rows.find(r => keywords.some(k => r.includes(k)) && !r.includes(profileName));
             if (!foundRole) return null;
             
@@ -201,24 +335,51 @@ def scrape_profile_details(driver, profile_url):
 
     if exp_data:
         details["role"] = clean_scraped_text(exp_data.get("role", ""))
-        details["company"] = clean_scraped_text(exp_data.get("company", ""))
+        candidate = clean_scraped_text(exp_data.get("company", ""))
+        if not is_bad_company(candidate):
+            details["company"] = candidate
         
-    # FINAL SAFETY GUARD: Deep Symbol Extraction
-    if not details["company"] or details["company"].lower() == details["full_name"].lower() or details["company"] == "Independent":
-        h = details["headline"]
-        # Try all common separators in order of reliability
-        for sep in [" @ ", "@", " at ", " : ", ":", " | ", " - "]:
+    # FINAL SMART FALLBACK
+    if details.get("company") and not is_bad_company(details["company"]):
+        pass  # keep company from experience
+    else:
+        h = details.get("headline", "")
+        found = False
+
+        for sep in [" at ", " @ ", "@", "|", "-", ":"]:
             if sep in h:
                 parts = h.split(sep)
-                # Take the part after the symbol, but stop if there's another separator
-                potential = parts[-1].split('|')[0].split('-')[0].split('·')[0].strip()
-                if len(potential) > 2 and potential.lower() != details["full_name"].lower():
-                    details["company"] = potential
+
+                candidate = parts[-1].strip()
+
+                if not is_bad_company(candidate) and len(candidate) > 2:
+                    details["company"] = candidate
+                    found = True
                     break
-        
-        if not details["company"]:
+
+                candidate = parts[0].strip()
+
+                if not is_bad_company(candidate) and len(candidate) > 2:
+                    details["company"] = candidate
+                    found = True
+                    break
+
+        if not found:
             details["company"] = "Self-Employed"
-    
+
+    # 4. FINAL CLEANUP & FORMATTING
+    details['company'] = clean_scraped_text(details['company'])
+    if details['company'].lower() == details['full_name'].lower():
+        details['company'] = "Self-Employed"
+
+    print("   -> FINAL COMPANY:", details["company"])
+        
+    # Professional Capitalization for Role & Company
+    if details['role'] and details['role'] == details['role'].lower():
+        details['role'] = details['role'].title()
+    if details['company'] and details['company'] == details['company'].lower():
+        details['company'] = details['company'].title()
+
     print(f"   -> SYNC READY: {details['role']} at {details['company']}")
 
     # Cleanup
@@ -228,23 +389,24 @@ def scrape_profile_details(driver, profile_url):
     # 2. ZONE B: EMAIL EXTRACTION (Bounty Hunter Dual Path)
     print("   -> Extracting Contact Info (Plus Premium Check)...")
     driver.get(profile_url.rstrip("/") + "/overlay/contact-info/")
-    
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.TAG_NAME, "body"))
-    )
+    time.sleep(15)
     
     page_source = driver.page_source
     if "Try Premium" in page_source or "Premium for free" in page_source:
         print("   -> [!] ALERT: LinkedIn is hiding this Email behind a Premium Wall.")
         details['email'] = "Premium Restricted"
     else:
-        email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', page_source)
+        email_match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.\\w+', page_source)
         if email_match:
             details['email'] = email_match.group(0)
             print(f"   -> EMAIL SECURED (Direct): {details['email']}")
         else:
             driver.get(profile_url)
             time.sleep(15)
+
+            WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
+                )
             try:
                 contact_btn = driver.find_element(By.PARTIAL_LINK_TEXT, "Contact info")
                 driver.execute_script("arguments[0].click();", contact_btn)
@@ -252,7 +414,7 @@ def scrape_profile_details(driver, profile_url):
                 if "Try Premium" in driver.page_source:
                     details['email'] = "Premium Restricted"
                 else:
-                    email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', driver.page_source)
+                    email_match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.\\w+', driver.page_source)
                     details['email'] = email_match.group(0) if email_match else "Contact Restricted"
             except:
                 details['email'] = "Contact Restricted"
@@ -260,7 +422,7 @@ def scrape_profile_details(driver, profile_url):
     # Bounty Hunter Fallback
     if details['email'] in ["Contact Restricted", "Premium Restricted"]:
         combined_text = (details['about'] or "") + " " + (details['headline'] or "")
-        bounty_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', combined_text)
+        bounty_match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.\\w+', combined_text)
         if bounty_match:
             details['email'] = bounty_match.group(0)
 
@@ -269,6 +431,10 @@ def scrape_profile_details(driver, profile_url):
     if not ("linkedin.com/in/" in driver.current_url and "/overlay/" not in driver.current_url):
         driver.get(profile_url)
         time.sleep(12)
+
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+            )
 
     # About (Scroll-and-Capture v14)
     try:
@@ -333,6 +499,39 @@ import hashlib
 def get_content_hash(text):
     if not text: return ""
     return hashlib.md5(text.encode('utf-8')).hexdigest()
+
+
+def is_logged_in(driver):
+    current_url = driver.current_url.lower()
+    page = driver.page_source.lower()
+
+    if "login" in current_url or "signup" in current_url:
+        return False
+
+    if "join linkedin" in page or "sign in" in page:
+        return False
+
+    return True    
+def with_retry(fn, retries=2, delay=3):
+    for i in range(retries + 1):
+        try:
+            return fn()
+        except Exception as e:
+            if i == retries:
+                raise
+            print(f"   -> retrying ({i+1})...")
+            time.sleep(delay)
+
+def relogin(driver):
+    print("🔐 Session expired. Login required...")
+
+    driver.get("https://www.linkedin.com/login")
+    input("👉 LOGIN manually once, then press ENTER...")
+
+    driver.get("https://www.linkedin.com/feed/")
+    time.sleep(5)
+
+    print("✅ Session restored and saved")
 
 def scrape_profile(driver, profile_url):
     details = scrape_profile_details(driver, profile_url)
@@ -413,81 +612,73 @@ def scrape_profile(driver, profile_url):
             )
         else:
             print(f"   -> [DUPLICATE] No new activity for {details['full_name']}. Skipping sheet sync.")
+            # Still log a simple scrape event so UI knows it was processed
+            save_event(lead_id, "profile_scraped", {"status": "no_new_activity"})
         db.close()
+    else:
+        # No activities found at all, but still mark as scraped
+        save_event(lead_id, "profile_scraped", {"status": "no_activity_found"})
     
     return True
 
-def save_cookies(driver):
-    """Saves the current session cookies to a file."""
-    try:
-        pickle.dump(driver.get_cookies(), open("scraper/cookies.pkl", "wb"))
-        print("   -> [SUCCESS] Fresh cookies saved for future sessions.")
-    except Exception as e:
-        print(f"   -> [!] Failed to save cookies: {e}")
+
 
 def run_scraper():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Deploying v14 'Auto-Learning' Scraper.")
+
     from google_sheets import get_profile_urls
     urls = get_profile_urls()
-    
-    chrome_options = Options()
 
-    chrome_options.add_argument("--headless=new")
+    chrome_options = Options()
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
 
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option("useAutomationExtension", False)
-
     chrome_options.add_argument("--remote-debugging-port=9222")
 
-    driver = webdriver.Chrome(service=Service(), options=chrome_options)
-    
-    
-    try:
-        driver.get("https://www.linkedin.com/login")
-        time.sleep(3)
-        
-        # Load existing cookies
-        if os.path.exists("scraper/cookies.pkl"):
-            print("   -> Loading stored session...")
-            cookies = pickle.load(open("scraper/cookies.pkl", "rb"))
-            for cookie in cookies:
-                try: driver.add_cookie(cookie)
-                except: pass
-        
+    chrome_options.add_argument(r"--user-data-dir=C:\selenium-profile")
+
+    service = Service(r"C:\chromedriver\chromedriver.exe")
+
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
+    driver.get("https://www.linkedin.com/feed/")
+    time.sleep(5)
+
+    if not is_logged_in(driver):
+        relogin(driver)
         driver.get("https://www.linkedin.com/feed/")
         time.sleep(5)
-        
-        # Check if login is needed
-        if "login" in driver.current_url or "checkpoint" in driver.current_url:
-            print("   -> [!] Login Screen detected. Attempting Auto-Bypass...")
-            
-            # Try to click the "Welcome back" card automatically
-            try:
-                welcome_card = driver.find_element(By.XPATH, "//h1[contains(., 'Welcome back')]//following::div[contains(@class, 'profile-card')]")
-                driver.execute_script("arguments[0].click();", welcome_card)
-                print("   -> [SUCCESS] Auto-clicked Welcome Back card.")
-                time.sleep(5)
-            except: pass
-            
-            if "feed" not in driver.current_url:
-                print("\n" + "="*50)
-                print("   -> [!] ACTION REQUIRED: Please log in manually THIS ONCE.")
-                print("   -> After this, I will save your session forever.")
-                print("="*50 + "\n")
-                time.sleep(45) 
-        
-        for url in urls:
-            if scrape_profile(driver, url):
-                print(f"   -> SYNC COMPLETE: {url}")
-                time.sleep(10)
-    finally:
-        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser automatically.")
-        driver.quit()
 
+    print("✅ Session ready")
+
+    print("🔍 Testing profile access...")
+
+    driver.get("https://www.linkedin.com/in/yashvi-pavagadhi-9a172b298/")
+    time.sleep(4)
+
+    try:
+        name = driver.find_element("tag name", "h1").text
+    except:
+        name = "N/A"
+
+    print("Test Name:", name)
+
+    for url in urls:
+        print(f"🔗 Processing: {url}")
+        try:
+            with_retry(lambda: scrape_profile(driver, url))
+            print(f"   -> SYNC COMPLETE: {url}")
+            time.sleep(random.randint(5, 9))
+
+        except Exception as e:
+            print("❌ ERROR:", e)
+
+    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser.")
+    driver.quit()
 if __name__ == "__main__":
     run_scraper()

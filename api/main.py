@@ -6,12 +6,15 @@ import subprocess
 import sys
 
 
+
 # Add project root to path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from google_sheets import get_last_entries, get_latest_post_for_profile, get_profile_urls, get_enhanced_profile_data
 from database.db import SessionLocal
 from database.models import Lead, Event, EmailSequence
 from api.tracking import router as tracking_router
+from database.db import get_db_conn
+
 
 
 from dotenv import load_dotenv
@@ -30,6 +33,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/test-db")
+def test_db():
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM leads;")
+    count = cur.fetchone()["count"]
+
+    cur.close()
+    conn.close()
+
+    return {"leads_count": count}
 @app.get("/api/health")
 def health_check():
     return {"status": "healthy", "version": "1.1.0", "endpoints": ["/api/dashboard/drip", "/api/profiles/raw"]}
@@ -441,18 +456,6 @@ def trigger_scrape():
         "status": "started",
         "message": "Scraper running in background"
     }
-
-
-def trigger_scrape():
-    import subprocess, sys
-
-    subprocess.Popen([sys.executable, SCRAPER_SCRIPT])
-
-    return {
-        "status": "started",
-        "message": "Scraper running in background"
-    }
-
 
 SCRAPER_STATUS = {
     "status": "idle",
