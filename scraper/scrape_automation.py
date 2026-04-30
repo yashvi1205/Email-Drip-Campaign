@@ -48,6 +48,42 @@ def parse_linkedin_time(time_str):
     if 'y' in ts: return int(ts.split('y')[0].strip()) * 525600
     return 999
 
+
+def ensure_logged_in(driver):
+    driver.get("https://www.linkedin.com/feed/")
+    time.sleep(5)
+
+    if "login" in driver.current_url or "checkpoint" in driver.current_url:
+        print("❌ Session expired. Please login manually.")
+
+        input("👉 Login fully, wait for feed, THEN press ENTER...")
+
+        driver.get("https://www.linkedin.com/feed/")
+        time.sleep(5)
+
+    print("✅ Session active")
+
+
+def is_valid_profile_page(driver):
+    if "login" in driver.current_url:
+        return False
+
+    if "Join LinkedIn" in driver.page_source:
+        return False
+
+    return True
+
+
+def safe_get(driver, url):
+    driver.get(url)
+    time.sleep(5)
+
+    if "login" in driver.current_url:
+        print("⚠️ Session lost. Re-login required.")
+        ensure_logged_in(driver)
+        driver.get(url)
+        time.sleep(5)
+
 def get_post_data(element):
     try:
         text = element.text.strip()
@@ -636,6 +672,7 @@ def run_scraper():
     chrome_options.add_argument("--window-size=1920,1080")
 
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+<<<<<<< HEAD
     chrome_options.add_argument("--remote-debugging-port=9222")
 
     chrome_options.add_argument(r"--user-data-dir=C:\selenium-profile")
@@ -653,6 +690,32 @@ def run_scraper():
         relogin(driver)
         driver.get("https://www.linkedin.com/feed/")
         time.sleep(5)
+=======
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+
+    chrome_options.add_argument(r"--user-data-dir=C:\selenium-profile")
+    chrome_options.add_argument("--profile-directory=Default")
+    
+    driver = webdriver.Chrome(options=chrome_options)
+    
+    try:
+        driver.get("https://www.linkedin.com/feed/")
+        time.sleep(5)
+
+        ensure_logged_in(driver)
+
+        save_cookies(driver)
+
+        for url in urls:
+            if scrape_profile(driver, url):
+                print(f"   -> SYNC COMPLETE: {url}")
+                time.sleep(10)
+
+    finally:
+        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser automatically.")
+        driver.quit()
+>>>>>>> b9e809e (Fixed Tracker)
 
     print("✅ Session ready")
 
