@@ -157,6 +157,7 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
             return True
 
 
+@router.get("/track/{tracking_id}")
 @router.get("/t/o/{tracking_id}")
 @router.get("/open/{tracking_id}")
 @router.get("/img/logo_{tracking_id}.png")
