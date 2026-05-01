@@ -563,27 +563,40 @@ def sync_leads_status(leads_data):
         urls = profile_sheet.col_values(url_col_idx)
         
         updates = []
+
         for i, url in enumerate(urls):
-            if i == 0: continue # Skip header
+            if i == 0:
+                continue  # Skip header
+
             clean_url = normalize_url(url)
-            if clean_url in status_map:
+
+            # 🔥 FLEXIBLE MATCHING (VERY IMPORTANT)
+            matched_key = None
+            for key in status_map:
+                if key in clean_url or clean_url in key:
+                    matched_key = key
+                    break
+
+            if matched_key:
                 print("Matching:", clean_url)
+
                 row_num = i + 1
-                lead_data = status_map[clean_url]
-                
-                # Update Status
+                lead_data = status_map[matched_key]
+
+                # ✅ STATUS (UPPERCASE FIX)
                 updates.append({
                     'range': f'{gspread.utils.rowcol_to_a1(row_num, status_col_idx)}',
-                    'values': [[lead_data['status']]]
+                    'values': [[str(lead_data.get('status', '')).strip().upper()]]
                 })
-                
-                # Update Open Count
+
+                # ✅ OPEN COUNT
                 if 'open_count' in lead_data:
                     updates.append({
                         'range': f'{gspread.utils.rowcol_to_a1(row_num, open_count_col_idx)}',
                         'values': [[lead_data['open_count']]]
                     })
 
+                # ✅ TIMESTAMP (SAFE COLUMN)
                 updates.append({
                     'range': f'{gspread.utils.rowcol_to_a1(row_num, open_count_col_idx + 1)}',
                     'values': [[datetime.now().strftime("%Y-%m-%d %H:%M:%S")]]

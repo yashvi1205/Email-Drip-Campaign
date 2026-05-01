@@ -233,8 +233,14 @@ def get_profiles():
         if lead:
             p["name"] = lead.name or p["name"]
             p["email"] = lead.email or p.get("email")
-            p["company"] = lead.company or p.get("company")
-            p["role"] = lead.role or p.get("role")
+            p["company"] = (
+                p.get("company") if p.get("company") and p.get("company").lower() not in ["self-employed", ""] 
+                else lead.company
+            )
+            p["role"] = (
+                p.get("role") if p.get("role") and p.get("role").lower() not in ["experience", ""] 
+                else lead.role
+            )
             p["headline"] = lead.headline or p.get("headline")
             p["about"] = lead.about or p.get("about")
             p["work_description"] = lead.work_description or p.get("work_description")

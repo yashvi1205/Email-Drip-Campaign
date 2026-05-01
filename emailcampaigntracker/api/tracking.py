@@ -91,6 +91,16 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
                     print("⚠️ Duplicate open ignored")
                     return True
 
+            # ✅ HANDLE SENT EVENT (ADD THIS)
+            if event_type == "sent":
+                print(f"DEBUG: Marking email as SENT for tracking_id: {tracking_id}")
+
+                # update sent_at in sequence
+                cur.execute(
+                    "UPDATE email_sequences SET sent_at = %s WHERE id = %s",
+        (now, seq_id)
+    )
+
             # ✅ 4. INSERT EVENT (ONLY ONCE)
             cur.execute(
                 "INSERT INTO events (lead_id, event_type, timestamp, metadata) VALUES (%s, %s, %s, %s)",
@@ -112,6 +122,9 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
 
             # ✅ 6. UPDATE LEAD STATUS
             new_status = EVENT_TO_STATUS.get(event_type)
+            if event_type == "sent":
+                new_status = "SENT"
+
             if new_status:
                 cur.execute(
                     "UPDATE leads SET status = %s WHERE id = %s",
@@ -132,8 +145,9 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
 
             conn.commit()
 
-            # ✅ 9. ASYNC SHEET SYNC
-            if linkedin_url and new_status:
+            if linkedin_url:
+                print(f"DEBUG: Syncing sheet → {linkedin_url} | Status: {new_status} | Opens: {open_count}")
+
                 threading.Thread(
                     target=sync_sheet_status_async,
                     args=(linkedin_url, new_status, open_count),
