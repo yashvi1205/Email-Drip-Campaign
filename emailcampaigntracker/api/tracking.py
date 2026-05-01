@@ -4,6 +4,10 @@ from database.db import get_db_conn
 import datetime
 import json
 import threading
+import os
+import httpx
+import asyncio
+from google_sheets import sync_sheet_status_async
 
 router = APIRouter(tags=["Tracking"])
 
@@ -181,10 +185,9 @@ async def track_open(tracking_id: str, request: Request):
     # Log the event
     log_event(tracking_id, "open", request)
     
-    # FORWARDING: If we are on Render, send a hit to the Local Backend
-    import os, httpx, asyncio
+    # FORWARDING: Only forward if we are on Render
     local_url = os.getenv("LOCAL_BACKEND_URL")
-    if local_url:
+    if os.getenv("RENDER") and local_url:
         async def forward():
             try:
                 async with httpx.AsyncClient() as client:
@@ -213,10 +216,9 @@ async def track_click(tracking_id: str, url: str, request: Request):
     """Logs a 'click' event and redirects the user."""
     log_event(tracking_id, "click", request, {"target_url": url})
     
-    # FORWARDING to local
-    import os, httpx, asyncio
+    # FORWARDING: Only forward if we are on Render
     local_url = os.getenv("LOCAL_BACKEND_URL")
-    if local_url:
+    if os.getenv("RENDER") and local_url:
         async def forward():
             try:
                 async with httpx.AsyncClient() as client:
@@ -231,10 +233,9 @@ async def track_reply(tracking_id: str, request: Request):
     """Logs a 'reply' event (can be triggered by webhook or manual action)."""
     log_event(tracking_id, "reply", request)
     
-    # FORWARDING to local
-    import os, httpx, asyncio
+    # FORWARDING: Only forward if we are on Render
     local_url = os.getenv("LOCAL_BACKEND_URL")
-    if local_url:
+    if os.getenv("RENDER") and local_url:
         async def forward():
             try:
                 async with httpx.AsyncClient() as client:
