@@ -336,7 +336,7 @@ def scrape_profile_details(driver, profile_url):
 
         # FINAL SAFETY GUARD: Deep Symbol Extraction
         invalid_values = ["self-employed", "independent", "freelance", "linkedin", "experience"]
-        
+        potential = ""
         if not details["company"] or details["company"].lower() in invalid_values:
             h = details["headline"]
             for sep in [" at ", " @ ", "@", " : ", ":", " | ", " - "]:
@@ -359,7 +359,7 @@ def scrape_profile_details(driver, profile_url):
                             # If still no keyword found, take the whole first part but remove acronyms
                             potential = first_part.replace("CEO", "").replace("CTO", "").replace("Founder", "").strip()
 
-                if len(potential) > 2 and potential.lower() != details["full_name"].lower():
+                if potential and len(potential) > 2 and potential.lower() != details.get("full_name", "").lower():
                     details["company"] = potential
                     break
         
