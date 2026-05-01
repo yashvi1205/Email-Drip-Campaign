@@ -134,6 +134,77 @@ def sync_leads_status(leads_data):
         print(f"Sync error: {e}")
         return False
 
+def get_enhanced_profile_data(profile_url):
+    """Retrieve full enriched details from the 'LinkedIn_Enhanced_Data' sheet."""
+    if not enhanced_sheet: return None
+    try:
+        all_records = enhanced_sheet.get_all_records()
+        if not all_records: return None
+        for record in reversed(all_records):
+            norm = {str(k).lower().strip().replace(' ', ''): v for k, v in record.items()}
+            url_in_sheet = norm.get("profileurl") or norm.get("url")
+            if normalize_url(url_in_sheet) == normalize_url(profile_url):
+                return {
+                    "role": norm.get("role") or "",
+                    "headline": norm.get("headline") or "",
+                    "company": norm.get("company") or "",
+                    "about": norm.get("about") or "",
+                    "work_description": norm.get("workdescription") or "",
+                    "email": norm.get("email") or ""
+                }
+        return None
+    except: return None
+
+def get_latest_post_for_profile(profile_url):
+    if not sheet: return None
+    try:
+        all_records = sheet.get_all_records()
+        for record in reversed(all_records):
+            norm = {str(k).lower().strip(): v for k, v in record.items()}
+            url_in_sheet = norm.get("profile (url)") or norm.get("profile url") or norm.get("profile")
+            if normalize_url(url_in_sheet) == normalize_url(profile_url):
+                return {
+                    "text": norm.get("text") or "No text",
+                    "likes": norm.get("likes") or "0",
+                    "comments": norm.get("comments") or "0",
+                    "reposts": norm.get("reposts") or "0",
+                    "photo_url": norm.get("profile photo") or norm.get("photo url") or "",
+                    "post_time": norm.get("post timeline") or "Recently",
+                    "timestamp": norm.get("scraped time") or norm.get("timestamp") or "Recently"
+                }
+        return None
+    except: return None
+
+def get_last_entries(count=5):
+    if not sheet: return []
+    try:
+        all_rows = sheet.get_all_values()
+        if not all_rows or len(all_rows) < 2: return []
+        headers = [str(h).lower().strip().replace(' ', '') for h in all_rows[0]]
+        col_map = {h: i for i, h in enumerate(headers)}
+        raw_rows = all_rows[1:][-count:]
+        
+        results = []
+        for row in reversed(raw_rows):
+            def get_val(key_list):
+                for k in key_list:
+                    if k in col_map and col_map[k] < len(row): return row[col_map[k]]
+                return ""
+            results.append({
+                "url": get_val(["profile(url)", "profileurl", "profile"]),
+                "username": get_val(["username", "user"]),
+                "text": get_val(["text", "activity"]),
+                "likes": get_val(["likes"]) or 0,
+                "comments": get_val(["comments"]) or 0,
+                "reposts": get_val(["reposts"]) or 0,
+                "post_time": get_val(["posttimeline", "posttime"]),
+                "photo_url": get_val(["profilephoto", "photourl"]),
+                "timestamp": get_val(["scrapedtime", "timestamp"]) or "Recently",
+                "is_repost": str(get_val(["isrepost"])).upper() == "TRUE"
+            })
+        return results
+    except: return []
+
 def sync_sheet_status_async(linkedin_url, status, open_count=0):
     """Async wrapper to update a single lead's status in the sheet."""
     lead_data = {
