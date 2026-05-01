@@ -7,6 +7,8 @@ import re
 import random
 import json
 from datetime import datetime
+import requests
+
 
 # FORCE UTF-8 FOR PRINTING
 if sys.stdout.encoding != 'utf-8':
@@ -20,6 +22,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from deep_translator import GoogleTranslator
 
 try:
     from database.save_data import save_lead, save_event, get_or_create_sequence
@@ -30,6 +33,33 @@ except ImportError:
     def get_or_create_sequence(*args, **kwargs): pass
     def save_enhanced_data(**kwargs): pass
 
+webhook_url = None
+
+for arg in sys.argv:
+    if "webhook_url=" in arg:
+        webhook_url = arg.split("webhook_url=")[-1]
+
+def is_english(text):
+    try:
+        return text.isascii()
+    except:
+        return False
+
+def translate_to_english(text):
+    try:
+        if not text or len(text.strip()) < 3:
+            return text
+        return GoogleTranslator(source='auto', target='en').translate(text)
+    except:
+        return text
+
+def safe_translate(text):
+    if not text:
+        return text
+    if is_english(text):
+        return text
+    return translate_to_english(text)
+    
 def get_username(url):
     return url.split("/in/")[1].split("/")[0]
 
@@ -230,10 +260,32 @@ def scrape_profile_details(driver, profile_url):
                     if not details["role"] or details["role"].lower() == "experience":
                         details["role"] = h_role
                     # Force update if company is missing, junk, or matches role
-                    if not details["company"] or details["company"].lower() in ["self-employed", "independent", "freelance", "experience", details["role"].lower()]:
-                        if h_company.lower() != details["role"].lower():
-                            details["company"] = h_company
-                            print(f"   -> LAYER 2 (Headline Split) Company: {details['company']}")
+                    invalid_values = ["self-employed", "independent", "freelance", "experience"]
+                    if not details["company"] or details["company"].lower() in invalid_values:
+
+                            h = details["headline"]
+
+                            # Handle "Founder X & Y at Self-Employed"
+                            if " at " in h.lower():
+                                parts = h.split(" at ")
+                                left = parts[0]
+
+                                # STEP 1: Remove role keywords
+                                cleaned = re.sub(r"\b(Founder|CEO|Co-Founder|Owner|Director|Lead)\b", "", left, flags=re.IGNORECASE)
+                                cleaned = cleaned.strip(" -|")
+                                
+                                # STEP 2: Remove extra symbols/spaces
+                                cleaned = cleaned.strip()
+
+                                # STEP 3: Extract multiple companies cleanly
+                                companies = re.split(r"&|,| and ", cleaned)
+                                companies = [c.strip() for c in companies if len(c.strip()) > 2]
+
+                                # STEP 4: Assign final company
+                                if companies and (
+                                    not details["company"] or details["company"].lower() in invalid_values
+                                ):
+                                    details["company"] = ", ".join(companies)
                     break
     except Exception as e: 
         print(f"   -> [!] Failed to secure Identity on Main Page: {e}")
@@ -270,12 +322,25 @@ def scrape_profile_details(driver, profile_url):
     """, details["full_name"])
 
     if exp_data:
-        details["role"] = clean_scraped_text(exp_data.get("role", ""))
-        details["company"] = clean_scraped_text(exp_data.get("company", ""))
+        extracted_role = clean_scraped_text(exp_data.get("role", ""))
+        extracted_company = clean_scraped_text(exp_data.get("company", ""))
+
+        if extracted_role:
+            details["role"] = extracted_role
+
+        invalid_values = ["self-employed", "independent", "freelance", "experience", "linkedin"]
+
+        if extracted_company and (
+            not details["company"] or details["company"].lower() in invalid_values
+        ):
+            if extracted_company.lower() not in invalid_values:
+                details["company"] = extracted_company
+
     # FINAL SAFETY GUARD: Deep Symbol Extraction
-    if not details["company"] or details["company"].lower() in [details["full_name"].lower(), "independent", "self-employed", "freelance", "linkedin", "testing", "experience"]:
+    invalid_values = ["self-employed", "independent", "freelance", "linkedin", "experience"]
+    
+    if not details["company"] or details["company"].lower() in invalid_values:
         h = details["headline"]
-        # Try all common separators in order of reliability
         for sep in [" at ", " @ ", "@", " : ", ":", " | ", " - "]:
             if sep in h:
                 parts = h.split(sep)
@@ -307,7 +372,7 @@ def scrape_profile_details(driver, profile_url):
                 if len(potential) > 2 and potential.lower() != details["full_name"].lower():
                     details["company"] = potential
 
-        if not details["company"]:
+        if not details["company"] or len(details["company"]) < 2:
             details["company"] = "Self-Employed"
     
     # 4. FINAL CLEANUP & FORMATTING
@@ -435,12 +500,22 @@ def get_content_hash(text):
 
 def scrape_profile(driver, profile_url):
     details = scrape_profile_details(driver, profile_url)
-    if not details["full_name"] or "LinkedIn" in details["full_name"]:
+
+    # 🚨 Safety check
+    if not details or not details.get("full_name") or "LinkedIn" in details.get("full_name", ""):
         return False
 
+    # 🌍 TRANSLATE IMPORTANT FIELDS BEFORE SAVING
+    details["headline"] = safe_translate(details.get("headline"))
+    details["about"] = safe_translate(details.get("about"))
+    details["work_description"] = safe_translate(details.get("work_description"))
+    details["company"] = safe_translate(details.get("company"))
+    details["role"] = safe_translate(details.get("role"))
+
+    # ✅ Save lead AFTER cleaning/translation
     lead_id = save_lead(
         linkedin_url=profile_url,
-        name=details["full_name"],
+        name=details.get("full_name"),
         email=details.get("email", ""),
         company=details.get("company", ""),
         role=details.get("role") or details.get("headline", ""),
@@ -451,75 +526,91 @@ def scrape_profile(driver, profile_url):
 
     base_url = profile_url.rstrip("/")
     all_activities = []
+
     all_activities.extend(scrape_activity_from_tab(driver, f"{base_url}/recent-activity/shares/", "Post"))
     all_activities.extend(scrape_activity_from_tab(driver, f"{base_url}/recent-activity/comments/", "Comment"))
     all_activities.extend(scrape_activity_from_tab(driver, f"{base_url}/recent-activity/reactions/", "Like"))
 
-    # Sort by time score (lowest score = most recent)
+    # ✅ Sort activities
     all_activities.sort(key=lambda x: x.get("sort_score", 999999))
-    
+
     activity_list = []
     latest_item = all_activities[0] if all_activities else None
-    for act in all_activities:
-        pref = "Posted" if act["interaction_type"] == "Post" else "Commented" if act["interaction_type"] == "Comment" else "Liked"
-        activity_list.append(f"{pref}: {act['text'][:50]} ({act['post_time']})")
 
-    # DEDUPLICATION LOGIC
-    is_new_activity = False
+    for act in all_activities:
+        pref = (
+            "Posted" if act["interaction_type"] == "Post"
+            else "Commented" if act["interaction_type"] == "Comment"
+            else "Liked"
+        )
+        activity_list.append(f"{pref}: {act.get('text','')[:50]} ({act.get('post_time','')})")
+
+    # 🔁 DEDUPLICATION LOGIC
     if latest_item:
         current_content = latest_item.get("text", "")
         current_hash = get_content_hash(current_content)
-        
-        # Check database for last processed interaction
+
         from database.db import SessionLocal
         from database.models import Event
+
         db = SessionLocal()
+
         last_event = db.query(Event).filter(
             Event.lead_id == lead_id,
             Event.event_type == "interaction_summary"
         ).order_by(Event.timestamp.desc()).first()
-        
+
         last_hash = ""
-        if last_event and "content_hash" in last_event.additional_data:
+        if last_event and last_event.additional_data and "content_hash" in last_event.additional_data:
             last_hash = last_event.additional_data["content_hash"]
-        
+
         if current_hash != last_hash:
-            is_new_activity = True
             print(f"   -> [NEW ACTIVITY DETECTED] for {details['full_name']}")
-            
-            # Log the new event to database
+
             save_event(lead_id, "interaction_summary", {
                 "content_hash": current_hash,
                 "recent_activity": activity_list,
                 "latest_text": current_content[:200],
-                "has_new_activity": True # Flag for n8n/UI
+                "has_new_activity": True
             })
-            
-            # Sync to Google Sheets ONLY if it's new
+
+            # ✅ Save to Google Sheets
             save_enhanced_data(
-                full_name=details["full_name"],
+                full_name=details.get("full_name"),
                 profile_url=profile_url,
-                headline=details["headline"],
-                company=details["company"],
-                about=details["about"],
-                email=details["email"],
-                interaction_type=latest_item["interaction_type"],
-                content=latest_item["text"],
+                headline=details.get("headline"),
+                company=details.get("company"),
+                about=details.get("about"),
+                email=details.get("email"),
+                interaction_type=latest_item.get("interaction_type"),
+                content=latest_item.get("text"),
                 interaction_date=time.strftime("%Y-%m-%d"),
                 role=details.get("role", ""),
                 work_description=details.get("work_description", ""),
                 recent_activity="\n".join(activity_list)
             )
+
         else:
-            print(f"   -> [DUPLICATE] No new activity for {details['full_name']}. Skipping sheet sync.")
-            # Still log a simple scrape event so UI knows it was processed
+            print(f"   -> [DUPLICATE] No new activity for {details['full_name']}")
             save_event(lead_id, "profile_scraped", {"status": "no_new_activity"})
+
         db.close()
+
     else:
-        # No activities found at all, but still mark as scraped
         save_event(lead_id, "profile_scraped", {"status": "no_activity_found"})
-    
-    return True
+
+    # ✅ FINAL RETURN (FIXED SYNTAX)
+    return {
+        "name": details.get("full_name"),
+        "headline": details.get("headline"),
+        "company": details.get("company"),
+        "role": details.get("role"),
+        "about": details.get("about"),
+        "work_description": details.get("work_description"),
+        "email": details.get("email"),
+        "url": profile_url
+    }
+
 
 def save_cookies(driver):
     """Saves the current session cookies to a file."""
@@ -533,6 +624,7 @@ def run_scraper():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Deploying v14 'Auto-Learning' Scraper.")
     from google_sheets import get_profile_urls
     urls = get_profile_urls()
+    all_results = []
     
     chrome_options = Options()
     chrome_options.add_argument("--window-size=1920,1080")
@@ -542,9 +634,10 @@ def run_scraper():
 
     chrome_options.add_argument(r"--user-data-dir=C:\selenium-profile")
     chrome_options.add_argument("--profile-directory=Default")
+    chrome_options.add_argument("--lang=en-US")
+
     
     driver = webdriver.Chrome(options=chrome_options)
-    
     try:
         driver.get("https://www.linkedin.com/feed/")
         time.sleep(5)
@@ -554,12 +647,25 @@ def run_scraper():
         save_cookies(driver)
 
         for url in urls:
-            if scrape_profile(driver, url):
+            result = scrape_profile(driver, url)
+            if result:
+                all_results.append(result)
                 print(f"   -> SYNC COMPLETE: {url}")
-                time.sleep(10)
+            time.sleep(10)
 
     finally:
         print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser automatically.")
+
+        if webhook_url and all_results:
+            try:
+                print(f"🚀 Sending {len(all_results)} profiles to webhook...")
+                response = requests.post(webhook_url, json={"data": all_results})
+                print(f"✅ Webhook response: {response.status_code}")
+            except Exception as e:
+                print(f"❌ Webhook failed: {e}")
+        else:
+            print("⚠️ No webhook URL or no data to send")
+        
         driver.quit()
 
 if __name__ == "__main__":

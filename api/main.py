@@ -9,7 +9,13 @@ import sys
 
 # Add project root to path for imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from google_sheets import get_last_entries, get_latest_post_for_profile, get_profile_urls, get_enhanced_profile_data
+from google_sheets import (
+    get_last_entries,
+    get_latest_post_for_profile,
+    get_profile_urls,
+    get_enhanced_profile_data,
+    sync_leads_status 
+)
 from database.db import SessionLocal
 from database.models import Lead, Event, EmailSequence
 from api.tracking import router as tracking_router
@@ -443,20 +449,28 @@ def get_scraper_status():
         return {"status": "error", "error": str(e)}
 
 @app.post("/api/scrape")
-def trigger_scrape():
+def trigger_scrape(webhook_url: str):
     import subprocess, sys
     global SCRAPER_STATUS
 
     SCRAPER_STATUS["status"] = "running"
     SCRAPER_STATUS["message"] = "Scraper started"
 
-    subprocess.Popen([sys.executable, SCRAPER_SCRIPT])
+    try:
+        print(f"🚀 Received webhook URL: {webhook_url}")
+        subprocess.Popen([
+            sys.executable,
+            SCRAPER_SCRIPT,
+            f"webhook_url={webhook_url}"
+        ])
 
-    return {
-        "status": "started",
-        "message": "Scraper running in background"
-    }
+        return {
+            "status": "started",
+            "webhook_url": webhook_url
+        }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 SCRAPER_STATUS = {
     "status": "idle",
@@ -472,6 +486,43 @@ def update_status(data: dict):
 @app.get("/api/scrape/status")
 def get_status():
     return SCRAPER_STATUS
+
+@app.post("/api/sync-status")
+def sync_status():
+    db = SessionLocal()
+
+    try:
+        leads = db.query(Lead).all()
+
+        leads_data = []
+
+        for lead in leads:
+            open_count = db.query(Event).filter(
+                Event.lead_id == lead.id,
+                Event.event_type == "open"
+            ).count()
+
+            leads_data.append({
+                "linkedin_url": lead.linkedin_url,
+                "status": lead.status,
+                "open_count": open_count
+            })
+
+        print(f"🔄 Syncing {len(leads_data)} leads to Google Sheet...")
+
+        success = sync_leads_status(leads_data)
+
+        return {
+            "success": success,
+            "total_synced": len(leads_data)
+        }
+
+    except Exception as e:
+        print("❌ Sync failed:", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        db.close()
 
         
 if __name__ == "__main__":
