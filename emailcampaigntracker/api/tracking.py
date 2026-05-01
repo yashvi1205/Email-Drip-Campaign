@@ -217,6 +217,7 @@ async def track_delete(tracking_id: str, request: Request):
     return {"status": "error", "message": "Tracking ID not found"}
 
 @router.post("/sent/{tracking_id}")
+@router.get("/sent/{tracking_id}")
 async def track_sent(tracking_id: str, step: int = 1):
     """Logs each time an email is sent (initial or follow-up)."""
     # Custom metadata to track which step in the drip it was
