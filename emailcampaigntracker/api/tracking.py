@@ -86,15 +86,6 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
             if additional_metadata:
                 meta.update(additional_metadata)
 
-            # 🚨 3. PREVENT DUPLICATE OPENS (BEFORE INSERT)
-            if event_type == "open":
-                cur.execute(
-                    "SELECT 1 FROM events WHERE lead_id = %s AND event_type = 'open' LIMIT 1",
-                    (lead_id,)
-                )
-                if cur.fetchone():
-                    print("⚠️ Duplicate open ignored")
-                    return True
 
             # ✅ HANDLE SENT EVENT (ADD THIS)
             if event_type == "sent":
