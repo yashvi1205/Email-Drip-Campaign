@@ -69,7 +69,8 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
                 print(f"DEBUG: Tracking ID {tracking_id} NOT FOUND in database.")
                 return False
             
-            seq_id, lead_id = res
+            seq_id = res['id']
+            lead_id = res['lead_id']
             now = datetime.datetime.now()
             
             # 2. Build metadata
@@ -134,14 +135,14 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
             # ✅ 7. GET LINKEDIN URL
             cur.execute("SELECT linkedin_url FROM leads WHERE id = %s", (lead_id,))
             url_res = cur.fetchone()
-            linkedin_url = url_res[0] if url_res else None
+            linkedin_url = url_res['linkedin_url'] if url_res else None
 
             # ✅ 8. COUNT OPENS
             cur.execute(
-                "SELECT COUNT(*) FROM events WHERE lead_id = %s AND event_type = 'open'",
+                "SELECT COUNT(*) as count FROM events WHERE lead_id = %s AND event_type = 'open'",
                 (lead_id,)
             )
-            open_count = cur.fetchone()[0]
+            open_count = cur.fetchone()['count']
 
             conn.commit()
 
