@@ -216,14 +216,37 @@ async def track_open(tracking_id: str, request: Request):
 async def track_click(tracking_id: str, url: str, request: Request):
     """Logs a 'click' event and redirects the user."""
     log_event(tracking_id, "click", request, {"target_url": url})
+    
+    # FORWARDING to local
+    import os, httpx, asyncio
+    local_url = os.getenv("LOCAL_BACKEND_URL")
+    if local_url:
+        async def forward():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.get(f"{local_url}/api/tracking/click/{tracking_id}?url={url}", timeout=1.0)
+            except: pass
+        asyncio.create_task(forward())
+        
     return RedirectResponse(url=url)
 
 @router.post("/reply/{tracking_id}")
 async def track_reply(tracking_id: str, request: Request):
     """Logs a 'reply' event (can be triggered by webhook or manual action)."""
-    if log_event(tracking_id, "reply", request):
-        return {"status": "success", "message": "Reply tracked"}
-    return {"status": "error", "message": "Tracking ID not found"}
+    log_event(tracking_id, "reply", request)
+    
+    # FORWARDING to local
+    import os, httpx, asyncio
+    local_url = os.getenv("LOCAL_BACKEND_URL")
+    if local_url:
+        async def forward():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(f"{local_url}/api/tracking/reply/{tracking_id}", timeout=1.0)
+            except: pass
+        asyncio.create_task(forward())
+
+    return {"status": "success", "message": "Reply tracked"}
 
 @router.post("/delete/{tracking_id}")
 async def track_delete(tracking_id: str, request: Request):
