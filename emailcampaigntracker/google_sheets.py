@@ -464,8 +464,12 @@ def save_enhanced_data(full_name, profile_url, headline, company, about, email, 
         clean_url = normalize_url(profile_url)
         
         for i, url in enumerate(all_urls):
-            if i == 0: continue # Skip header
-            if normalize_url(url) == clean_url:
+            if i == 0:
+                continue
+
+            clean_sheet_url = normalize_url(url)
+
+            if clean_sheet_url == clean_url:
                 existing_row_idx = i + 1
                 break
         
@@ -529,9 +533,16 @@ def sync_leads_status(leads_data):
         open_count_col_idx = -1
         
         for i, h in enumerate(headers):
-            if "email status" in h: status_col_idx = i + 1
-            if "url" in h: url_col_idx = i + 1
-            if "open" in h and "count" in h: open_count_col_idx = i + 1
+            h_clean = h.strip().lower()
+
+            if h_clean == "email status":
+                status_col_idx = i + 1
+
+            elif h_clean == "profile url":
+                url_col_idx = i + 1
+
+            elif h_clean == "open count":
+                open_count_col_idx = i + 1
         
         # If Open Count column doesn't exist, create it at the end
         if open_count_col_idx == -1:
@@ -540,7 +551,8 @@ def sync_leads_status(leads_data):
             print(f"   -> Added 'Open Count' column to Profiles sheet at column {open_count_col_idx}")
 
         if status_col_idx == -1:
-            print("ERROR: Could not find a column containing 'status' in headers.")
+            print("❌ 'Email Status' column NOT found in sheet")
+            print("Headers found:", headers)
             return False
             
         if url_col_idx == -1: 
@@ -571,6 +583,11 @@ def sync_leads_status(leads_data):
                         'range': f'{gspread.utils.rowcol_to_a1(row_num, open_count_col_idx)}',
                         'values': [[lead_data['open_count']]]
                     })
+
+                updates.append({
+                    'range': f'{gspread.utils.rowcol_to_a1(row_num, open_count_col_idx + 1)}',
+                    'values': [[datetime.now().strftime("%Y-%m-%d %H:%M:%S")]]
+                })
         
         if updates:
             profile_sheet.batch_update(updates)
