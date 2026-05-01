@@ -178,25 +178,20 @@ async def track_open(tracking_id: str, request: Request):
         print(">>> GMAIL PROXY DETECTED! <<<")
     print("="*50 + "\n")
     
-    if not is_gmail:
-        # 1. Log to the database attached to this instance
-        log_event(tracking_id, "open", request)
-        
-        # 2. FORWARDING: If we are on Render, send a hit to the Local Backend
-        import os
-        import httpx
-        import asyncio
-        local_url = os.getenv("LOCAL_BACKEND_URL")
-        if local_url:
-            async def forward():
-                try:
-                    async with httpx.AsyncClient() as client:
-                        await client.get(f"{local_url}/api/tracking/open/{tracking_id}", timeout=1.0)
-                except:
-                    pass
-            asyncio.create_task(forward())
-    else:
-        print("⚠️ Skipping Gmail auto-open")    
+    # Log the event
+    log_event(tracking_id, "open", request)
+    
+    # FORWARDING: If we are on Render, send a hit to the Local Backend
+    import os, httpx, asyncio
+    local_url = os.getenv("LOCAL_BACKEND_URL")
+    if local_url:
+        async def forward():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.get(f"{local_url}/api/tracking/open/{tracking_id}", timeout=1.0)
+            except: pass
+        asyncio.create_task(forward())
+
     # Ultra-Hardened Headers for Gmail Proxy
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0",
