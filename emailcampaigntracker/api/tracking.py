@@ -192,7 +192,8 @@ async def track_open(tracking_id: str, request: Request):
         "Pragma": "no-cache",
         "Expires": "0",
         "ngrok-skip-browser-warning": "1",
-        "X-Content-Type-Options": "nosniff"
+        "X-Content-Type-Options": "nosniff",
+        "Content-Disposition": "inline; filename=logo.png"
     }
 
     if is_gmail:
