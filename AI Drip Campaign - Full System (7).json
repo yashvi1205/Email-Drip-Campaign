@@ -1,0 +1,940 @@
+{
+  "name": "AI Drip Campaign - Full System",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "2709acd1-b921-439b-806f-1f379d734780",
+      "name": "Phase1 Cron (Every 10 Min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1744,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8001/api/scrape?webhook_url=http://localhost:5678/webhook/3aeb822a-2673-401f-9882-ff3dfe88db65",
+        "options": {}
+      },
+      "id": "3225d898-566a-4c74-8e8e-43afca4a427d",
+      "name": "Scrape LinkedIn Profiles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1520,
+        0
+      ],
+      "retryOnFail": false,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.data",
+        "options": {}
+      },
+      "id": "ee7b367a-50f0-4db1-804d-827c80f35986",
+      "name": "Split Into Individual Profiles",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo",
+          "mode": "list",
+          "cachedResultName": "LinkedIn_Profile_DataScraper",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1303267467,
+          "mode": "list",
+          "cachedResultName": "Profiles",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo/edit#gid=1303267467"
+        },
+        "options": {}
+      },
+      "id": "f76c1776-9641-4148-8337-f50c3733f922",
+      "name": "Read Emails from Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -1296,
+        304
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleApi": {
+          "id": "IDaR3UJuso9ZsiXp",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const profiles = $('Split Into Individual Profiles').all();\nconst sheetRows = $('Read Emails from Google Sheet').all().map(i => i.json);\nconst emailMap = {};\nfor (const row of sheetRows) {\n  const urlKey = Object.keys(row).find(k => k.toLowerCase().includes('profile') && k.toLowerCase().includes('url'));\n  const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email') && k.toLowerCase() !== 'email status');\n  const url = (urlKey ? row[urlKey] : '').trim();\n  const email = (emailKey ? row[emailKey] : '').trim();\n  if (url && email && email.includes('@') && !email.toLowerCase().includes('restricted')) {\n    emailMap[url.toLowerCase()] = email;\n  }\n}\nconst results = [];\nfor (const item of profiles) {\n  const p = { ...item.json };\n  const currentEmail = (p.email || '').toLowerCase();\n  const isRestricted = !currentEmail || !currentEmail.includes('@') || currentEmail.includes('restricted');\n  if (isRestricted) {\n    const url = (p.url || p.linkedin_url || '').toLowerCase();\n    const sheetEmail = emailMap[url];\n    if (sheetEmail) { p.email = sheetEmail; p.email_source = 'google_sheet'; }\n  }\n  // FILTER: skip invalid leads\n  const finalEmail = (p.email || '').trim();\n  if (!finalEmail.includes('@')) continue;\n  if (finalEmail.toLowerCase().includes('restricted')) continue;\n  const status = (p.status || '').toUpperCase();\n  if (status === 'STOPPED' || status === 'REPLIED') continue;\n  \n  results.push({ json: p });\n}\nreturn results;\n"
+      },
+      "id": "54bf4acf-2f7e-4d92-a5a2-06ab4191be95",
+      "name": "Fill Missing Emails from Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1072,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8001/api/leads",
+        "options": {}
+      },
+      "id": "e9760340-aafb-4efa-bab7-5fb2d700502b",
+      "name": "Fetch Existing Leads from DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -848,
+        304
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const existingLeads = $input.all().map(i => i.json);\nconst flat = Array.isArray(existingLeads[0]) ? existingLeads[0] : existingLeads;\nconst existingEmails = new Set(flat.map(l => (l.email || '').toLowerCase()));\nconst existingUrls = new Set(flat.map(l => (l.linkedin_url || l.url || '').toLowerCase()));\n\n// Get scraped profiles from the EARLIER node (not $input)\nconst currentItems = $('Fill Missing Emails from Sheet').all();\nconst results = [];\n\nfor (const item of currentItems) {\n  console.log(item)\n  const email = (item.json.email || '').toLowerCase();\n  const url = (item.json.url || '').toLowerCase();\n  const status = (item.json.status || 'NEW').toUpperCase();\n  const isNew = !existingEmails.has(email) && !existingUrls.has(url);\n  const isIgnored = status === 'IGNORED';\n  const isNewStatus = status === 'NEW' || status === 'ACTIVE';\n  if (isNew || isIgnored || isNewStatus) {\n    results.push(item);\n  }\n}\nreturn results;\n"
+      },
+      "id": "e4d5f5be-bf07-42c2-a5dd-ee0510b3c238",
+      "name": "Deduplicate Against DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -624,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst summary = [\n  `Name: ${item.name || 'Unknown'}`,\n  `Role: ${item.role || 'Professional'}`,\n  `Company: ${item.company || 'their company'}`,\n  `Headline: ${item.headline || ''}`,\n  `About: ${(item.about || '').substring(0, 300)}`,\n  `Recent Activity: ${(item.recent_activity || []).slice(0, 2).join('; ')}`\n].join('\\n');\nreturn [{ json: { ...item, ai_summary: summary } }];"
+      },
+      "id": "1a77f0b8-7114-408a-903c-aa8bb66d2841",
+      "name": "Build AI Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\n\n// 🔥 GET GEMINI RESPONSE\nconst aiRaw = $('AI Generate Personalized Email').first().json.content?.parts?.[0]?.text || '';\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(aiRaw);\n} catch (e) {\n  console.log(\"JSON parse failed, using raw text\");\n}\n\n// ✅ FINAL VALUES\nconst subject = parsed.subject || 'Quick question';\nconst body = parsed.body || aiRaw;\n\n// tracking\nconst trackingId = 'trk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);\n\n// pixel\nconst trackingPixel = `<img src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" width=\"1\" height=\"1\" style=\"display:none;\" />`;\n\n// convert links\nconst urlRegex = /(https?:\\/\\/[^\\s<>\\\"]+)/g;\n\nlet emailBody = body.replace(urlRegex, (url) => {\n  if (url.includes(BACKEND_URL)) return url;\n  return `${BACKEND_URL}/api/tracking/click/${trackingId}?redirect_url=${encodeURIComponent(url)}`;\n});\n\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nreturn [{\n  json: {\n    tracking_id: trackingId,\n    email_subject: subject,\n    email_body_html: `<html><body>${emailBody}${trackingPixel}</body></html>`,\n    email_body_plain: body,\n    step_number: 1\n  }\n}];"
+      },
+      "id": "de4a25e1-1846-49a7-b60d-aa47b49677e1",
+      "name": "Prepare Email with Tracking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO leads (name, email, linkedin_url, company, role, headline, about, work_description, status)\nVALUES (\n  '{{ $json.name.replace(/'/g, \"''\") }}',\n  '{{ $json.email.replace(/'/g, \"''\") }}',\n  '{{ ($json.url || '').replace(/'/g, \"''\") }}',\n  '{{ ($json.company || '').replace(/'/g, \"''\") }}',\n  '{{ ($json.role || '').replace(/'/g, \"''\") }}',\n  '{{ ($json.headline || '').replace(/'/g, \"''\") }}',\n  '{{ ($json.about || '').substring(0, 500).replace(/'/g, \"''\") }}',\n  '{{ ($json.work_description || '').substring(0, 500).replace(/'/g, \"''\") }}',\n  'SENT'\n)\nON CONFLICT (linkedin_url) DO UPDATE SET\n  name = EXCLUDED.name,\n  email = EXCLUDED.email,\n  company = EXCLUDED.company,\n  role = EXCLUDED.role,\n  status = 'SENT'\nRETURNING id;",
+        "options": {}
+      },
+      "id": "a2a963aa-dcea-429a-80f0-f84c65bb7158",
+      "name": "Upsert Lead in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        848,
+        224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ApDR7pV3Yk2jpiMw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Prepare Email with Tracking').first().json;\nconst dbResult = $input.first().json;\nconst leadId = dbResult.id || dbResult.rows?.[0]?.id;\nreturn [{ json: { ...prev, lead_id: leadId } }];"
+      },
+      "id": "425bd9f1-c00f-462f-a12e-7ba7cd95c4fe",
+      "name": "Get Lead ID from DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_sequences (lead_id, step_number, tracking_id, status)\nVALUES ({{ $json.lead_id }}, {{ $json.step_number }}, '{{ $json.tracking_id }}', 'sent')\nRETURNING tracking_id;",
+        "options": {}
+      },
+      "id": "80fbeb2e-e3bc-4707-8515-051ccbd1312a",
+      "name": "Insert Email Sequence Row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1296,
+        224
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ApDR7pV3Yk2jpiMw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Prepare DB Values').item.json.email }}",
+        "subject": "={{$('Prepare Email with Tracking').item.json.email_subject}}",
+        "message": "={{$('Prepare Email with Tracking').item.json.email_body_html}}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "fe90c5cf-1e43-43a8-9dbc-f4e88b005ab5",
+      "name": "Send Email via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1744,
+        224
+      ],
+      "webhookId": "c9ffab8c-2856-4821-8dc0-1c83688c1223",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "7pI7qo51bmdhoCwi",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://127.0.0.1:8001/api/tracking/sent/{{ $('Prepare DB Values').item.json.tracking_id }}?step={{ $('Prepare DB Values').item.json.step_number }}\n",
+        "options": {}
+      },
+      "id": "cdefb78b-1c75-456c-8532-a425587dd027",
+      "name": "Call Backend /sent Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1968,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "e546e53b-0c90-426f-8427-dd2cf055f815",
+      "name": "Phase2 Cron (Follow-ups)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1744,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT l.id as lead_id, l.name, l.email, l.status, l.company, l.role, l.headline, l.about, l.linkedin_url,\n  es.step_number, es.tracking_id as last_tracking_id, es.sent_at, es.opened_at, es.replied\nFROM leads l\nJOIN email_sequences es ON es.lead_id = l.id\nWHERE l.status IN ('SENT', 'IGNORED')\n  AND es.opened_at IS NULL\n  AND es.replied = FALSE\n  AND es.sent_at <= NOW() - INTERVAL '5 days'\n  AND es.step_number < 6\n  AND es.id = (SELECT MAX(id) FROM email_sequences WHERE lead_id = l.id)\nORDER BY es.sent_at ASC;",
+        "options": {}
+      },
+      "id": "c1b08142-ed83-4817-92d2-bacf9fec4a65",
+      "name": "Fetch Leads Needing Follow-up",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1520,
+        592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ApDR7pV3Yk2jpiMw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst nextStep = (item.step_number || 1) + 1;\nconst summary = [\n  `Name: ${item.name}`,\n  `Role: ${item.role || 'Professional'}`,\n  `Company: ${item.company || 'their company'}`,\n  `Previous emails sent: ${item.step_number}`,\n  `Follow-up number: ${nextStep}`,\n  `About: ${(item.about || '').substring(0, 200)}`\n].join('\\n');\nreturn [{ json: { ...item, ai_summary: summary, next_step: nextStep } }];"
+      },
+      "id": "fb39004c-612d-40d8-9478-80e1c09ec4fa",
+      "name": "Build Follow-up Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1072,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\n\nconst leadData = $('Build Follow-up Context').first().json;\n\nconst aiRaw = $('AI Generate Follow-up Email').first().json.content?.parts?.[0]?.text || '';\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(aiRaw);\n} catch (e) {\n  console.log(\"Follow-up JSON parse failed\");\n}\n\nconst subject = parsed.subject || `Quick follow-up (${leadData.next_step})`;\nconst body = parsed.body || aiRaw;\n\nconst trackingId = 'trk_fu_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);\n\nconst trackingPixel = `<img src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" width=\"1\" height=\"1\" style=\"display:none;\" />`;\n\nconst urlRegex = /(https?:\\/\\/[^\\s<>\"]+)/g;\n\nlet emailBody = String(body).replace(urlRegex, (url) => {\n  if (url.includes(BACKEND_URL)) return url;\n\n  return `${BACKEND_URL}/api/tracking/click/${trackingId}?redirect_url=${encodeURIComponent(url)}`;\n});\n\n// formatting\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nreturn [{\n  json: {\n    ...leadData,\n    tracking_id: trackingId,\n    email_subject: subject,\n    email_body_html: `<html><body>${emailBody}<br><br>${trackingPixel}</body></html>`,\n    email_body_plain: body,\n    step_number: leadData.next_step || 1\n  }\n}];"
+      },
+      "id": "4f2c1fec-a5e2-4b03-8569-92641d83f927",
+      "name": "Prepare Follow-up with Tracking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_sequences (lead_id, step_number, tracking_id, status)\nVALUES ({{ $json.lead_id }}, {{ $json.step_number }}, '{{ $json.tracking_id }}', 'sent');",
+        "options": {}
+      },
+      "id": "48c0ad01-f827-477d-99d3-e1623de20aa5",
+      "name": "Insert Follow-up Sequence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -272,
+        528
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ApDR7pV3Yk2jpiMw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $('Prepare Follow-up with Tracking').item.json.email_subject }}",
+        "message": "={{ $('Prepare Follow-up with Tracking').item.json.email_body_html }}",
+        "options": {}
+      },
+      "id": "4957d875-bcf3-4a7c-9b5a-182317fcf715",
+      "name": "Send Follow-up via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        176,
+        528
+      ],
+      "webhookId": "947a392a-82d5-4cd0-9c8a-2269f9b49396",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "7pI7qo51bmdhoCwi",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://email-drip-campaign-hpo2.onrender.com/api/tracking/sent/{{ $('Prepare Follow-up with Tracking').item.json.tracking_id }}?step={{ $('Prepare Follow-up with Tracking').item.json.step_number }}",
+        "options": {}
+      },
+      "id": "6027f53d-8c5a-446b-9a0a-edf76a23c145",
+      "name": "Call /sent for Follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -48,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET status = 'IGNORED'\nWHERE status = 'SENT'\n  AND id IN (\n    SELECT lead_id FROM email_sequences\n    WHERE opened_at IS NULL\n      AND replied = FALSE\n      AND sent_at <= NOW() - INTERVAL '5 days'\n  );",
+        "options": {}
+      },
+      "id": "95b012c0-a0bc-4727-851b-bf02ff5a1a71",
+      "name": "Mark Stale Leads as IGNORED",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        400,
+        592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ApDR7pV3Yk2jpiMw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-lead-status",
+        "options": {}
+      },
+      "id": "01a00702-301a-4d4e-9716-1b754e7d79e3",
+      "name": "Webhook: UI Status Update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1744,
+        816
+      ],
+      "webhookId": "f77bba60-3091-4510-82bd-55bdde6ffda6"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads SET status = '{{ $json.body.status }}' WHERE id = {{ $json.body.lead_id }};",
+        "options": {}
+      },
+      "id": "e42a3f29-2c95-4383-8271-251e0eeeb341",
+      "name": "Update Lead Status in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1520,
+        816
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ApDR7pV3Yk2jpiMw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'success', message: `Lead ${$json.body.lead_id} updated to ${$json.body.status}` } }];"
+      },
+      "id": "7b285855-b41c-45cd-b3a8-d4bdb89fd94e",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1296,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -400,
+        304
+      ],
+      "id": "649b76ac-e5c4-4422-92d6-10a2cc7d782b",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailData = $('Prepare Email with Tracking').first().json;\nconst leadData = $('Build AI Summary').first().json;\n\nconst dbResult = $input.first().json;\nconst leadId = dbResult.id || dbResult.rows?.[0]?.id;\n\nreturn [{\n  json: {\n    ...emailData,\n    ...leadData,  \n    lead_id: leadId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        224
+      ],
+      "id": "f9b8d4db-d714-4dd7-a91f-99542af01578",
+      "name": "Prepare DB Values"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3aeb822a-2673-401f-9882-ff3dfe88db65",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1744,
+        304
+      ],
+      "id": "89a060b4-d846-4b4e-8675-8e7805c3d1e8",
+      "name": "Webhook",
+      "webhookId": "3aeb822a-2673-401f-9882-ff3dfe88db65"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1296,
+        592
+      ],
+      "id": "2f881976-7699-444e-b434-37ddcea93074",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a highly skilled sales strategist writing cold email follow-ups.\n\nRecipient:\n{{ $json.ai_summary }}\n\nContext:\n- This is follow-up #{{ $json.next_step }}\n- Previous emails were sent but no reply\n\nStrategy:\n- Each follow-up must feel NEW and valuable (not repetitive)\n- Use psychological triggers: curiosity, relevance, light urgency\n- Keep it natural and human (NOT salesy)\n\nFollow-up styles:\n2 → Insight / value add  \n3 → Social proof  \n4 → Direct question  \n5 → Soft urgency  \n6 → Break-up (polite close)\n\nRules:\n- Max 80 words\n- No placeholders\n- No generic phrases\n- First line must feel personalized\n- End with a simple question\n\nReturn ONLY valid JSON:\n{\n  \"subject\": \"...\",\n  \"body\": \"...\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -848,
+        528
+      ],
+      "id": "5d06aa98-9baf-4929-9906-b3ac902abb39",
+      "name": "AI Generate Follow-up Email",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "iQXxd8SzxzIfBUCb",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a highly skilled B2B cold email strategist.\n\nWrite a short, personalized outreach email.\n\nRecipient:\n{{ $json.ai_summary }}\n\nObjective:\nStart a conversation (NOT sell anything directly).\n\n---\n\nRules:\n\n1. Subject line:\n- Must reference their company, role, or recent activity\n- 3–7 words max\n- No spam words\n\n2. Opening line:\n- Must feel specific and real (based on their profile)\n- Avoid generic lines like \"I came across your profile\"\n\n3. Body:\n- Show you understand what they do\n- Add 1 insight / observation / angle\n- Keep it natural, human, not salesy\n\n4. Length:\n- Max 80–100 words\n\n5. Tone:\n- Friendly, sharp, confident\n- No buzzwords, no fluff\n\n---\n\n6. ENDING (VERY IMPORTANT):\n\nUse ONE of these high-performing styles:\n\n- Curious question:\n  \"Curious how you're currently approaching this?\"\n\n- Light ask:\n  \"Worth a quick exchange of thoughts?\"\n\n- Soft open:\n  \"Would love to hear your perspective.\"\n\n- Low-friction:\n  \"Open to a quick chat?\"\n\n   Do NOT say:\n- “Let me know”\n- “Schedule a call”\n- “Book a meeting”\n\n---\n\nReturn ONLY valid JSON:\n{\n  \"subject\": \"...\",\n  \"body\": \"...\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        224
+      ],
+      "id": "ae23e726-1162-4f15-a4d7-2452b91681bf",
+      "name": "AI Generate Personalized Email",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "iQXxd8SzxzIfBUCb",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const emailData = $('Prepare Email with Tracking').first().json;\nconst leadData = $('Build AI Summary').first().json;\nconst insertData = $input.first().json;\n\nreturn [{\n  json: {\n    ...emailData,\n    ...leadData,\n    ...insertData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        224
+      ],
+      "id": "02b061b7-ff75-4407-b6ba-7562ba4fbb0e",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Phase1 Cron (Every 10 Min)": {
+      "main": [
+        [
+          {
+            "node": "Scrape LinkedIn Profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Into Individual Profiles": {
+      "main": [
+        [
+          {
+            "node": "Read Emails from Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Emails from Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Fill Missing Emails from Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fill Missing Emails from Sheet": {
+      "main": [
+        [
+          {
+            "node": "Fetch Existing Leads from DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Existing Leads from DB": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate Against DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate Against DB": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Summary": {
+      "main": [
+        [
+          {
+            "node": "AI Generate Personalized Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email with Tracking": {
+      "main": [
+        [
+          {
+            "node": "Prepare DB Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Lead in DB": {
+      "main": [
+        [
+          {
+            "node": "Get Lead ID from DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Lead ID from DB": {
+      "main": [
+        [
+          {
+            "node": "Insert Email Sequence Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Email Sequence Row": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email via Gmail": {
+      "main": [
+        [
+          {
+            "node": "Call Backend /sent Endpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phase2 Cron (Follow-ups)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Leads Needing Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Leads Needing Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Follow-up Context": {
+      "main": [
+        [
+          {
+            "node": "AI Generate Follow-up Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Follow-up with Tracking": {
+      "main": [
+        [
+          {
+            "node": "Insert Follow-up Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Follow-up Sequence": {
+      "main": [
+        [
+          {
+            "node": "Call /sent for Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up via Gmail": {
+      "main": [
+        [
+          {
+            "node": "Mark Stale Leads as IGNORED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call /sent for Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: UI Status Update": {
+      "main": [
+        [
+          {
+            "node": "Update Lead Status in DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Lead Status in DB": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Build AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Backend /sent Endpoint": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare DB Values": {
+      "main": [
+        [
+          {
+            "node": "Upsert Lead in DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Into Individual Profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Build Follow-up Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Stale Leads as IGNORED": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Generate Follow-up Email": {
+      "main": [
+        [
+          {
+            "node": "Prepare Follow-up with Tracking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Generate Personalized Email": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email with Tracking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send Email via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "64869ffb-fe1d-4120-98b9-426ab693bfe4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33d34b326952ecabddd2f1d86cb6da1b848c6a6fbd816c280e2b4cc7de6ff4e0"
+  },
+  "id": "O0mO7grYgqi0LSLy",
+  "tags": [
+    {
+      "updatedAt": "2026-04-30T08:17:31.314Z",
+      "createdAt": "2026-04-30T08:17:31.314Z",
+      "id": "L3FkdmQxEaxKokUf",
+      "name": "email-automation"
+    },
+    {
+      "updatedAt": "2026-04-30T08:17:31.319Z",
+      "createdAt": "2026-04-30T08:17:31.319Z",
+      "id": "oOxFmUlFFZnShHoK",
+      "name": "drip-campaign"
+    }
+  ]
+}

@@ -458,7 +458,7 @@ def scrape_profile_details(driver, profile_url):
         print("   -> [!] ALERT: LinkedIn is hiding this Email behind a Premium Wall.")
         details['email'] = "Premium Restricted"
     else:
-        email_match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.\\w+', page_source)
+        email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', page_source)
         if email_match:
             details['email'] = email_match.group(0)
             print(f"   -> EMAIL SECURED (Direct): {details['email']}")
@@ -472,7 +472,7 @@ def scrape_profile_details(driver, profile_url):
                 if "Try Premium" in driver.page_source:
                     details['email'] = "Premium Restricted"
                 else:
-                    email_match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.\\w+', driver.page_source)
+                    email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', driver.page_source)
                     details['email'] = email_match.group(0) if email_match else "Contact Restricted"
             except:
                 details['email'] = "Contact Restricted"
@@ -480,7 +480,7 @@ def scrape_profile_details(driver, profile_url):
     # Bounty Hunter Fallback
     if details['email'] in ["Contact Restricted", "Premium Restricted"]:
         combined_text = (details['about'] or "") + " " + (details['headline'] or "")
-        bounty_match = re.search(r'[\\w\\.-]+@[\\w\\.-]+\\.\\w+', combined_text)
+        bounty_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', combined_text)
         if bounty_match:
             details['email'] = bounty_match.group(0)
 
