@@ -120,31 +120,10 @@ def get_post_data(element):
     except: return None
 
 def clean_scraped_text(text):
-    """v15.2 Anti-UI: Aggressively filters out LinkedIn UI labels and buttons."""
-    if not text: return ""
-    
-    # 1. Newline Cleanup: Buttons usually appear on a new line
-    lines = text.split('\n')
-    base_text = lines[0].strip()
-    
-    # 2. Strict UI Blacklist (Case-sensitive for short UI labels)
-    ui_labels = ["More", "Share", "React", "Reply", "Message", "Connect", "Follow"]
-    if base_text in ui_labels:
+    if not text:
         return ""
+    return text.strip()
 
-    # 3. Promotional Noise Blacklist
-    blacklist = [
-        "Try Premium", "Upgrade", "Activate", "Get 1 month", "Visit my website",
-        "View my", "at More", "Click here", "•", "·", "Full-time", "Part-time"
-    ]
-    
-    for word in blacklist:
-        if word.lower() in base_text.lower() and len(base_text) < 40:
-            return "" 
-        if word in base_text:
-            base_text = base_text.split(word)[0].strip()
-            
-    return base_text.replace("… more", "").replace("see more", "").strip()
 
 def safe_set(details, key, value):
     if not value:
@@ -153,12 +132,9 @@ def safe_set(details, key, value):
     value = value.strip()
 
     junk = [
-        "", "N/A", "Sign Up", "0 Notifications",
-        "LinkedIn", "Join LinkedIn",
-        "Self-Employed", "Independent", "Freelance",
-        "& CEO", "CEO", "Founder"
-    ]
-
+    "", "N/A", "Sign Up", "0 Notifications",
+    "LinkedIn", "Join LinkedIn"
+]
     if value in junk:
         return
 
@@ -265,6 +241,19 @@ def scrape_profile_details(driver, profile_url):
 
         print(f"   -> IDENTITY SECURED: {details['full_name']}")
 
+        # 🔥 FORCE EXTRACT FROM HEADLINE (CRITICAL FIX)
+        h = details.get("headline", "")
+
+        if h:
+            if "@" in h:
+                parts = h.split("@")
+                safe_set(details, "role", parts[0].strip())
+                safe_set(details, "company", parts[1].split("|")[0].strip())
+            elif " at " in h.lower():
+                parts = h.split(" at ")
+                safe_set(details, "role", parts[0].strip())
+                safe_set(details, "company", parts[1].split("|")[0].strip())
+            
         # --- LAYER 2: HEADLINE INTELLIGENCE (Force-Check) ---
         h = details["headline"]
         if h and len(h) > 5:
@@ -362,8 +351,8 @@ def scrape_profile_details(driver, profile_url):
             safe_set(details, "role", extracted_role)
 
     # ONLY set company if it's NOT junk
-        if extracted_company and extracted_company.lower() not in ["self-employed", "independent"]:
-            (details, "company", extracted_company)   
+    if extracted_company and extracted_company.lower() not in ["self-employed", "independent"]:
+        safe_set(details, "company", extracted_company)   
 
 
     # 4. FINAL CLEANUP & FORMATTING
@@ -486,6 +475,8 @@ def scrape_profile_details(driver, profile_url):
     
     if details['headline']: print(f"   -> HEADLINE SECURED: {details['headline'][:40]}...")
     if details['about']: print("   -> ABOUT SECURED")
+
+    print("🔥 FINAL DETAILS:", details)
     
     return details
 
