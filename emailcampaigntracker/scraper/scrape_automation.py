@@ -122,8 +122,11 @@ def get_post_data(element):
 def clean_scraped_text(text):
     if not text:
         return ""
-    return text.strip()
-
+    bad_words = ["message", "connect", "follow", "more"]
+    if any(b in text.lower() for b in bad_words):
+        return ""
+    lines = text.split('\n')
+    base_text = lines[0].strip()
 
 def safe_set(details, key, value):
     if not value:
@@ -145,6 +148,48 @@ def normalize_url(url):
     """Converts localized subdomains (nl., in., etc) to standard www. to avoid 404s."""
     if not url: return url
     return url.replace("nl.linkedin.com", "www.linkedin.com").replace("in.linkedin.com", "www.linkedin.com").replace("uk.linkedin.com", "www.linkedin.com")
+
+def extract_role_company_from_headline(headline):
+    if not headline:
+        return "", ""
+
+    h = headline.strip()
+
+    # Normalize
+    h = h.replace("\n", " ").strip()
+
+    # CASE 1: Role @ Company
+    if "@" in h:
+        parts = h.split("@")
+        return parts[0].strip(), parts[1].split("|")[0].strip()
+
+    # CASE 2: Role at Company
+    if " at " in h.lower():
+        parts = h.lower().split(" at ")
+        return parts[0].strip().title(), parts[1].split("|")[0].strip().title()
+
+    # CASE 3: "Founder Company"
+    words = h.split()
+    if len(words) >= 2:
+        role_keywords = ["founder", "ceo", "co-founder", "owner", "director"]
+
+        if any(r in words[0].lower() for r in role_keywords):
+            role = words[0]
+            company = " ".join(words[1:]).split("|")[0]
+            return role, company
+
+    # CASE 4: "Founder X & Y"
+    if "&" in h:
+        parts = h.split("&")
+        role = parts[0].split()[0]
+        company = h.replace(role, "").strip()
+        return role, company
+
+    # CASE 5: looks like location → ignore
+    if "," in h and len(h.split()) < 5:
+        return "", ""
+
+    return "", ""
 
 def scrape_profile_details(driver, profile_url):
     profile_url = normalize_url(profile_url)
@@ -209,6 +254,10 @@ def scrape_profile_details(driver, profile_url):
                 }
                 return findHeadline();
             """)
+
+            # FIX: take only first meaningful line
+            if details["headline"]:
+                details["headline"] = details["headline"].split("\n")[0].strip()
             
             if details["headline"] and len(details["headline"]) > 10 and "LinkedIn" not in details["headline"]:
                 break
@@ -226,16 +275,22 @@ def scrape_profile_details(driver, profile_url):
             # The right panel often has two lines: [Company] and [Education]
             right_panel = driver.find_elements(By.CSS_SELECTOR, ".pv-text-details__right-panel li")
             for li in right_panel:
-                txt = li.text.strip().split("\n")[0].strip()
-                # If it's education, skip it
-                if any(k in txt.lower() for k in ["university", "college", "school", "institute", "darshan"]):
+                txt = li.text.strip().split("\n")[0].strip().lower()
+
+                ui_junk = ["message", "connect", "follow", "more", "view profile", "visit my website"]
+
+                if any(j in txt for j in ui_junk):
                     continue
-                # If it matches the name or role, skip it
-                if txt.lower() == details["full_name"].lower() or (details["role"] and txt.lower() == details["role"].lower()):
+
+                if any(k in txt for k in ["university", "college", "school", "institute"]):
                     continue
-                if txt and len(txt) > 2 and txt.lower() not in ["experience", "self-employed"]:
-                    details["company"] = clean_scraped_text(txt)
-                    print(f"   -> LAYER 1 (Right Panel) Company: {details['company']}")
+
+                if "," in txt and len(txt.split()) < 5:
+                    continue
+
+                if len(txt) > 2:
+                    details["company"] = txt.title()
+                    print(f"   -> FIXED COMPANY: {details['company']}")
                     break
         except: pass
 
@@ -357,7 +412,8 @@ def scrape_profile_details(driver, profile_url):
 
     # 4. FINAL CLEANUP & FORMATTING
     details['company'] = clean_scraped_text(details['company'])
-    if details['company'].lower() == details['full_name'].lower():
+    if details.get('company') and details.get('full_name') and \
+    details['company'].lower() == details['full_name'].lower():
         details['company'] = ""
         
     # Professional Capitalization for Role & Company
@@ -388,11 +444,47 @@ def scrape_profile_details(driver, profile_url):
     if details["role"] and len(details["role"]) > 50:
         details["role"] = details["role"].split("|")[0].strip()
 
+    # 🔥 FORCE ROLE + COMPANY FROM HEADLINE (FINAL FIX)
+    h = details.get("headline", "")
+
+    if h:
+        # Case 1: "Role @ Company"
+        if "@" in h:
+            parts = h.split("@")
+            role = parts[0].strip()
+            company = parts[1].split("|")[0].split("·")[0].strip()
+
+            if not details.get("role"):
+                details["role"] = role
+            if not details.get("company"):
+                details["company"] = company
+
+        # Case 2: "Role at Company"
+        elif " at " in h.lower():
+            parts = h.lower().split(" at ")
+            role = parts[0].strip()
+            company = parts[1].split("|")[0].split("·")[0].strip()
+
+            if not details.get("role"):
+                details["role"] = role
+            if not details.get("company"):
+                details["company"] = company
+
+    # 🔥 FINAL EXTRACTION FIX
+    if not details.get("role") or not details.get("company"):
+        role, company = extract_role_company_from_headline(details.get("headline", ""))
+
+        if not details.get("role"):
+            details["role"] = role
+
+    if not details.get("company"):
+        details["company"] = company
+
     print(f"   -> SYNC READY: {details['role']} at {details['company']}")
 
     # Cleanup
-    details['full_name'] = clean_scraped_text(details.get('full_name', ""))
-    details['headline'] = clean_scraped_text(details.get('headline', ""))
+    details['full_name'] = details.get('full_name') or ""
+    details['headline'] = details.get('headline') or ""
 
     # 2. ZONE B: EMAIL EXTRACTION (Bounty Hunter Dual Path)
     print("   -> Extracting Contact Info (Plus Premium Check)...")
@@ -477,6 +569,19 @@ def scrape_profile_details(driver, profile_url):
     if details['about']: print("   -> ABOUT SECURED")
 
     print("🔥 FINAL DETAILS:", details)
+
+    # 🔥 FORCE SAFE VALUES
+    if not details.get("full_name"):
+        details["full_name"] = "Unknown"
+
+    if not details.get("headline"):
+        details["headline"] = ""
+
+    if not details.get("role"):
+        details["role"] = ""
+
+    if not details.get("company"):
+        details["company"] = ""
     
     return details
 
