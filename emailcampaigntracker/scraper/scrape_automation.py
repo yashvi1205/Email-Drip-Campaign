@@ -4,8 +4,6 @@ import pickle
 import sys
 import io
 import re
-import random
-import json
 from datetime import datetime
 import requests
 
@@ -59,9 +57,6 @@ def safe_translate(text):
         print(f"Translation failed: {e}")
         return text
 
-
-def get_username(url):
-    return url.split("/in/")[1].split("/")[0]
 
 def parse_linkedin_time(time_str):
     if not time_str: return 999
@@ -122,12 +117,12 @@ def get_post_data(element):
 def clean_scraped_text(text):
     if not text:
         return ""
+
     bad_words = ["message", "connect", "follow", "more"]
     if any(b in text.lower() for b in bad_words):
         return ""
-    lines = text.split('\n')
-    base_text = lines[0].strip()
 
+    return text.split('\n')[0].strip()
 def safe_set(details, key, value):
     if not value:
         return
@@ -194,49 +189,34 @@ def extract_role_company_from_headline(headline):
 
 def extract_from_experience(driver):
     try:
-        exp_section = driver.find_element(
-            By.CSS_SELECTOR,
-            'section[id*="experience"]'
-        ).text
+        main_text = driver.find_element(By.TAG_NAME, "main").text
 
-        lines = [l.strip() for l in exp_section.split("\n") if l.strip()]
+        lines = [l.strip() for l in main_text.split("\n") if l.strip()]
 
-        role = ""
-        company = ""
 
-        if len(lines) >= 2:
-            role = lines[0]
+        # Find first valid role line
+        for i in range(len(lines)):
+            if any(k in lines[i] for k in ["Founder", "CEO", "Manager", "Engineer", "Director"]):
+                role = lines[i]
 
-            raw_company = lines[1]
+                if i + 1 < len(lines):
+                    raw_company = lines[i + 1]
 
-            # 🔥 DOT CASE
-            if "·" in raw_company:
-                parts = [p.strip() for p in raw_company.split("·") if p.strip()]
-                company = parts[0]
+                    if "·" in raw_company:
+                        company = raw_company.split("·")[0].strip()
+                    elif "," in raw_company:
+                        company = raw_company.split(",")[0].strip()
+                    else:
+                        company = raw_company.strip()
 
-                # handle reversed case
-                if len(parts[0].split()) <= 1 and len(parts) > 1:
-                    company = parts[1]
-
-            # 🔥 COMMA CASE
-            elif "," in raw_company:
-                company = raw_company.split(",")[0].strip()
-
-            else:
-                company = raw_company.strip()
-
-            # 🔥 CLEAN ROLE
-            if "·" in role:
-                role = role.split("·")[0].strip()
-
-            if "|" in role:
-                role = role.split("|")[0].strip()
+                break
 
         return role.strip(), company.strip()
 
     except Exception as e:
         print("❌ Experience extraction failed:", e)
         return "", ""
+
 
 def scrape_profile_details(driver, profile_url):
     profile_url = normalize_url(profile_url)
@@ -311,10 +291,7 @@ def scrape_profile_details(driver, profile_url):
             print(f"   -> [!] Headline missing or junk, scrolling to re-trigger (Attempt {attempt+1})...")
             driver.execute_script(f"window.scrollTo(0, {200 * (attempt + 1)});")
             time.sleep(4)
-        
-        if not details["headline"] or len(details["headline"]) < 5:
-            details["headline"] = "Professional at LinkedIn"
-        
+                
         # HEADER CARD COMPANY (The "Right Side" button/logo)
         # This is often the most accurate source for the current company
         # --- LAYER 1: HEADER CARD DETECTION ---
@@ -341,63 +318,7 @@ def scrape_profile_details(driver, profile_url):
                     break
         except: pass
 
-        print(f"   -> IDENTITY SECURED: {details['full_name']}")
-
-        # 🔥 FORCE EXTRACT FROM HEADLINE (CRITICAL FIX)
-        h = details.get("headline", "")
-
-        if h:
-            if "@" in h:
-                parts = h.split("@")
-                safe_set(details, "role", parts[0].strip())
-                safe_set(details, "company", parts[1].split("|")[0].strip())
-            elif " at " in h.lower():
-                parts = h.split(" at ")
-                safe_set(details, "role", parts[0].strip())
-                safe_set(details, "company", parts[1].split("|")[0].strip())
-            
-        # --- LAYER 2: HEADLINE INTELLIGENCE (Force-Check) ---
-        h = details["headline"]
-        if h and len(h) > 5:
-            # Pattern: "Role at Company"
-            for sep in [" at ", " @ ", "@"]:
-                if sep in h.lower():
-                    # Find the last occurrence of the separator to be safe
-                    idx = h.lower().rfind(sep)
-                    h_role = h[:idx].strip().split("|")[-1].split("-")[-1].strip()
-                    h_company = h[idx+len(sep):].split("|")[0].split("-")[0].split("·")[0].strip()
-                    
-                    if not details["role"] or details["role"].lower() == "experience":
-                        details["role"] = h_role
-                    # Force update if company is missing, junk, or matches role
-                    invalid_values = ["self-employed", "independent", "freelance", "experience"]
-                    if not details["company"] or details["company"].lower() in invalid_values:
-
-                            h = details["headline"]
-
-                            # Handle "Founder X & Y at Self-Employed"
-                            if " at " in h.lower():
-                                parts = h.split(" at ")
-                                left = parts[0]
-
-                                # STEP 1: Remove role keywords
-                                cleaned = re.sub(r"\b(Founder|CEO|Co-Founder|Owner|Director|Lead)\b", "", left, flags=re.IGNORECASE)
-                                cleaned = cleaned.strip(" -|")
-                                
-                                # STEP 2: Remove extra symbols/spaces
-                                cleaned = cleaned.strip()
-
-                                # STEP 3: Extract multiple companies cleanly
-                                companies = re.split(r"&|,| and ", cleaned)
-                                companies = [c.strip() for c in companies if len(c.strip()) > 2]
-
-                                # STEP 4: Assign final company
-                                if companies and (
-                                    not details["company"] or details["company"].lower() in invalid_values
-                                ):
-                                    safe_set(details, "company", h_company)
-                                    safe_set(details, "role", h_role)
-                    break
+        print(f"   -> IDENTITY SECURED: {details['full_name']}")  
     except Exception as e: 
         print(f"   -> [!] Failed to secure Identity on Main Page: {e}")
 
@@ -420,53 +341,11 @@ def scrape_profile_details(driver, profile_url):
     if details['company'] and details['company'] == details['company'].lower():
         details['company'] = details['company'].title()
 
-    if details["role"] and not details["company"]:
-        role_text = details["role"]
-
-        if "@" in role_text:
-            parts = role_text.split("@")
-            details["role"] = parts[0].strip()
-            details["company"] = parts[1].strip()
-
-        elif " at " in role_text.lower():
-            parts = role_text.split(" at ")
-            details["role"] = parts[0].strip()
-            details["company"] = parts[1].strip()
-
-    bad_values = ["self-employed", "independent", "freelance", "& ceo", "ceo"]
-
-    if details["company"] and details["company"].lower() in bad_values:
-        print("   -> FIX: Removing bad company value")
-        details["company"] = ""
-
     if details["role"] and len(details["role"]) > 50:
         details["role"] = details["role"].split("|")[0].strip()
 
     # 🔥 FORCE ROLE + COMPANY FROM HEADLINE (FINAL FIX)
     h = details.get("headline", "")
-
-    if h:
-        # Case 1: "Role @ Company"
-        if "@" in h:
-            parts = h.split("@")
-            role = parts[0].strip()
-            company = parts[1].split("|")[0].split("·")[0].strip()
-
-            if not details.get("role"):
-                details["role"] = role
-            if not details.get("company"):
-                details["company"] = company
-
-        # Case 2: "Role at Company"
-        elif " at " in h.lower():
-            parts = h.lower().split(" at ")
-            role = parts[0].strip()
-            company = parts[1].split("|")[0].split("·")[0].strip()
-
-            if not details.get("role"):
-                details["role"] = role
-            if not details.get("company"):
-                details["company"] = company
 
     # 🔥 FINAL EXPERIENCE FALLBACK (STRONG FIX)
     if not details.get("role") or not details.get("company"):
@@ -578,11 +457,11 @@ def scrape_profile_details(driver, profile_url):
         details["headline"] = ""
 
     if not details.get("role"):
-        details["role"] = role
+        details["role"] = ""
 
     if not details.get("company"):
-        details["company"] = company
-    
+        details["company"] = ""
+
     return details
 
 def scrape_activity_from_tab(driver, url, interaction_type):
