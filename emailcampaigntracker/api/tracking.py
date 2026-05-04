@@ -56,6 +56,7 @@ def sync_sheet_status_async(linkedin_url, status, open_count=None):
         print(f"   -> Sheet sync failed: {e}")
 
 def log_event(tracking_id, event_type, request=None, additional_metadata=None):
+    tracking_id = tracking_id.strip()
     """Universal helper to log events to the database."""
     ip_address = request.client.host if request else "Unknown"
     user_agent = request.headers.get("user-agent", "Unknown") if request else "Unknown"
@@ -70,7 +71,10 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
             )
             res = cur.fetchone()
             if not res:
-                print(f"DEBUG: Tracking ID {tracking_id} NOT FOUND in database.")
+                print("TRACKING NOT FOUND:", tracking_id)
+                cur.execute("SELECT tracking_id FROM email_sequences ORDER BY id DESC LIMIT 5")
+                print("DEBUG LAST IDS:", cur.fetchall())
+
                 return False
             
             seq_id = res['id']
@@ -248,15 +252,23 @@ async def track_delete(tracking_id: str, request: Request):
 @router.get("/sent/{tracking_id}")
 async def track_sent(tracking_id: str, step: int = 1):
     """Logs each time an email is sent (initial or follow-up)."""
+    tracking_id = tracking_id.strip()
+
+    # 🔥 DEBUG (temporary - remove later)
+    print("DEBUG TRACKING_ID:", tracking_id)
+    print("DEBUG STEP:", step)
+    
     # Custom metadata to track which step in the drip it was
     if log_event(tracking_id, "sent", additional_metadata={"step": step}):
         # Also update the main sequence table with the latest send time
         with get_db_conn() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE email_sequences SET sent_at = %s, step_number = %s WHERE tracking_id = %s",
-                    (datetime.datetime.now(), step, tracking_id)
-                )
+                cur.execute("UPDATE email_sequences SET sent_at = %s, step_number = %s WHERE tracking_id = %s RETURNING id",(datetime.datetime.now(), step, tracking_id))
+
+                updated = cur.fetchone()
+
+                if not updated:
+                    print("❌ UPDATE FAILED FOR:", tracking_id)
                 conn.commit()
         return {"status": "success", "message": f"Email Step {step} logged"}
     return {"status": "error", "message": "Tracking ID not found"}
