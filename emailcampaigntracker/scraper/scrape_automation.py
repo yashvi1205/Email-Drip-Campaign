@@ -191,6 +191,53 @@ def extract_role_company_from_headline(headline):
 
     return "", ""
 
+
+def extract_from_experience(driver):
+    try:
+        exp_section = driver.find_element(
+            By.CSS_SELECTOR,
+            'section[id*="experience"]'
+        ).text
+
+        lines = [l.strip() for l in exp_section.split("\n") if l.strip()]
+
+        role = ""
+        company = ""
+
+        if len(lines) >= 2:
+            role = lines[0]
+
+            raw_company = lines[1]
+
+            # 🔥 DOT CASE
+            if "·" in raw_company:
+                parts = [p.strip() for p in raw_company.split("·") if p.strip()]
+                company = parts[0]
+
+                # handle reversed case
+                if len(parts[0].split()) <= 1 and len(parts) > 1:
+                    company = parts[1]
+
+            # 🔥 COMMA CASE
+            elif "," in raw_company:
+                company = raw_company.split(",")[0].strip()
+
+            else:
+                company = raw_company.strip()
+
+            # 🔥 CLEAN ROLE
+            if "·" in role:
+                role = role.split("·")[0].strip()
+
+            if "|" in role:
+                role = role.split("|")[0].strip()
+
+        return role.strip(), company.strip()
+
+    except Exception as e:
+        print("❌ Experience extraction failed:", e)
+        return "", ""
+
 def scrape_profile_details(driver, profile_url):
     profile_url = normalize_url(profile_url)
     print(f"Scraping detailed info for: {profile_url}")
@@ -361,55 +408,6 @@ def scrape_profile_details(driver, profile_url):
         time.sleep(12)
     except: pass
 
-    # 3. RELIABLE DREDGE (JavaScript Layer)
-    exp_data = driver.execute_script("""
-        function reliable_dredge(profileName) {
-            let elements = Array.from(document.querySelectorAll('span, div, a, h3'));
-            let rows = elements.map(e => e.innerText ? e.innerText.trim() : "").filter(t => t.length > 2);
-            
-            let keywords = ['Founder', 'CEO', 'Manager', 'Lead', 'Engineer', 'Director', 'Owner', 'Partner', 'Developer', 'Specialist', 'Consultant', 'Tester', 'Analyst'];
-            let foundRole = rows.find(r => keywords.some(k => r.includes(k)) && !r.includes(profileName));
-            if (!foundRole) return null;
-            
-            let roleIdx = rows.indexOf(foundRole);
-            
-            // Intelligence: Catch "@" or "at" even without perfect spacing
-            if (foundRole.includes('@')) return { role: foundRole.split('@')[0].trim(), company: foundRole.split('@')[1].split('|')[0].trim() };
-            if (foundRole.toLowerCase().includes(' at ')) return { role: foundRole.toLowerCase().split(' at ')[0].trim(), company: foundRole.toLowerCase().split(' at ')[1].split('|')[0].trim() };
-            
-            let candidates = rows.slice(roleIdx + 1, roleIdx + 4);
-            let company = candidates.find(c => c !== profileName && !/\\d{4}|Present|·/.test(c) && c.length > 2);
-            
-            return { role: foundRole, company: company || "" };
-        }
-        return reliable_dredge(arguments[0]);
-    """, details["full_name"])
-
-    if exp_data:
-        extracted_role = clean_scraped_text(exp_data.get("role", ""))
-        extracted_company = clean_scraped_text(exp_data.get("company", ""))
-            
-        # FIX: Handle "Founder & CEO @ Company"
-        if extracted_role:
-            if "@" in extracted_role:
-                parts = extracted_role.split("@")
-                safe_set(details, "role", parts[0].strip())
-                safe_set(details, "company", parts[1].split("|")[0].strip())
-
-            elif " at " in extracted_role.lower():
-                parts = extracted_role.split(" at ")
-                safe_set(details, "role", parts[0].strip())
-                safe_set(details, "company", parts[1].strip())
-
-        else:
-            # Only set role if clean
-            safe_set(details, "role", extracted_role)
-
-    # ONLY set company if it's NOT junk
-    if extracted_company and extracted_company.lower() not in ["self-employed", "independent"]:
-        safe_set(details, "company", extracted_company)   
-
-
     # 4. FINAL CLEANUP & FORMATTING
     details['company'] = clean_scraped_text(details['company'])
     if details.get('company') and details.get('full_name') and \
@@ -470,15 +468,17 @@ def scrape_profile_details(driver, profile_url):
             if not details.get("company"):
                 details["company"] = company
 
-    # 🔥 FINAL EXTRACTION FIX
+    # 🔥 FINAL EXPERIENCE FALLBACK (STRONG FIX)
     if not details.get("role") or not details.get("company"):
-        role, company = extract_role_company_from_headline(details.get("headline", ""))
+        print("   -> Trying EXPERIENCE fallback...")
 
-        if not details.get("role"):
-            details["role"] = role
+        role_exp, company_exp = extract_from_experience(driver)
 
-    if not details.get("company"):
-        details["company"] = company
+        if role_exp and not details.get("role"):
+            details["role"] = role_exp
+
+        if company_exp and not details.get("company"):
+            details["company"] = company_exp
 
     print(f"   -> SYNC READY: {details['role']} at {details['company']}")
 
@@ -578,10 +578,10 @@ def scrape_profile_details(driver, profile_url):
         details["headline"] = ""
 
     if not details.get("role"):
-        details["role"] = ""
+        details["role"] = role
 
     if not details.get("company"):
-        details["company"] = ""
+        details["company"] = company
     
     return details
 
