@@ -146,6 +146,25 @@ def clean_scraped_text(text):
             
     return base_text.replace("… more", "").replace("see more", "").strip()
 
+def safe_set(details, key, value):
+    if not value:
+        return
+
+    value = value.strip()
+
+    junk = [
+        "", "N/A", "Sign Up", "0 Notifications",
+        "LinkedIn", "Join LinkedIn",
+        "Self-Employed", "Independent", "Freelance",
+        "& CEO", "CEO", "Founder"
+    ]
+
+    if value in junk:
+        return
+
+    if not details.get(key) or details[key] in junk:
+        details[key] = value
+
 def normalize_url(url):
     """Converts localized subdomains (nl., in., etc) to standard www. to avoid 404s."""
     if not url: return url
@@ -285,7 +304,8 @@ def scrape_profile_details(driver, profile_url):
                                 if companies and (
                                     not details["company"] or details["company"].lower() in invalid_values
                                 ):
-                                    details["company"] = ", ".join(companies)
+                                    safe_set(details, "company", h_company)
+                                    safe_set(details, "role", h_role)
                     break
     except Exception as e: 
         print(f"   -> [!] Failed to secure Identity on Main Page: {e}")
@@ -324,101 +344,28 @@ def scrape_profile_details(driver, profile_url):
     if exp_data:
         extracted_role = clean_scraped_text(exp_data.get("role", ""))
         extracted_company = clean_scraped_text(exp_data.get("company", ""))
-
+            
+        # FIX: Handle "Founder & CEO @ Company"
         if extracted_role:
-            # 🔥 SPLIT ROLE + COMPANY IF COMBINED
-            if " at " in extracted_role.lower():
+            if "@" in extracted_role:
+                parts = extracted_role.split("@")
+                safe_set(details, "role", parts[0].strip())
+                safe_set(details, "company", parts[1].split("|")[0].strip())
+
+            elif " at " in extracted_role.lower():
                 parts = extracted_role.split(" at ")
-                details["role"] = parts[0].strip()
-                if not details["company"]:
-                    details["company"] = parts[1].strip()
-            elif any(k in extracted_role.lower() for k in ["founder", "ceo", "manager", "lead", "owner"]):
-                parts = extracted_role.split(" ", 1)
-                if len(parts) > 1:
-                    details["role"] = parts[0]
-                    if not details["company"]:
-                        details["company"] = parts[1]
-                else:
-                    details["role"] = extracted_role
-            else:
-                details["role"] = extracted_role
+                safe_set(details, "role", parts[0].strip())
+                safe_set(details, "company", parts[1].strip())
 
-        elif any(k in extracted_role.lower() for k in ["founder", "ceo", "manager", "lead", "owner"]):
-            parts = extracted_role.split(" ", 1)
-            if len(parts) > 1:
-                details["role"] = parts[0]
-                if not details["company"]:
-                    details["company"] = parts[1]
         else:
-            details["role"] = extracted_role
-    else:
-        details["role"] = extracted_role
-        invalid_values = ["self-employed", "independent", "freelance", "experience", "linkedin"]
+            # Only set role if clean
+            safe_set(details, "role", extracted_role)
 
-    
+    # ONLY set company if it's NOT junk
+        if extracted_company and extracted_company.lower() not in ["self-employed", "independent"]:
+            (details, "company", extracted_company)   
 
-        # FINAL SAFETY GUARD: Deep Symbol Extraction
-        invalid_values = ["self-employed", "independent", "freelance", "linkedin", "experience"]
-        potential = ""
-        if not details["company"]: 
-            h = details["headline"]
-            for sep in [" at ", " @ ", "@", " : ", ":", " | ", " - "]:
-                if sep in h:
-                    parts = h.split(sep)
-                    
-                    # OPTION A: Take the part after the symbol (Standard)
-                    potential = parts[-1].split('|')[0].split('-')[0].split('·')[0].strip()
-                    
-                    # OPTION B: If after-part is junk, take the part BEFORE the symbol (Reverse)
-                    if potential.lower() in ["self-employed", "freelance", "independent", "linkedin"] and len(parts) > 1:
-                        first_part = parts[0]
-                        # Scan for keywords
-                        keywords = ['Founder', 'CEO', 'Manager', 'Owner', 'Partner', 'Lead', 'Co-Founder']
-                        for k in keywords:
-                            if k in first_part:
-                                potential = first_part.split(k)[-1].strip()
-                                break
-                        if potential.lower() in ["self-employed", "freelance", "independent", "linkedin"]:
-                            # If still no keyword found, take the whole first part but remove acronyms
-                            potential = first_part.replace("CEO", "").replace("CTO", "").replace("Founder", "").strip()
 
-                if potential and len(potential) > 2 and potential.lower() != details.get("full_name", "").lower():
-                    details["company"] = potential
-                    break
-        
-        # FINAL HEADLINE SPLIT: If still nothing, try the very first part of a " | " separated headline
-        if not details["company"] or details["company"].lower() in ["self-employed", "freelance"]:
-            if " | " in h:
-                potential = h.split(" | ")[0].strip()
-                if len(potential) > 2 and potential.lower() != details["full_name"].lower():
-                    details["company"] = potential
-
-        # 🔥 FINAL SAFE FALLBACK (FIXED SELF-EMPLOYED BUG)
-
-        invalid_values = ["self-employed", "independent", "freelance", "linkedin", "experience"]
-
-        if not details["company"] or details["company"].lower() in invalid_values:
-            h = details["headline"]
-
-            if " at " in h.lower():
-                parts = h.split(" at ")
-                left = parts[0]
-
-                # remove role words
-                cleaned = re.sub(r"\b(Founder|CEO|Co-Founder|Owner|Director|Lead|Manager)\b", "", left, flags=re.IGNORECASE)
-                cleaned = cleaned.strip(" -|")
-
-                # split multiple companies
-                companies = re.split(r"&|,| and ", cleaned)
-                companies = [c.strip() for c in companies if len(c.strip()) > 2]
-
-                if companies:
-                    details["company"] = ", ".join(companies)
-
-            # 🚫 DO NOT FORCE SELF-EMPLOYED ANYMORE
-            if not details["company"]:
-                details["company"] = details.get("company", "")
-    
     # 4. FINAL CLEANUP & FORMATTING
     details['company'] = clean_scraped_text(details['company'])
     if details['company'].lower() == details['full_name'].lower():
@@ -430,17 +377,27 @@ def scrape_profile_details(driver, profile_url):
     if details['company'] and details['company'] == details['company'].lower():
         details['company'] = details['company'].title()
 
-    # 🔥 FINAL NORMALIZATION (ADD THIS BLOCK HERE)
     if details["role"] and not details["company"]:
-        if " " in details["role"]:
-            parts = details["role"].split(" ", 1)
-            if len(parts) > 1:
-                role_candidate = parts[0]
-                company_candidate = parts[1]
+        role_text = details["role"]
 
-            if role_candidate.lower() in ["founder", "ceo", "manager", "lead", "owner"]:
-                details["role"] = role_candidate
-                details["company"] = company_candidate
+        if "@" in role_text:
+            parts = role_text.split("@")
+            details["role"] = parts[0].strip()
+            details["company"] = parts[1].strip()
+
+        elif " at " in role_text.lower():
+            parts = role_text.split(" at ")
+            details["role"] = parts[0].strip()
+            details["company"] = parts[1].strip()
+
+    bad_values = ["self-employed", "independent", "freelance", "& ceo", "ceo"]
+
+    if details["company"] and details["company"].lower() in bad_values:
+        print("   -> FIX: Removing bad company value")
+        details["company"] = ""
+
+    if details["role"] and len(details["role"]) > 50:
+        details["role"] = details["role"].split("|")[0].strip()
 
     print(f"   -> SYNC READY: {details['role']} at {details['company']}")
 
@@ -557,11 +514,9 @@ def get_content_hash(text):
 def scrape_profile(driver, profile_url):
     details = scrape_profile_details(driver, profile_url)
 
-    # 🚨 Safety check
     if not details or not details.get("full_name") or "LinkedIn" in details.get("full_name", ""):
         return False
 
-    # 🌍 TRANSLATE IMPORTANT FIELDS BEFORE SAVING
     details["headline"] = safe_translate(details.get("headline"))
     details["about"] = safe_translate(details.get("about"))
     details["work_description"] = safe_translate(details.get("work_description"))
