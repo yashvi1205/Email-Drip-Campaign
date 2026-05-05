@@ -101,11 +101,31 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
         (now, seq_id)
     )
 
+            # 🚫 Prevent rapid duplicate opens (within 10 seconds)
+            if event_type == "open":
+                cur.execute("""
+                    SELECT timestamp FROM events 
+                    WHERE lead_id = %s AND event_type = 'open'
+                    ORDER BY timestamp DESC LIMIT 1
+                """, (lead_id,))
+                last = cur.fetchone()
+
+                if last and (now - last['timestamp']).seconds < 10:
+                    print("⚠️ Duplicate open ignored")
+                    return True
+
             # ✅ 4. INSERT EVENT (ONLY ONCE)
             cur.execute(
                 "INSERT INTO events (lead_id, event_type, timestamp, metadata) VALUES (%s, %s, %s, %s)",
                 (lead_id, event_type, now, json.dumps(meta))
             )
+
+            if event_type == "click":
+                cur.execute("""
+                    UPDATE email_sequences
+                    SET last_clicked_at = %s
+                    WHERE id = %s
+                """, (now, seq_id))
 
             # ✅ 5. UPDATE SEQUENCE TABLE
             if event_type == "open":
@@ -115,10 +135,11 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
                 )
 
             elif event_type == "reply":
-                cur.execute(
-                    "UPDATE email_sequences SET replied = TRUE WHERE id = %s",
-                    (seq_id,)
-                )
+                cur.execute("""
+                    UPDATE email_sequences 
+                    SET replied = TRUE, opened_at = COALESCE(opened_at, %s)
+                    WHERE id = %s
+                """, (now, seq_id))
 
             # ✅ 6. UPDATE LEAD STATUS
             new_status = EVENT_TO_STATUS.get(event_type)
@@ -138,7 +159,7 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
 
             # ✅ 8. COUNT OPENS
             cur.execute(
-                "SELECT COUNT(*) as count FROM events WHERE lead_id = %s AND event_type = 'open'",
+                "SELECT COUNT(*) FROM events WHERE lead_id = %s AND event_type = 'open'",
                 (lead_id,)
             )
             open_count = cur.fetchone()['count']
@@ -160,8 +181,6 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
 @router.get("/track/{tracking_id}")
 @router.get("/t/o/{tracking_id}")
 @router.get("/open/{tracking_id}")
-@router.get("/img/logo_{tracking_id}.png")
-@router.get("/pixel/{tracking_id}.gif")
 async def track_open(tracking_id: str, request: Request):
     """Logs an 'open' event when the pixel is loaded (with shorthand support)."""
     # Remove any file extensions if they were passed in the URL
@@ -178,22 +197,17 @@ async def track_open(tracking_id: str, request: Request):
     print("="*50 + "\n")
     
     # 🚫 Ignore Gmail proxy + bots
-    user_agent = request.headers.get("user-agent", "").lower()
+    ua = request.headers.get("user-agent", "").lower()
+    is_gmail_proxy = "googleimageproxy" in ua
+    is_bot = "bot" in ua or "crawler" in ua
 
-    is_bot = any(bot in user_agent for bot in [
-        "googleimageproxy",
-        "microsoft",
-        "outlook",
-        "bot",
-        "crawler"
-    ])
+    print(f"USER AGENT: {ua}")
 
-    print(f"USER AGENT: {user_agent}")
-
-    if not is_bot:
-        log_event(tracking_id, "open", request)
+    # ✅ Allow real opens but block obvious proxies
+    if is_gmail_proxy:
+        print("⚠️ Gmail proxy ignored")
     else:
-        print("⚠️ Ignored fake open")
+        log_event(tracking_id, "open", request)
     
     # FORWARDING: Only forward if we are on Render
     local_url = os.getenv("LOCAL_BACKEND_URL")
@@ -215,13 +229,8 @@ async def track_open(tracking_id: str, request: Request):
         "Content-Disposition": "inline; filename=logo.png"
     }
 
-    if is_gmail:
-        # For Gmail, return a REAL PNG DIRECTLY
-        return Response(content=PIXEL_PNG, media_type="image/png", headers=headers)
-    
-    # For others, return the GIF
     return Response(content=PIXEL_GIF, media_type="image/gif", headers=headers)
-
+    
 @router.get("/click/{tracking_id}")
 async def track_click(tracking_id: str, url: str, request: Request):
     """Logs a 'click' event and redirects the user."""
