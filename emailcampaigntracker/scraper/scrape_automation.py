@@ -31,11 +31,24 @@ except ImportError:
     def get_or_create_sequence(*args, **kwargs): pass
     def save_enhanced_data(**kwargs): pass
 
+API_URL = "http://localhost:8001/api"
 webhook_url = None
 
 for arg in sys.argv:
     if "webhook_url=" in arg:
         webhook_url = arg.split("webhook_url=")[-1]
+
+def update_backend_status(status, message=None, new_posts=None, error=None):
+    """Sends status updates back to the FastAPI backend."""
+    try:
+        payload = {"status": status}
+        if message: payload["message"] = message
+        if new_posts is not None: payload["new_posts_found"] = new_posts
+        if error: payload["error"] = str(error)
+        
+        requests.post(f"{API_URL}/update-status", json=payload, timeout=5)
+    except Exception as e:
+        print(f"   -> [!] Backend status update failed: {e}")
 
 def translate_to_english(text):
     try:
@@ -630,34 +643,44 @@ def run_scraper():
     
     driver = webdriver.Chrome(options=chrome_options)
     try:
+        update_backend_status("running", "Initializing browser...")
         driver.get("https://www.linkedin.com/feed/")
         time.sleep(5)
 
         ensure_logged_in(driver)
-
         save_cookies(driver)
 
-        for url in urls:
+        for i, url in enumerate(urls):
+            update_backend_status("running", f"Scraping profile {i+1}/{len(urls)}: {url}")
             result = scrape_profile(driver, url)
             if result:
                 all_results.append(result)
                 print(f"   -> SYNC COMPLETE: {url}")
+                update_backend_status("running", f"Synced {len(all_results)} profiles...", new_posts=len(all_results))
             time.sleep(10)
 
+        update_backend_status("completed", f"Finished! Found {len(all_results)} profiles.", new_posts=len(all_results))
+
+    except Exception as e:
+        print(f"❌ CRITICAL ERROR: {e}")
+        update_backend_status("error", error=str(e))
     finally:
         print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser automatically.")
 
         if webhook_url and all_results:
             try:
                 print(f"🚀 Sending {len(all_results)} profiles to webhook...")
-                response = requests.post(webhook_url, json={"data": all_results})
+                # Add loop protection flag to webhook call
+                response = requests.post(webhook_url, json={"data": all_results, "source": "scraper_direct"})
                 print(f"✅ Webhook response: {response.status_code}")
             except Exception as e:
                 print(f"❌ Webhook failed: {e}")
         else:
             print("⚠️ No webhook URL or no data to send")
         
-        driver.quit()
+        try:
+            driver.quit()
+        except: pass
 
 if __name__ == "__main__":
     run_scraper()

@@ -22,7 +22,6 @@ EVENT_TO_STATUS = {
     "open": "OPENED",
     "click": "CLICKED",
     "reply": "REPLIED",
-    "delete": "DELETED",
 }
 
 def normalize_url(url):

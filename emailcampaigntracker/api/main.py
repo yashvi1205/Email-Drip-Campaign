@@ -396,14 +396,14 @@ def get_drip_dashboard():
                     "step": latest_seq.step_number if latest_seq else None,
                     "status": latest_seq.status if latest_seq else "not_started",
                     "sent_at": latest_seq.sent_at if latest_seq else None,
-                    "opened_at": latest_seq.opened_at if latest_seq else None,
+                    "opened_at": latest_seq.last_opened if latest_seq else None,
                     "replied": latest_seq.replied if latest_seq else False,
                     "tracking_id": latest_seq.tracking_id if latest_seq else None,
-                    "clicked": click_count > 0,
-                    "click_count": click_count,
-                    "open_count": open_count,
+                    "clicked": (latest_seq.click_count or 0) > 0 if latest_seq else False,
+                    "click_count": latest_seq.click_count if latest_seq else 0,
+                    "open_count": latest_seq.open_count if latest_seq else 0,
                     "sent_count": sent_count,
-                    "deleted": deleted
+                    "last_replied": latest_seq.last_replied if latest_seq else None
                 } if latest_seq else None
             })
         return result
@@ -455,27 +455,46 @@ def get_scraper_status():
         return {"status": "error", "error": str(e)}
 
 @app.post("/api/scrape")
-def trigger_scrape(webhook_url: str):
+def trigger_scrape(webhook_url: str = None, source: str = "unknown"):
     import subprocess, sys
     global SCRAPER_STATUS
 
+    # Check if scraper is already running
+    if SCRAPER_STATUS.get("status") == "running":
+        # Check if the process is actually still alive (45s timeout check)
+        now = datetime.utcnow().timestamp()
+        if now - SCRAPER_STATUS.get("timestamp", 0) < 300: # 5 min safety lock
+            print(f"⚠️ REJECTED: Scraper already running (Source: {source})")
+            return {"status": "already running", "source": source}
+
+    print(f"🚀 SCRAPER TRIGGERED BY: {source}")
+    print(f"   -> Webhook URL: {webhook_url}")
+
     SCRAPER_STATUS["status"] = "running"
-    SCRAPER_STATUS["message"] = "Scraper started"
+    SCRAPER_STATUS["message"] = f"Scraper started by {source}"
+    SCRAPER_STATUS["timestamp"] = datetime.utcnow().timestamp()
+    SCRAPER_STATUS["new_posts_found"] = 0
 
     try:
-        print(f"🚀 Received webhook URL: {webhook_url}")
-        subprocess.Popen([
-            sys.executable,
-            SCRAPER_SCRIPT,
-            f"webhook_url={webhook_url}"
-        ])
+        args = [sys.executable, SCRAPER_SCRIPT]
+        if webhook_url:
+            args.append(f"webhook_url={webhook_url}")
+        
+        subprocess.Popen(args)
+
+        # Save initial status to file
+        with open(SCRAPER_STATUS_FILE, "w") as f:
+            json.dump(SCRAPER_STATUS, f)
 
         return {
             "status": "started",
+            "source": source,
             "webhook_url": webhook_url
         }
 
     except Exception as e:
+        SCRAPER_STATUS["status"] = "error"
+        SCRAPER_STATUS["error"] = str(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 SCRAPER_STATUS = {
@@ -487,6 +506,14 @@ SCRAPER_STATUS = {
 def update_status(data: dict):
     global SCRAPER_STATUS
     SCRAPER_STATUS.update(data)
+    SCRAPER_STATUS["timestamp"] = datetime.utcnow().timestamp()
+    
+    # Persist to file
+    try:
+        with open(SCRAPER_STATUS_FILE, "w") as f:
+            json.dump(SCRAPER_STATUS, f)
+    except: pass
+    
     return {"ok": True}
 
 @app.get("/api/scrape/status")

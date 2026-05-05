@@ -37,6 +37,11 @@ class EmailSequence(Base):
     sent_at = Column(DateTime)
     opened_at = Column(DateTime)
     replied = Column(Boolean, default=False)
+    open_count = Column(Integer, default=0)
+    click_count = Column(Integer, default=0)
+    last_opened = Column(DateTime)
+    last_clicked = Column(DateTime)
+    last_replied = Column(DateTime)
     lead_name = Column(String)  # Denormalized for easier dashboard viewing
 
     lead = relationship("Lead", back_populates="sequences")
