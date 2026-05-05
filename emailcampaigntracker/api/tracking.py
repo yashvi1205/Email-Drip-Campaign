@@ -178,7 +178,19 @@ async def track_open(tracking_id: str, request: Request):
     print("="*50 + "\n")
     
     # Log the event
-    log_event(tracking_id, "open", request)
+    user_agent = request.headers.get("user-agent", "").lower()
+
+    # 🚫 Ignore Gmail proxy + bots
+    if any(bot in user_agent for bot in [
+        "googleimageproxy",
+        "microsoft",
+        "outlook",
+        "bot",
+        "crawler"
+    ]):
+        print("⚠️ Bot detected → skipping open tracking")
+    else:
+        log_event(tracking_id, "open", request)
     
     # FORWARDING: Only forward if we are on Render
     local_url = os.getenv("LOCAL_BACKEND_URL")
