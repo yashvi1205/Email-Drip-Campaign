@@ -116,12 +116,9 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
 
             elif event_type == "reply":
                 cur.execute(
-                    """UPDATE email_sequences
-                    SET replied = TRUE,
-                        opened_at = COALESCE(opened_at, %s)
-                    WHERE id = %s""",
-                    (now, seq_id)
-            )
+                    "UPDATE email_sequences SET replied = TRUE WHERE id = %s",
+                    (seq_id,)
+                )
 
             # ✅ 6. UPDATE LEAD STATUS
             new_status = EVENT_TO_STATUS.get(event_type)
@@ -244,7 +241,6 @@ async def track_click(tracking_id: str, url: str, request: Request):
 
 @router.post("/reply/{tracking_id}")
 async def track_reply(tracking_id: str, request: Request):
-    print("📩 REPLY RECEIVED FOR:", tracking_id)
     """Logs a 'reply' event (can be triggered by webhook or manual action)."""
     log_event(tracking_id, "reply", request)
     
