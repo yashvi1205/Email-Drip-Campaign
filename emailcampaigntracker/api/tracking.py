@@ -35,23 +35,21 @@ def normalize_url(url):
         .rstrip("/")
     )
     
-def sync_sheet_status_async(linkedin_url, status, open_count=None):
-    """Sync a single lead's status to Google Sheet in background thread."""
+def sync_sheet_status_async(sync_data):
+    """Sync lead tracking data to Google Sheet in background thread."""
     try:
         from google_sheets import sync_leads_status
-        payload = {
-            "linkedin_url": normalize_url(linkedin_url),
-            "status": status
-        }
-        if open_count is not None:
-            payload["open_count"] = open_count
+        # Ensure URL is normalized
+        if "linkedin_url" in sync_data:
+            sync_data["linkedin_url"] = normalize_url(sync_data["linkedin_url"])
+            
         for _ in range(3):
             try:
-                sync_leads_status([payload])
+                sync_leads_status([sync_data])
                 break
             except Exception as e:
                 print("Retrying sheet sync...", e)
-        print(f"   -> Sheet synced: {linkedin_url} = {status} (Opens: {open_count})")
+        print(f"   -> Sheet synced: {sync_data.get('linkedin_url')} = {sync_data.get('status')}")
     except Exception as e:
         print(f"   -> Sheet sync failed: {e}")
 
@@ -72,9 +70,6 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
             res = cur.fetchone()
             if not res:
                 print("TRACKING NOT FOUND:", tracking_id)
-                cur.execute("SELECT tracking_id FROM email_sequences ORDER BY id DESC LIMIT 5")
-                print("DEBUG LAST IDS:", cur.fetchall())
-
                 return False
             
             seq_id = res['id']
@@ -90,88 +85,92 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
             if additional_metadata:
                 meta.update(additional_metadata)
 
-
-            # ✅ HANDLE SENT EVENT (ADD THIS)
+            # 3. Handle Events (INCREMENT, DON'T OVERWRITE)
             if event_type == "sent":
-                print(f"DEBUG: Marking email as SENT for tracking_id: {tracking_id}")
+                cur.execute("UPDATE email_sequences SET sent_at = %s WHERE id = %s", (now, seq_id))
 
-                # update sent_at in sequence
-                cur.execute(
-                    "UPDATE email_sequences SET sent_at = %s WHERE id = %s",
-        (now, seq_id)
-    )
-
-            # 🚫 Prevent rapid duplicate opens (within 10 seconds)
-            if event_type == "open":
+            elif event_type == "open":
+                # 🚫 Prevent rapid duplicate opens (within 10 seconds)
                 cur.execute("""
                     SELECT timestamp FROM events 
                     WHERE lead_id = %s AND event_type = 'open'
                     ORDER BY timestamp DESC LIMIT 1
                 """, (lead_id,))
                 last = cur.fetchone()
-
                 if last and (now - last['timestamp']).seconds < 10:
                     print("⚠️ Duplicate open ignored")
                     return True
+                
+                cur.execute("""
+                    UPDATE email_sequences 
+                    SET open_count = COALESCE(open_count, 0) + 1, last_opened = %s 
+                    WHERE id = %s
+                """, (now, seq_id))
 
-            # ✅ 4. INSERT EVENT (ONLY ONCE)
+            elif event_type == "click":
+                cur.execute("""
+                    UPDATE email_sequences 
+                    SET click_count = COALESCE(click_count, 0) + 1, last_clicked = %s 
+                    WHERE id = %s
+                """, (now, seq_id))
+
+            elif event_type == "reply":
+                cur.execute("""
+                    UPDATE email_sequences 
+                    SET replied = TRUE, last_replied = %s 
+                    WHERE id = %s
+                """, (now, seq_id))
+
+            # 4. INSERT INTO EVENTS LOG
             cur.execute(
                 "INSERT INTO events (lead_id, event_type, timestamp, metadata) VALUES (%s, %s, %s, %s)",
                 (lead_id, event_type, now, json.dumps(meta))
             )
 
-            if event_type == "click":
-                cur.execute("""
-                    UPDATE email_sequences
-                    SET last_clicked_at = %s
-                    WHERE id = %s
-                """, (now, seq_id))
+            # 5. DERIVE FINAL STATUS (OPTION B: LATEST ACTION)
+            cur.execute("""
+                SELECT sent_at, last_opened, last_clicked, last_replied, open_count, click_count, replied 
+                FROM email_sequences WHERE id = %s
+            """, (seq_id,))
+            seq_data = cur.fetchone()
 
-            # ✅ 5. UPDATE SEQUENCE TABLE
-            if event_type == "open":
-                cur.execute(
-                    "UPDATE email_sequences SET opened_at = %s WHERE id = %s AND opened_at IS NULL",
-                    (now, seq_id)
-                )
+            # Identify all events and their timestamps
+            # We use datetime.min for any event that hasn't happened yet
+            events = [
+                (seq_data['sent_at'] or datetime.datetime.min, "SENT"),
+                (seq_data['last_opened'] or datetime.datetime.min, "OPENED"),
+                (seq_data['last_clicked'] or datetime.datetime.min, "CLICKED"),
+                (seq_data['last_replied'] or datetime.datetime.min, "REPLIED")
+            ]
+            
+            # Sort by timestamp (descending) to find the most recent one
+            events.sort(key=lambda x: x[0], reverse=True)
+            final_status = events[0][1]
 
-            elif event_type == "reply":
-                cur.execute("""
-                    UPDATE email_sequences 
-                    SET replied = TRUE, opened_at = COALESCE(opened_at, %s)
-                    WHERE id = %s
-                """, (now, seq_id))
+            # 6. UPDATE LEAD TABLE
+            cur.execute("UPDATE leads SET status = %s WHERE id = %s", (final_status, lead_id))
 
-            # ✅ 6. UPDATE LEAD STATUS
-            new_status = EVENT_TO_STATUS.get(event_type)
-            if event_type == "sent":
-                new_status = "SENT"
-
-            if new_status:
-                cur.execute(
-                    "UPDATE leads SET status = %s WHERE id = %s",
-                    (new_status, lead_id)
-                )
-
-            # ✅ 7. GET LINKEDIN URL
-            cur.execute("SELECT linkedin_url FROM leads WHERE id = %s", (lead_id,))
-            url_res = cur.fetchone()
-            linkedin_url = url_res['linkedin_url'] if url_res else None
-
-            # ✅ 8. COUNT OPENS
-            cur.execute(
-                "SELECT COUNT(*) FROM events WHERE lead_id = %s AND event_type = 'open'",
-                (lead_id,)
-            )
-            open_count = cur.fetchone()['count']
-
+            # 7. FETCH LEAD INFO FOR SYNC
+            cur.execute("SELECT linkedin_url, email FROM leads WHERE id = %s", (lead_id,))
+            lead_info = cur.fetchone()
+            
             conn.commit()
 
-            if linkedin_url:
-                print(f"DEBUG: Syncing sheet → {linkedin_url} | Status: {new_status} | Opens: {open_count}")
-
+            if lead_info:
+                sync_data = {
+                    "linkedin_url": lead_info['linkedin_url'],
+                    "email": lead_info['email'],
+                    "status": final_status,
+                    "open_count": seq_data['open_count'],
+                    "last_opened": seq_data['last_opened'],
+                    "click_count": seq_data['click_count'],
+                    "last_clicked": seq_data['last_clicked'],
+                    "replied": seq_data['replied'],
+                    "last_replied": seq_data['last_replied']
+                }
                 threading.Thread(
                     target=sync_sheet_status_async,
-                    args=(linkedin_url, new_status, open_count),
+                    args=(sync_data,),
                     daemon=True
                 ).start()
 

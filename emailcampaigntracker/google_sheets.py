@@ -90,7 +90,7 @@ def get_profile_urls(sheet_name="Profiles"):
     except: return []
 
 def sync_leads_status(leads_data):
-    """Updates the status column in the Google Sheet for all listed leads."""
+    """Updates the status and tracking columns in the Google Sheet for all listed leads."""
     try:
         spreadsheet = client.open("LinkedIn_Profile_DataScraper")
         try:
@@ -102,33 +102,64 @@ def sync_leads_status(leads_data):
         if not all_rows: return False
         
         headers = [h.strip().lower() for h in all_rows[0]]
-        status_col = -1
-        url_col = -1
-        open_col = -1
         
-        for i, h in enumerate(headers):
-            if "status" in h: status_col = i + 1
-            if "profile url" in h or "linkedin" in h: url_col = i + 1
-            if "open count" in h: open_col = i + 1
+        # Define columns we want to track
+        tracking_fields = {
+            "profile url": "linkedin_url",
+            "email": "email",
+            "status": "status",
+            "open count": "open_count",
+            "last opened": "last_opened",
+            "click count": "click_count",
+            "last clicked": "last_clicked",
+            "replied": "replied",
+            "last replied": "last_replied"
+        }
         
-        if open_col == -1:
-            open_col = len(headers) + 1
-            profile_sheet.update_cell(1, open_col, "Open Count")
+        col_indices = {}
+        for h_text, field_key in tracking_fields.items():
+            found = False
+            for i, h in enumerate(headers):
+                if h_text in h:
+                    col_indices[field_key] = i + 1
+                    found = True
+                    break
+            
+            # If column not found, create it
+            if not found:
+                new_col = len(headers) + 1
+                profile_sheet.update_cell(1, new_col, h_text.title())
+                headers.append(h_text)
+                col_indices[field_key] = new_col
 
-        status_map = {normalize_url(l['linkedin_url']): l for l in leads_data}
-        urls = profile_sheet.col_values(url_col or 1)
+        url_col = col_indices.get("linkedin_url", 1)
+        status_map = {normalize_url(l.get('linkedin_url', '')): l for l in leads_data}
+        urls = profile_sheet.col_values(url_col)
         
         updates = []
         for i, url in enumerate(urls):
-            if i == 0: continue
+            if i == 0: continue # Skip header
             clean_url = normalize_url(url)
             if clean_url in status_map:
                 lead = status_map[clean_url]
-                updates.append({'range': gspread.utils.rowcol_to_a1(i+1, status_col), 'values': [[lead['status'].upper()]]})
-                if open_col != -1 and 'open_count' in lead:
-                    updates.append({'range': gspread.utils.rowcol_to_a1(i+1, open_col), 'values': [[lead['open_count']]]})
+                
+                # Update each tracked field if present in lead data
+                for field_key, col_idx in col_indices.items():
+                    if field_key == "linkedin_url": continue # Don't update the URL itself
+                    
+                    val = lead.get(field_key)
+                    if val is not None:
+                        # Format timestamps
+                        if "last" in field_key and hasattr(val, "strftime"):
+                            val = val.strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        updates.append({
+                            'range': gspread.utils.rowcol_to_a1(i+1, col_idx), 
+                            'values': [[str(val).upper() if field_key == "status" else str(val)]]
+                        })
         
-        if updates: profile_sheet.batch_update(updates)
+        if updates: 
+            profile_sheet.batch_update(updates)
         return True
     except Exception as e:
         print(f"Sync error: {e}")
