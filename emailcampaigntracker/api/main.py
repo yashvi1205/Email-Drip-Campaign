@@ -4,6 +4,8 @@ import os
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta
+
 
 
 
@@ -190,7 +192,8 @@ def get_profiles():
         result.append(p_data)
         db.close()
     
-    from datetime import datetime, timedelta
+    
+
     
     def parse_relative_time(rt):
         if not rt or not isinstance(rt, str): return 9999999
