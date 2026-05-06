@@ -594,26 +594,28 @@ def scrape_profile(driver, profile_url):
                 recent_activity="\n".join(activity_list)
             )
 
+            db.close()
+            # ✅ ONLY RETURN IF NEW ACTIVITY (Prevents Webhook Loops)
+            return {
+                "name": details.get("full_name"),
+                "headline": details.get("headline"),
+                "company": details.get("company"),
+                "role": details.get("role"),
+                "about": details.get("about"),
+                "work_description": details.get("work_description"),
+                "email": details.get("email"),
+                "url": profile_url
+            }
+
         else:
             print(f"   -> [DUPLICATE] No new activity for {details['full_name']}")
             save_event(lead_id, "profile_scraped", {"status": "no_new_activity"})
-
-        db.close()
+            db.close()
+            return None
 
     else:
         save_event(lead_id, "profile_scraped", {"status": "no_activity_found"})
-
-    # ✅ FINAL RETURN (FIXED SYNTAX)
-    return {
-        "name": details.get("full_name"),
-        "headline": details.get("headline"),
-        "company": details.get("company"),
-        "role": details.get("role"),
-        "about": details.get("about"),
-        "work_description": details.get("work_description"),
-        "email": details.get("email"),
-        "url": profile_url
-    }
+        return None
 
 
 def save_cookies(driver):

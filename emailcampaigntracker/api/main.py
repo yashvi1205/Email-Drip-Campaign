@@ -464,14 +464,17 @@ def trigger_scrape(webhook_url: str = None, source: str = "unknown"):
 
     # Check if scraper is already running
     if SCRAPER_STATUS.get("status") == "running":
-        # Check if the process is actually still alive (45s timeout check)
         now = datetime.utcnow().timestamp()
-        if now - SCRAPER_STATUS.get("timestamp", 0) < 300: # 5 min safety lock
+        last_update = SCRAPER_STATUS.get("timestamp", 0)
+        
+        # 5 min safety lock, but also ignore if triggered within last 60s
+        if now - last_update < 300:
             print(f"⚠️ REJECTED: Scraper already running (Source: {source})")
             return {"status": "already running", "source": source}
 
-    print(f"🚀 SCRAPER TRIGGERED BY: {source}")
-    print(f"   -> Webhook URL: {webhook_url}")
+    print(f"\n🚀 SCRAPER TRIGGERED BY: {source}")
+    if webhook_url:
+        print(f"   -> WEBHOOK TARGET: {webhook_url}")
 
     SCRAPER_STATUS["status"] = "running"
     SCRAPER_STATUS["message"] = f"Scraper started by {source}"

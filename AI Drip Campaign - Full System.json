@@ -3,25 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "hours"
-            }
-          ]
-        }
-      },
-      "id": "2709acd1-b921-439b-806f-1f379d734780",
-      "name": "Phase1 Cron (Every 10 Min)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -1744,
-        0
-      ]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "http://127.0.0.1:8001/api/scrape?webhook_url=http://localhost:5678/webhook/3aeb822a-2673-401f-9882-ff3dfe88db65",
         "options": {}
@@ -31,7 +12,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1520,
+        -1728,
         0
       ],
       "retryOnFail": false,
@@ -47,7 +28,7 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -1520,
+        -1728,
         304
       ]
     },
@@ -75,7 +56,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        -1296,
+        -1504,
         304
       ],
       "executeOnce": true,
@@ -88,14 +69,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const profiles = $('Split Into Individual Profiles').all();\nconst sheetRows = $('Read Emails from Google Sheet').all().map(i => i.json);\nconst emailMap = {};\nfor (const row of sheetRows) {\n  const urlKey = Object.keys(row).find(k => k.toLowerCase().includes('profile') && k.toLowerCase().includes('url'));\n  const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email') && k.toLowerCase() !== 'email status');\n  const url = (urlKey ? row[urlKey] : '').trim();\n  const email = (emailKey ? row[emailKey] : '').trim();\n  if (url && email && email.includes('@') && !email.toLowerCase().includes('restricted')) {\n    emailMap[url.toLowerCase()] = email;\n  }\n}\nconst results = [];\nfor (const item of profiles) {\n  const p = { ...item.json };\n  const currentEmail = (p.email || '').toLowerCase();\n  const isRestricted = !currentEmail || !currentEmail.includes('@') || currentEmail.includes('restricted');\n  if (isRestricted) {\n    const url = (p.url || p.linkedin_url || '').toLowerCase();\n    const sheetEmail = emailMap[url];\n    if (sheetEmail) { p.email = sheetEmail; p.email_source = 'google_sheet'; }\n  }\n  // FILTER: skip invalid leads\n  const finalEmail = (p.email || '').trim();\n  if (!finalEmail.includes('@')) continue;\n  if (finalEmail.toLowerCase().includes('restricted')) continue;\n  const status = (p.status || '').toUpperCase();\n  if (status === 'STOPPED' || status === 'REPLIED') continue;\n  \n  results.push({ json: p });\n}\nreturn results;\n"
+        "jsCode": "const profiles = $('Split Into Individual Profiles').all();\n\nconst sheetRows = $('Read Emails from Google Sheet').all().map(i => i.json);\n\nfunction normalizeUrl(url) {\n  return (url || '')\n    .toLowerCase()\n    .replace('www.', '')\n    .trim();\n}\n\nconst emailMap = {};\n\nfor (const row of sheetRows) {\n\n  const urlKey = Object.keys(row).find(k =>\n    k.toLowerCase().includes('profile') &&\n    k.toLowerCase().includes('url')\n  );\n\n  const emailKey = Object.keys(row).find(k =>\n    k.toLowerCase().includes('email') &&\n    !k.toLowerCase().includes('status')   // 🚨 IMPORTANT\n  );\n\n  const url = normalizeUrl(urlKey ? row[urlKey] : '');\n  const email = (emailKey ? row[emailKey] : '').trim();\n\n  if (url && email && email.includes('@') && !email.toLowerCase().includes('restricted')) {\n    emailMap[url] = email;\n  }\n}\n\nconst results = [];\n\nfor (const item of profiles) {\n\n  const p = { ...item.json };\n\n  if (!p.linkedin_url && !p.url) {\n    console.log(\"Skipping non-profile item:\", p);\n    continue;\n  }\n\n  const currentEmail = (p.email || '').toLowerCase();\n\n  const isInvalid =\n    !currentEmail ||\n    !currentEmail.includes('@') ||\n    currentEmail.includes('restricted');\n\n  if (isInvalid) {\n    const url = normalizeUrl(p.url || p.linkedin_url || '');\n    const sheetEmail = emailMap[url];\n\n    if (sheetEmail) {\n      p.email = sheetEmail;\n      p.email_source = 'google_sheet';\n    }\n  }\n\n  const finalEmail = (p.email || '').trim();\n\n  if (!finalEmail.includes('@')) continue;\n  if (finalEmail.toLowerCase().includes('restricted')) continue;\n\n  const status = (p[\"Email Status\"] || p.status || '').toUpperCase();\n\n  if (status === 'STOPPED' || status === 'REPLIED') continue;\n\n  results.push({ json: p });\n}\n\nif (results.length === 0) {\n  console.log(\"⚠️ No valid leads found — returning empty but safe output\");\n  return [];\n}\n\nreturn results;"
       },
       "id": "54bf4acf-2f7e-4d92-a5a2-06ab4191be95",
       "name": "Fill Missing Emails from Sheet",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1072,
+        -1280,
         304
       ]
     },
@@ -109,7 +90,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -848,
+        -1056,
         304
       ],
       "executeOnce": true
@@ -123,7 +104,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -624,
+        -832,
         304
       ]
     },
@@ -136,20 +117,20 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -176,
+        -384,
         224
       ]
     },
     {
       "parameters": {
-        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\n\n// 🔥 GET GEMINI RESPONSE\nconst aiRaw = $('AI Generate Personalized Email').first().json.content?.parts?.[0]?.text || '';\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(aiRaw);\n} catch (e) {\n  console.log(\"JSON parse failed, using raw text\");\n}\n\n// ✅ FINAL VALUES\nconst subject = parsed.subject || 'Quick question';\nconst body = parsed.body || aiRaw;\n\n// tracking\nconst trackingId = 'trk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);\n\n// pixel\nconst trackingPixel = `<img src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" width=\"1\" height=\"1\" style=\"display:none;\" />`;\n\n// convert links\nconst urlRegex = /(https?:\\/\\/[^\\s<>\\\"]+)/g;\n\nlet emailBody = body.replace(urlRegex, (url) => {\n  if (url.includes(BACKEND_URL)) return url;\n  return `${BACKEND_URL}/api/tracking/click/${trackingId}?redirect_url=${encodeURIComponent(url)}`;\n});\n\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nreturn [{\n  json: {\n    tracking_id: trackingId,\n    email_subject: subject,\n    email_body_html: `<html><body>${emailBody}${trackingPixel}</body></html>`,\n    email_body_plain: body,\n    step_number: 1\n  }\n}];"
+        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\n\nlet aiRaw = $('AI Generate Personalized Email').first().json.content?.parts?.[0]?.text || '';\n\naiRaw = aiRaw.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(aiRaw);\n} catch (e) {\n  console.log(\"JSON parse failed, using raw text\");\n}\n\n\nconst body = parsed.body || aiRaw;\n\nconst trackingId = 'trk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);\n\nconst subjectBase = parsed.subject || 'Quick question';\nconst subject = `${subjectBase} [${trackingId}]`;\n\nconst trackingPixel = `<img src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" width=\"1\" height=\"1\" style=\"display:none;\" />`;\n\nconst urlRegex = /(https?:\\/\\/[^\\s<>\\\"]+)/g;\n\nlet emailBody = String(body).replace(urlRegex, (url) => {\n  if (url.includes(BACKEND_URL)) return url;\n\n  const trackedUrl = `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(url)}`;\n\n  return `<a href=\"${trackedUrl}\" target=\"_blank\" style=\"color:#1a73e8;text-decoration:none;\">\n    View details\n  </a>`;\n});\n\nconst CTA_URL = \"https://example.com\"; // change this\n\nconst trackedCTA = `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(CTA_URL)}`;\n\nconst ctaButton = `\n<br><br>\n<a href=\"${trackedCTA}\" \n   style=\"background:#1a73e8;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:5px;\">\n   Book a quick call\n</a>\n`;\n\n// formatting\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nconst emailHTML = `<html><body style=\"font-family:Arial,sans-serif;\">\n${emailBody}\n${ctaButton}\n${trackingPixel}\n<br><br>\n<div style=\"font-size:12px;color:#666;\">\nRef: ${trackingId}\n</div>\n\n</body></html>`;\n\nreturn [{\n  json: {\n    tracking_id: trackingId,\n    email_subject: subject, \n    email_body_html: emailHTML,\n    email_body_plain: body,\n    step_number: 1\n  }\n}];"
       },
       "id": "de4a25e1-1846-49a7-b60d-aa47b49677e1",
       "name": "Prepare Email with Tracking",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
+        192,
         224
       ]
     },
@@ -164,7 +145,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        848,
+        640,
         224
       ],
       "credentials": {
@@ -183,7 +164,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1072,
+        864,
         224
       ]
     },
@@ -198,7 +179,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1296,
+        1088,
         224
       ],
       "credentials": {
@@ -222,7 +203,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1744,
+        1536,
         224
       ],
       "webhookId": "c9ffab8c-2856-4821-8dc0-1c83688c1223",
@@ -236,7 +217,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://127.0.0.1:8001/api/tracking/sent/{{ $('Prepare DB Values').item.json.tracking_id }}?step={{ $('Prepare DB Values').item.json.step_number }}\n",
+        "url": "=http://127.0.0.1:8001/api/tracking/sent/{{ $('Prepare DB Values').item.json.tracking_id }}?step={{ $('Prepare DB Values').item.json.step_number }}",
         "options": {}
       },
       "id": "cdefb78b-1c75-456c-8532-a425587dd027",
@@ -244,7 +225,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1968,
+        1760,
         304
       ]
     },
@@ -253,7 +234,8 @@
         "rule": {
           "interval": [
             {
-              "field": "hours"
+              "daysInterval": 5,
+              "triggerAtHour": 9
             }
           ]
         }
@@ -263,14 +245,14 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -1744,
+        -1952,
         592
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT l.id as lead_id, l.name, l.email, l.status, l.company, l.role, l.headline, l.about, l.linkedin_url,\n  es.step_number, es.tracking_id as last_tracking_id, es.sent_at, es.opened_at, es.replied\nFROM leads l\nJOIN email_sequences es ON es.lead_id = l.id\nWHERE l.status IN ('SENT', 'IGNORED')\n  AND es.opened_at IS NULL\n  AND es.replied = FALSE\n  AND es.sent_at <= NOW() - INTERVAL '5 days'\n  AND es.step_number < 6\n  AND es.id = (SELECT MAX(id) FROM email_sequences WHERE lead_id = l.id)\nORDER BY es.sent_at ASC;",
+        "query": "SELECT \n    l.id AS lead_id,\n    l.name,\n    l.email,\n    l.status,\n    l.company,\n    l.role,\n    l.headline,\n    l.about,\n    l.linkedin_url,\n\n    es.step_number,\n    es.tracking_id AS last_tracking_id,\n    es.sent_at,\n    es.opened_at,\n    es.replied\n\nFROM leads l\n\nJOIN email_sequences es \n    ON es.lead_id = l.id\n\nJOIN (\n    SELECT lead_id, MAX(sent_at) AS max_sent_at\n    FROM email_sequences\n    WHERE \n        opened_at IS NULL\n        AND COALESCE(replied, FALSE) = FALSE\n        AND sent_at <= NOW() - INTERVAL '5 days'\n    GROUP BY lead_id\n) valid \n    ON valid.lead_id = es.lead_id \n    AND valid.max_sent_at = es.sent_at\n\nWHERE \n    l.status IN ('SENT', 'IGNORED')\n    AND es.step_number < 6;",
         "options": {}
       },
       "id": "c1b08142-ed83-4817-92d2-bacf9fec4a65",
@@ -278,7 +260,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -1520,
+        -1728,
         592
       ],
       "credentials": {
@@ -297,20 +279,20 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1072,
+        -1280,
         528
       ]
     },
     {
       "parameters": {
-        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\n\nconst leadData = $('Build Follow-up Context').first().json;\n\nconst aiRaw = $('AI Generate Follow-up Email').first().json.content?.parts?.[0]?.text || '';\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(aiRaw);\n} catch (e) {\n  console.log(\"Follow-up JSON parse failed\");\n}\n\nconst subject = parsed.subject || `Quick follow-up (${leadData.next_step})`;\nconst body = parsed.body || aiRaw;\n\nconst trackingId = 'trk_fu_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);\n\nconst trackingPixel = `<img src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" width=\"1\" height=\"1\" style=\"display:none;\" />`;\n\nconst urlRegex = /(https?:\\/\\/[^\\s<>\"]+)/g;\n\nlet emailBody = String(body).replace(urlRegex, (url) => {\n  if (url.includes(BACKEND_URL)) return url;\n\n  return `${BACKEND_URL}/api/tracking/click/${trackingId}?redirect_url=${encodeURIComponent(url)}`;\n});\n\n// formatting\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nreturn [{\n  json: {\n    ...leadData,\n    tracking_id: trackingId,\n    email_subject: subject,\n    email_body_html: `<html><body>${emailBody}<br><br>${trackingPixel}</body></html>`,\n    email_body_plain: body,\n    step_number: leadData.next_step || 1\n  }\n}];"
+        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\nconst leadData = $('Build Follow-up Context').first().json;\nlet aiRaw = $('AI Generate Follow-up Email').first().json.content?.parts?.[0]?.text || '';\n\naiRaw = aiRaw\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(aiRaw);\n} catch (e) {\n  console.log(\"Follow-up JSON parse failed, using raw text\");\n}\n\nconst body = parsed.body || aiRaw;\n\nconst subjectBase =\n  parsed.subject ||\n  `Quick follow-up (${leadData.next_step || 1})`;\n\nconst trackingId =\n  'trk_fu_' +\n  Date.now() +\n  '_' +\n  Math.random().toString(36).substring(2, 10);\n\nconst subject = `${subjectBase} [${trackingId}]`;\n\nconst trackingPixel = `\n<img \n  src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" \n  width=\"1\" \n  height=\"1\" \n  style=\"display:none;\" \n/>\n`;\n\nconst urlRegex = /(https?:\\/\\/[^\\s<>\\\"]+)/g;\n\nlet emailBody = String(body).replace(urlRegex, (url) => {\n\n  // Avoid double-tracking\n  if (url.includes(BACKEND_URL)) {\n    return url;\n  }\n\n  const trackedUrl =\n    `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(url)}`;\n\n  return `\n    <a href=\"${trackedUrl}\"\n       target=\"_blank\"\n       style=\"color:#1a73e8;text-decoration:none;\">\n       View details\n    </a>\n  `;\n});\n\n// CTA BUTTON\nconst CTA_URL = \"https://example.com\"; // Replace with your real CTA URL\n\nconst trackedCTA =\n  `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(CTA_URL)}`;\n\nconst ctaButton = `\n<br><br>\n\n<a href=\"${trackedCTA}\"\n   target=\"_blank\"\n   style=\"\n      background:#1a73e8;\n      color:#ffffff;\n      padding:10px 16px;\n      text-decoration:none;\n      border-radius:5px;\n      display:inline-block;\n   \">\n   Schedule a quick call\n</a>\n`;\n\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nconst emailHTML = `\n<html>\n<body style=\"font-family:Arial,sans-serif;line-height:1.6;\">\n${emailBody}\n${ctaButton}\n${trackingPixel}\n<br><br>\n<div style=\"font-size:12px;color:#666;\">\nRef: ${trackingId}\n</div>\n\n</body>\n</html>\n`;\n\n// Return output\nreturn [{\n  json: {\n    ...leadData,\n    tracking_id: trackingId,\n    email_subject: subject,\n    email_body_html: emailHTML,\n    email_body_plain: body,\n    step_number: leadData.next_step || 1\n  }\n}];\n"
       },
       "id": "4f2c1fec-a5e2-4b03-8569-92641d83f927",
       "name": "Prepare Follow-up with Tracking",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -496,
+        -704,
         528
       ]
     },
@@ -325,7 +307,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -272,
+        -480,
         528
       ],
       "credentials": {
@@ -337,7 +319,7 @@
     },
     {
       "parameters": {
-        "sendTo": "={{ $json.email }}",
+        "sendTo": "={{ $('Prepare Follow-up with Tracking').item.json.email }}",
         "subject": "={{ $('Prepare Follow-up with Tracking').item.json.email_subject }}",
         "message": "={{ $('Prepare Follow-up with Tracking').item.json.email_body_html }}",
         "options": {}
@@ -347,7 +329,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        176,
+        -256,
         528
       ],
       "webhookId": "947a392a-82d5-4cd0-9c8a-2269f9b49396",
@@ -361,7 +343,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://email-drip-campaign-hpo2.onrender.com/api/tracking/sent/{{ $('Prepare Follow-up with Tracking').item.json.tracking_id }}?step={{ $('Prepare Follow-up with Tracking').item.json.step_number }}",
+        "url": "=http://127.0.0.1:8001/api/tracking/sent/{{ $('Prepare Follow-up with Tracking').item.json.tracking_id }}?step={{ $('Prepare Follow-up with Tracking').item.json.step_number }}",
         "options": {}
       },
       "id": "6027f53d-8c5a-446b-9a0a-edf76a23c145",
@@ -369,7 +351,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -48,
+        -32,
         528
       ]
     },
@@ -384,7 +366,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        400,
+        192,
         592
       ],
       "credentials": {
@@ -396,62 +378,12 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "update-lead-status",
-        "options": {}
-      },
-      "id": "01a00702-301a-4d4e-9716-1b754e7d79e3",
-      "name": "Webhook: UI Status Update",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [
-        -1744,
-        816
-      ],
-      "webhookId": "f77bba60-3091-4510-82bd-55bdde6ffda6"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE leads SET status = '{{ $json.body.status }}' WHERE id = {{ $json.body.lead_id }};",
-        "options": {}
-      },
-      "id": "e42a3f29-2c95-4383-8271-251e0eeeb341",
-      "name": "Update Lead Status in DB",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        -1520,
-        816
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "ApDR7pV3Yk2jpiMw",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "return [{ json: { status: 'success', message: `Lead ${$json.body.lead_id} updated to ${$json.body.status}` } }];"
-      },
-      "id": "7b285855-b41c-45cd-b3a8-d4bdb89fd94e",
-      "name": "Respond Success",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -1296,
-        816
-      ]
-    },
-    {
-      "parameters": {
         "options": {}
       },
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -400,
+        -608,
         304
       ],
       "id": "649b76ac-e5c4-4422-92d6-10a2cc7d782b",
@@ -464,7 +396,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        624,
+        416,
         224
       ],
       "id": "f9b8d4db-d714-4dd7-a91f-99542af01578",
@@ -479,7 +411,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -1744,
+        -1952,
         304
       ],
       "id": "89a060b4-d846-4b4e-8675-8e7805c3d1e8",
@@ -493,7 +425,7 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1296,
+        -1504,
         592
       ],
       "id": "2f881976-7699-444e-b434-37ddcea93074",
@@ -519,7 +451,7 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1.2,
       "position": [
-        -848,
+        -1056,
         528
       ],
       "id": "5d06aa98-9baf-4929-9906-b3ac902abb39",
@@ -535,8 +467,9 @@
       "parameters": {
         "modelId": {
           "__rl": true,
+          "value": "models/gemini-2.5-flash",
           "mode": "list",
-          "value": "models/gemini-3-flash-preview"
+          "cachedResultName": "models/gemini-2.5-flash"
         },
         "messages": {
           "values": [
@@ -551,7 +484,7 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1.2,
       "position": [
-        48,
+        -160,
         224
       ],
       "id": "ae23e726-1162-4f15-a4d7-2452b91681bf",
@@ -570,26 +503,158 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1520,
+        1312,
         224
       ],
       "id": "02b061b7-ff75-4407-b6ba-7562ba4fbb0e",
       "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1952,
+        816
+      ],
+      "id": "a5a18f3e-8615-4b14-ac98-3a11b3a9c2e2",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "7pI7qo51bmdhoCwi",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cae99da2-911b-4769-9a41-0c3acabff7e1",
+              "leftValue": "={{ ($json.Subject || $json.subject || '').includes('[trk_') || ($json.snippet || '').includes('[trk_') }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1728,
+        816
+      ],
+      "id": "54a6e2b4-ea9c-440a-bba6-fdeb2835d258",
+      "name": "Filter only replies"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const subject = $json.Subject || $json.subject || \"\";\nconst snippet = $json.snippet || \"\";\n\nlet match = subject.match(/\\[(trk_[^\\]]+)\\]/);\n\nif (!match) {\n  match = snippet.match(/(trk_[a-zA-Z0-9_]+)/);\n}\n\nreturn {\n  json: {\n    tracking_id: match ? match[1] : null\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1504,
+        816
+      ],
+      "id": "c07fd949-c106-4a42-a180-1d6752a63311",
+      "name": "Extract tracking_id"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a0eebf9b-0dd1-43ee-9fe3-d9dfbb895693",
+              "leftValue": "={{$json.tracking_id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1280,
+        816
+      ],
+      "id": "0385a770-acf0-4b79-ade0-9a110a49c3a3",
+      "name": "Ensure ID exists"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://127.0.0.1:8001/api/tracking/reply/{{ $json.tracking_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1056,
+        816
+      ],
+      "id": "3ee0dcbb-340e-462b-ab4e-c81db7645722",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "2709acd1-b921-439b-806f-1f379d734780",
+      "name": "Phase1 Cron",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1952,
+        0
+      ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Phase1 Cron (Every 10 Min)": {
-      "main": [
-        [
-          {
-            "node": "Scrape LinkedIn Profiles",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Split Into Individual Profiles": {
       "main": [
         [
@@ -759,7 +824,7 @@
       "main": [
         [
           {
-            "node": "Call /sent for Follow-up",
+            "node": "Send Follow-up via Gmail",
             "type": "main",
             "index": 0
           }
@@ -770,7 +835,7 @@
       "main": [
         [
           {
-            "node": "Mark Stale Leads as IGNORED",
+            "node": "Call /sent for Follow-up",
             "type": "main",
             "index": 0
           }
@@ -781,29 +846,7 @@
       "main": [
         [
           {
-            "node": "Send Follow-up via Gmail",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Webhook: UI Status Update": {
-      "main": [
-        [
-          {
-            "node": "Update Lead Status in DB",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Lead Status in DB": {
-      "main": [
-        [
-          {
-            "node": "Respond Success",
+            "node": "Mark Stale Leads as IGNORED",
             "type": "main",
             "index": 0
           }
@@ -910,6 +953,61 @@
           }
         ]
       ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter only replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter only replies": {
+      "main": [
+        [
+          {
+            "node": "Extract tracking_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract tracking_id": {
+      "main": [
+        [
+          {
+            "node": "Ensure ID exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ensure ID exists": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phase1 Cron": {
+      "main": [
+        [
+          {
+            "node": "Scrape LinkedIn Profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -917,7 +1015,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "64869ffb-fe1d-4120-98b9-426ab693bfe4",
+  "versionId": "8f5ff595-c545-443c-b274-ef78560e9706",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "33d34b326952ecabddd2f1d86cb6da1b848c6a6fbd816c280e2b4cc7de6ff4e0"
