@@ -1,28 +1,49 @@
 # Environment & Build
+.venv/
 venv/
-__pycache__/
 .env
+.env.*
 .DS_Store
+Thumbs.db
 
-# Security - Sensitive JSON files
-# We allow package.json but ignore keys and local data
-*.json
-!package.json
-!package-lock.json
+# Python cache / build artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets / credentials (Phase 0)
 credentials.json
-config.json
-last_posts.json
-scraper_status.json
 
-# Scraper - Session & Debug data
+# Logs
+logs/
+*.log
+requests.log
+
+# Scraper - session & debug data
 scraper/cookies.pkl
+cookies.pkl
 scraper/*.pkl
 scraper/*.png
 scraper/*.html
 scraper/*.log
 scraper.log
 
-# IDE & OS
+# Temp files
+*.tmp
+*.temp
+*.swp
+*.bak
+
+# Local DB files
+*.db
+*.sqlite
+*.sqlite3
+
+# Local runtime data
+last_posts.json
+scraper_status.json
+
+# IDE
 .idea/
 .vscode/
-Thumbs.db

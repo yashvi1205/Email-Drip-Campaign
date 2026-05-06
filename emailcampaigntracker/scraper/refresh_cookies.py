@@ -2,6 +2,13 @@ import pickle
 import os
 import time
 from selenium import webdriver
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger("scraper.refresh_cookies")
 
 def refresh_cookies():
     cookie_path = os.path.join(os.path.dirname(__file__), "cookies.pkl")
@@ -11,10 +18,10 @@ def refresh_cookies():
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(options=options)
     
-    print("\n--- LinkedIn Cookie Refresher ---")
-    print("1. Please log in manually in the browser that just opened.")
-    print("2. Once you are logged in and see your LinkedIn home feed, come back here.")
-    print("3. Press Enter to save your new session cookies.")
+    logger.info("--- LinkedIn Cookie Refresher ---")
+    logger.info("1. Please log in manually in the browser that just opened.")
+    logger.info("2. Once you are logged in and see your LinkedIn home feed, come back here.")
+    logger.info("3. Press Enter to save your new session cookies.")
     
     driver.get("https://www.linkedin.com/login")
     
@@ -25,8 +32,8 @@ def refresh_cookies():
     with open(cookie_path, "wb") as f:
         pickle.dump(cookies, f)
     
-    print(f"\nSUCCESS: Cookies saved to {cookie_path}")
-    print("You can now close the browser and run the scraper again.")
+    logger.info("SUCCESS: Cookies saved to %s", cookie_path)
+    logger.info("You can now close the browser and run the scraper again.")
     
     driver.quit()
 

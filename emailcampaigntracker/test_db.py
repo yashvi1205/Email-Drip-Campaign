@@ -1,21 +1,29 @@
 import os
 import psycopg2
 from dotenv import load_dotenv
+import logging
+from api.settings import get_settings
 
 # Load .env
 load_dotenv()
 
-DB_URL = os.getenv("DATABASE_URL")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger("test_db")
 
-print("📌 DB URL:", DB_URL)
+DB_URL = get_settings().database_url
+
+logger.info("DB URL loaded from environment.")
 
 try:
-    print("🔌 Connecting to DB...")
+    logger.info("Connecting to DB...")
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor()
 
     cur.execute("SELECT 1;")
-    print("✅ DB Connected:", cur.fetchone())
+    logger.info("DB Connected: %s", cur.fetchone())
 
     # Check tables
     cur.execute("""
@@ -25,10 +33,10 @@ try:
     """)
 
     tables = cur.fetchall()
-    print("📊 Tables:", [t[0] for t in tables])
+    logger.info("Tables: %s", [t[0] for t in tables])
 
     cur.close()
     conn.close()
 
 except Exception as e:
-    print("❌ DB Error:", str(e))
+    logger.exception("DB Error: %s", str(e))

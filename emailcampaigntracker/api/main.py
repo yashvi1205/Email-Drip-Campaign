@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
 import subprocess
 import sys
+import logging
 from datetime import datetime, timedelta
 
 
@@ -23,20 +24,45 @@ from database.models import Lead, Event, EmailSequence
 from api.tracking import router as tracking_router
 from database.db import get_db_conn
 
-
-
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables (local/dev convenience). Secrets still come from environment variables.
 load_dotenv()
 
+from api.settings import get_settings
+from api.logging_config import configure_logging
+from api.middleware import RequestIdMiddleware, RequestLoggingMiddleware, get_request_id
+from api.rate_limit import rate_limit
+from api.security import require_api_key
+
+configure_logging(get_request_id)
+logger = logging.getLogger("api")
+
+settings = get_settings()  # fail-fast on invalid configuration
+
 app = FastAPI(title="LinkedIn Scraper API")
-app.include_router(tracking_router, prefix="/api/tracking")
+
+# Temporary API-key auth (Phase 0)
+dashboard_auth = require_api_key(settings.dashboard_api_key)
+scraper_auth = require_api_key(settings.scraper_api_key)
+
+# Middleware: request id + structured request/latency logging
+app.add_middleware(RequestIdMiddleware)
+app.add_middleware(RequestLoggingMiddleware, logger=logger)
+
+# Tracking endpoints: rate limiting (Phase 0)
+tracking_rate_limit = rate_limit("tracking", settings.tracking_rate_limit_per_minute)
+scraper_rate_limit = rate_limit("scraper", settings.scraper_rate_limit_per_minute)
+app.include_router(
+    tracking_router,
+    prefix="/api/tracking",
+    dependencies=[Depends(tracking_rate_limit)],
+)
 
 # Enable CORS for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -69,7 +95,7 @@ def read_profiles():
         if profiles:
             return profiles
     except Exception as e:
-        print(f"Error fetching profiles from Google Sheets in API: {e}")
+        logger.exception("Error fetching profiles from Google Sheets in API.")
 
     # Fallback to local profiles.txt
     if not os.path.exists(PROFILES_FILE):
@@ -354,7 +380,7 @@ def get_leads():
     return result
 
 @app.get("/api/dashboard/drip")
-def get_drip_dashboard():
+def get_drip_dashboard(_auth: None = Depends(dashboard_auth)):
     db = SessionLocal()
     try:
         leads = db.query(Lead).all()
@@ -411,7 +437,7 @@ def get_drip_dashboard():
             })
         return result
     except Exception as e:
-        print(f"Error in drip dashboard: {e}")
+        logger.exception("Error in drip dashboard.")
         return []
     finally:
         db.close()
@@ -442,23 +468,29 @@ def get_feed():
     return {"entries": entries}
 
 @app.get("/api/sheets-status")
-def get_sheets_status():
+def get_sheets_status(_auth: None = Depends(dashboard_auth)):
     entries = get_last_entries(10)
-    print(f"DEBUG: Fetched {len(entries)} entries from Sheet.")
+    logger.info("sheets_status_fetched count=%s", len(entries))
     return {"entries": entries, "count": len(entries)}
 
 @app.get("/api/scraper-status")
-def get_scraper_status():
+def get_scraper_status(_auth: None = Depends(scraper_auth)):
     if not os.path.exists(SCRAPER_STATUS_FILE):
         return {"status": "idle", "new_posts_found": 0}
     try:
         with open(SCRAPER_STATUS_FILE, "r") as f:
             return json.load(f)
     except Exception as e:
+        logger.exception("Failed to read scraper_status.json.")
         return {"status": "error", "error": str(e)}
 
 @app.post("/api/scrape")
-def trigger_scrape(webhook_url: str = None, source: str = "unknown"):
+def trigger_scrape(
+    webhook_url: str = None,
+    source: str = "unknown",
+    _auth: None = Depends(scraper_auth),
+    _rl: None = Depends(scraper_rate_limit),
+):
     import subprocess, sys
     global SCRAPER_STATUS
 
@@ -469,12 +501,12 @@ def trigger_scrape(webhook_url: str = None, source: str = "unknown"):
         
         # 5 min safety lock, but also ignore if triggered within last 60s
         if now - last_update < 300:
-            print(f"⚠️ REJECTED: Scraper already running (Source: {source})")
+            logger.warning("scrape_rejected_already_running source=%s", source)
             return {"status": "already running", "source": source}
 
-    print(f"\n🚀 SCRAPER TRIGGERED BY: {source}")
+    logger.info("scraper_triggered source=%s webhook=%s", source, bool(webhook_url))
     if webhook_url:
-        print(f"   -> WEBHOOK TARGET: {webhook_url}")
+        logger.info("scraper_webhook_target_set")
 
     SCRAPER_STATUS["status"] = "running"
     SCRAPER_STATUS["message"] = f"Scraper started by {source}"
@@ -509,7 +541,11 @@ SCRAPER_STATUS = {
 }
 
 @app.post("/api/update-status")
-def update_status(data: dict):
+def update_status(
+    data: dict,
+    _auth: None = Depends(scraper_auth),
+    _rl: None = Depends(scraper_rate_limit),
+):
     global SCRAPER_STATUS
     SCRAPER_STATUS.update(data)
     SCRAPER_STATUS["timestamp"] = datetime.utcnow().timestamp()
@@ -518,16 +554,20 @@ def update_status(data: dict):
     try:
         with open(SCRAPER_STATUS_FILE, "w") as f:
             json.dump(SCRAPER_STATUS, f)
-    except: pass
+    except Exception:
+        logger.exception("Failed to persist scraper status file.")
     
     return {"ok": True}
 
 @app.get("/api/scrape/status")
-def get_status():
+def get_status(_auth: None = Depends(scraper_auth)):
     return SCRAPER_STATUS
 
 @app.post("/api/sync-status")
-def sync_status():
+def sync_status(
+    _auth: None = Depends(dashboard_auth),
+    _rl: None = Depends(scraper_rate_limit),
+):
     db = SessionLocal()
 
     try:
@@ -547,7 +587,7 @@ def sync_status():
                 "open_count": open_count
             })
 
-        print(f"🔄 Syncing {len(leads_data)} leads to Google Sheet...")
+        logger.info("syncing_leads_to_sheet count=%s", len(leads_data))
 
         success = sync_leads_status(leads_data)
 
@@ -557,7 +597,7 @@ def sync_status():
         }
 
     except Exception as e:
-        print("❌ Sync failed:", e)
+        logger.exception("Sync failed.")
         raise HTTPException(status_code=500, detail=str(e))
 
     finally:

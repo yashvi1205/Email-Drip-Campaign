@@ -7,7 +7,9 @@ import threading
 import os
 import httpx
 import asyncio
-from google_sheets import sync_sheet_status_async
+import logging
+
+logger = logging.getLogger("tracking")
 
 router = APIRouter(tags=["Tracking"])
 
@@ -47,10 +49,14 @@ def sync_sheet_status_async(sync_data):
                 sync_leads_status([sync_data])
                 break
             except Exception as e:
-                print("Retrying sheet sync...", e)
-        print(f"   -> Sheet synced: {sync_data.get('linkedin_url')} = {sync_data.get('status')}")
+                logger.warning("Retrying sheet sync... error=%s", e)
+        logger.info(
+            "sheet_synced url=%s status=%s",
+            sync_data.get("linkedin_url"),
+            sync_data.get("status"),
+        )
     except Exception as e:
-        print(f"   -> Sheet sync failed: {e}")
+        logger.exception("Sheet sync failed.")
 
 def log_event(tracking_id, event_type, request=None, additional_metadata=None):
     tracking_id = tracking_id.strip()
@@ -61,14 +67,14 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
     with get_db_conn() as conn:
         with conn.cursor() as cur:
             # 1. Get lead + sequence
-            print(f"DEBUG: Logging {event_type} for ID: {tracking_id}")
+            logger.debug("Logging event type=%s tracking_id=%s", event_type, tracking_id)
             cur.execute(
                 "SELECT id, lead_id FROM email_sequences WHERE tracking_id = %s",
                 (tracking_id,)
             )
             res = cur.fetchone()
             if not res:
-                print("TRACKING NOT FOUND:", tracking_id)
+                logger.info("Tracking not found tracking_id=%s", tracking_id)
                 return False
             
             seq_id = res['id']
@@ -97,7 +103,7 @@ def log_event(tracking_id, event_type, request=None, additional_metadata=None):
                 """, (lead_id,))
                 last = cur.fetchone()
                 if last and (now - last['timestamp']).seconds < 10:
-                    print("⚠️ Duplicate open ignored")
+                    logger.info("Duplicate open ignored tracking_id=%s", tracking_id)
                     return True
                 
                 cur.execute("""
@@ -186,24 +192,21 @@ async def track_open(tracking_id: str, request: Request):
     
     user_agent = request.headers.get("user-agent", "Unknown")
     is_gmail = "GoogleImageProxy" in user_agent
-    
-    print("\n" + "="*50)
-    print(f"STEALTH PIXEL DETECTED!")
-    print(f"ID: {tracking_id}")
+
+    logger.info("pixel_open_detected tracking_id=%s gmail_proxy=%s", tracking_id, is_gmail)
     if is_gmail:
-        print(">>> GMAIL PROXY DETECTED! <<<")
-    print("="*50 + "\n")
+        logger.info("gmail_proxy_detected tracking_id=%s", tracking_id)
     
     # 🚫 Ignore Gmail proxy + bots
     ua = request.headers.get("user-agent", "").lower()
     is_gmail_proxy = "googleimageproxy" in ua
     is_bot = "bot" in ua or "crawler" in ua
 
-    print(f"USER AGENT: {ua}")
+    logger.debug("user_agent ua=%s", ua)
 
     # ✅ Allow real opens but block obvious proxies
     if is_gmail_proxy:
-        print("⚠️ Gmail proxy ignored")
+        logger.info("gmail_proxy_ignored tracking_id=%s", tracking_id)
     else:
         log_event(tracking_id, "open", request)
     
@@ -214,7 +217,8 @@ async def track_open(tracking_id: str, request: Request):
             try:
                 async with httpx.AsyncClient() as client:
                     await client.get(f"{local_url}/api/tracking/open/{tracking_id}", timeout=1.0)
-            except: pass
+            except Exception:
+                logger.debug("Forwarding open event failed", exc_info=True)
         asyncio.create_task(forward())
 
     # Ultra-Hardened Headers for Gmail Proxy
@@ -241,7 +245,8 @@ async def track_click(tracking_id: str, url: str, request: Request):
             try:
                 async with httpx.AsyncClient() as client:
                     await client.get(f"{local_url}/api/tracking/click/{tracking_id}?url={url}", timeout=1.0)
-            except: pass
+            except Exception:
+                logger.debug("Forwarding click event failed", exc_info=True)
         asyncio.create_task(forward())
         
     return RedirectResponse(url=url)
@@ -258,7 +263,8 @@ async def track_reply(tracking_id: str, request: Request):
             try:
                 async with httpx.AsyncClient() as client:
                     await client.post(f"{local_url}/api/tracking/reply/{tracking_id}", timeout=1.0)
-            except: pass
+            except Exception:
+                logger.debug("Forwarding reply event failed", exc_info=True)
         asyncio.create_task(forward())
 
     return {"status": "success", "message": "Reply tracked"}
@@ -276,9 +282,7 @@ async def track_sent(tracking_id: str, step: int = 1):
     """Logs each time an email is sent (initial or follow-up)."""
     tracking_id = tracking_id.strip()
 
-    # 🔥 DEBUG (temporary - remove later)
-    print("DEBUG TRACKING_ID:", tracking_id)
-    print("DEBUG STEP:", step)
+    logger.debug("track_sent tracking_id=%s step=%s", tracking_id, step)
     
     # Custom metadata to track which step in the drip it was
     if log_event(tracking_id, "sent", additional_metadata={"step": step}):
@@ -290,7 +294,7 @@ async def track_sent(tracking_id: str, step: int = 1):
                 updated = cur.fetchone()
 
                 if not updated:
-                    print("❌ UPDATE FAILED FOR:", tracking_id)
+                    logger.warning("Sent update failed tracking_id=%s", tracking_id)
                 conn.commit()
         return {"status": "success", "message": f"Email Step {step} logged"}
     return {"status": "error", "message": "Tracking ID not found"}

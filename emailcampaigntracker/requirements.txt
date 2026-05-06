@@ -11,3 +11,4 @@ google-auth-httplib2
 requests
 deep-translator
 httpx
+pytest

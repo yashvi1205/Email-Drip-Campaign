@@ -6,11 +6,18 @@ import io
 import re
 from datetime import datetime
 import requests
+import logging
 
 
 # FORCE UTF-8 FOR PRINTING
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger("scraper.scrape_automation")
 
 # Fix for module imports when running from subdirectories
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -46,9 +53,11 @@ def update_backend_status(status, message=None, new_posts=None, error=None):
         if new_posts is not None: payload["new_posts_found"] = new_posts
         if error: payload["error"] = str(error)
         
-        requests.post(f"{API_URL}/update-status", json=payload, timeout=5)
+        api_key = os.getenv("SCRAPER_API_KEY") or os.getenv("API_KEY")
+        headers = {"X-API-Key": api_key} if api_key else {}
+        requests.post(f"{API_URL}/update-status", json=payload, headers=headers, timeout=5)
     except Exception as e:
-        print(f"   -> [!] Backend status update failed: {e}")
+        logger.warning("Backend status update failed: %s", e)
 
 def translate_to_english(text):
     try:
@@ -67,7 +76,7 @@ def safe_translate(text):
         return GoogleTranslator(source='auto', target='en').translate(text)
 
     except Exception as e:
-        print(f"Translation failed: {e}")
+        logger.warning("Translation failed: %s", e)
         return text
 
 
@@ -88,14 +97,14 @@ def ensure_logged_in(driver):
     time.sleep(5)
 
     if "login" in driver.current_url or "checkpoint" in driver.current_url:
-        print("❌ Session expired. Please login manually.")
+        logger.error("Session expired. Please login manually.")
 
         input("👉 Login fully, wait for feed, THEN press ENTER...")
 
         driver.get("https://www.linkedin.com/feed/")
         time.sleep(5)
 
-    print("✅ Session active")
+    logger.info("Session active")
 
 
 def is_valid_profile_page(driver):
@@ -113,7 +122,7 @@ def safe_get(driver, url):
     time.sleep(5)
 
     if "login" in driver.current_url:
-        print("⚠️ Session lost. Re-login required.")
+        logger.warning("Session lost. Re-login required.")
         ensure_logged_in(driver)
         driver.get(url)
         time.sleep(5)
@@ -227,13 +236,13 @@ def extract_from_experience(driver):
         return role.strip(), company.strip()
 
     except Exception as e:
-        print("❌ Experience extraction failed:", e)
+        logger.warning("Experience extraction failed: %s", e)
         return "", ""
 
 
 def scrape_profile_details(driver, profile_url):
     profile_url = normalize_url(profile_url)
-    print(f"Scraping detailed info for: {profile_url}")
+    logger.info("Scraping detailed info for: %s", profile_url)
     details = {
         "full_name": "", "headline": "", "role": "", "company": "",
         "about": "", "work_description": "", "email": ""
@@ -301,7 +310,7 @@ def scrape_profile_details(driver, profile_url):
             
             if details["headline"] and len(details["headline"]) > 10 and "LinkedIn" not in details["headline"]:
                 break
-            print(f"   -> [!] Headline missing or junk, scrolling to re-trigger (Attempt {attempt+1})...")
+            logger.info("Headline missing/junk; scrolling to re-trigger (Attempt %s)...", attempt + 1)
             driver.execute_script(f"window.scrollTo(0, {200 * (attempt + 1)});")
             time.sleep(4)
                 
@@ -327,17 +336,17 @@ def scrape_profile_details(driver, profile_url):
 
                 if len(txt) > 2:
                     details["company"] = txt.title()
-                    print(f"   -> FIXED COMPANY: {details['company']}")
+                    logger.info("Fixed company: %s", details["company"])
                     break
         except: pass
 
-        print(f"   -> IDENTITY SECURED: {details['full_name']}")  
+        logger.info("Identity secured: %s", details["full_name"])
     except Exception as e: 
-        print(f"   -> [!] Failed to secure Identity on Main Page: {e}")
+        logger.warning("Failed to secure Identity on Main Page: %s", e)
 
     # 2. PASS 2: EXPERIENCE SUB-PAGE
     try:
-        print("   -> Navigating to dedicated Experience Page...")
+        logger.info("Navigating to dedicated Experience Page...")
         driver.get(normalize_url(profile_url.rstrip('/') + '/details/experience/'))
         time.sleep(12)
     except: pass
@@ -362,7 +371,7 @@ def scrape_profile_details(driver, profile_url):
 
     # 🔥 FINAL EXPERIENCE FALLBACK (STRONG FIX)
     if not details.get("role") or not details.get("company"):
-        print("   -> Trying EXPERIENCE fallback...")
+        logger.info("Trying EXPERIENCE fallback...")
 
         role_exp, company_exp = extract_from_experience(driver)
 
@@ -372,26 +381,26 @@ def scrape_profile_details(driver, profile_url):
         if company_exp and not details.get("company"):
             details["company"] = company_exp
 
-    print(f"   -> SYNC READY: {details['role']} at {details['company']}")
+    logger.info("Sync ready: %s at %s", details.get("role"), details.get("company"))
 
     # Cleanup
     details['full_name'] = details.get('full_name') or ""
     details['headline'] = details.get('headline') or ""
 
     # 2. ZONE B: EMAIL EXTRACTION (Bounty Hunter Dual Path)
-    print("   -> Extracting Contact Info (Plus Premium Check)...")
+    logger.info("Extracting Contact Info (Plus Premium Check)...")
     driver.get(profile_url.rstrip("/") + "/overlay/contact-info/")
     time.sleep(15)
     
     page_source = driver.page_source
     if "Try Premium" in page_source or "Premium for free" in page_source:
-        print("   -> [!] ALERT: LinkedIn is hiding this Email behind a Premium Wall.")
+        logger.info("Email hidden behind a Premium wall.")
         details['email'] = "Premium Restricted"
     else:
         email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', page_source)
         if email_match:
             details['email'] = email_match.group(0)
-            print(f"   -> EMAIL SECURED (Direct): {details['email']}")
+            logger.info("Email secured (direct).")
         else:
             driver.get(profile_url)
             time.sleep(15)
@@ -415,7 +424,7 @@ def scrape_profile_details(driver, profile_url):
             details['email'] = bounty_match.group(0)
 
     # 3. ZONE C: IDENTITY & SYNTHESIS
-    print("   -> Capturing Final Identity sections...")
+    logger.info("Capturing Final Identity sections...")
     if not ("linkedin.com/in/" in driver.current_url and "/overlay/" not in driver.current_url):
         driver.get(profile_url)
         time.sleep(12)
@@ -455,12 +464,14 @@ def scrape_profile_details(driver, profile_url):
 
     if not details['work_description'] and details['role']:
         details['work_description'] = f"As the {details['role']} at {details['company']}, {details['full_name']} is responsible for driving organizational growth and high-impact solutions."
-        print("   -> SYNTHESIS: Generated Job Description.")
+        logger.info("Synthesis: generated job description.")
     
-    if details['headline']: print(f"   -> HEADLINE SECURED: {details['headline'][:40]}...")
-    if details['about']: print("   -> ABOUT SECURED")
+    if details['headline']:
+        logger.info("Headline secured.")
+    if details['about']:
+        logger.info("About secured.")
 
-    print("🔥 FINAL DETAILS:", details)
+    logger.info("Final details prepared.")
 
     # 🔥 FORCE SAFE VALUES
     if not details.get("full_name"):
@@ -478,7 +489,7 @@ def scrape_profile_details(driver, profile_url):
     return details
 
 def scrape_activity_from_tab(driver, url, interaction_type):
-    print(f"   -> Checking {interaction_type} tab...")
+    logger.info("Checking %s tab...", interaction_type)
     results = []
     try:
         driver.get(url)
@@ -569,7 +580,7 @@ def scrape_profile(driver, profile_url):
             last_hash = last_event.additional_data["content_hash"]
 
         if current_hash != last_hash:
-            print(f"   -> [NEW ACTIVITY DETECTED] for {details['full_name']}")
+            logger.info("New activity detected for %s", details.get("full_name"))
 
             save_event(lead_id, "interaction_summary", {
                 "content_hash": current_hash,
@@ -608,7 +619,7 @@ def scrape_profile(driver, profile_url):
             }
 
         else:
-            print(f"   -> [DUPLICATE] No new activity for {details['full_name']}")
+            logger.info("Duplicate: no new activity for %s", details.get("full_name"))
             save_event(lead_id, "profile_scraped", {"status": "no_new_activity"})
             db.close()
             return None
@@ -622,12 +633,12 @@ def save_cookies(driver):
     """Saves the current session cookies to a file."""
     try:
         pickle.dump(driver.get_cookies(), open("scraper/cookies.pkl", "wb"))
-        print("   -> [SUCCESS] Fresh cookies saved for future sessions.")
+        logger.info("Fresh cookies saved for future sessions.")
     except Exception as e:
-        print(f"   -> [!] Failed to save cookies: {e}")
+        logger.warning("Failed to save cookies: %s", e)
 
 def run_scraper():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] Deploying v14 'Auto-Learning' Scraper.")
+    logger.info("Deploying v14 'Auto-Learning' Scraper.")
     from google_sheets import get_profile_urls
     urls = get_profile_urls()
     all_results = []
@@ -657,28 +668,28 @@ def run_scraper():
             result = scrape_profile(driver, url)
             if result:
                 all_results.append(result)
-                print(f"   -> SYNC COMPLETE: {url}")
+                logger.info("Sync complete: %s", url)
                 update_backend_status("running", f"Synced {len(all_results)} profiles...", new_posts=len(all_results))
             time.sleep(10)
 
         update_backend_status("completed", f"Finished! Found {len(all_results)} profiles.", new_posts=len(all_results))
 
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: {e}")
+        logger.exception("CRITICAL ERROR: %s", e)
         update_backend_status("error", error=str(e))
     finally:
-        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ALL TASKS FINISHED. Closing browser automatically.")
+        logger.info("All tasks finished. Closing browser automatically.")
 
         if webhook_url and all_results:
             try:
-                print(f"🚀 Sending {len(all_results)} profiles to webhook...")
+                logger.info("Sending %s profiles to webhook...", len(all_results))
                 # Add loop protection flag to webhook call
                 response = requests.post(webhook_url, json={"data": all_results, "source": "scraper_direct"})
-                print(f"✅ Webhook response: {response.status_code}")
+                logger.info("Webhook response: %s", response.status_code)
             except Exception as e:
-                print(f"❌ Webhook failed: {e}")
+                logger.exception("Webhook failed: %s", e)
         else:
-            print("⚠️ No webhook URL or no data to send")
+            logger.info("No webhook URL or no data to send")
         
         try:
             driver.quit()

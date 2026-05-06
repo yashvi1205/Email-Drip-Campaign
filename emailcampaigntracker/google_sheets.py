@@ -3,10 +3,13 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import os
 import threading
+import logging
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+logger = logging.getLogger("google_sheets")
 
 # Define the scope
 scope = [
@@ -29,19 +32,23 @@ info = {
     "universe_domain": os.getenv("GOOGLE_UNIVERSE_DOMAIN")
 }
 
-# Check if essential credentials are present
+# Check if essential credentials are present (Phase 0: env-only secrets; no file fallbacks)
 if not info["private_key"] or not info["client_email"]:
-    print("WARNING: Google Sheets credentials not found. Falling back to credentials.json.")
-    creds_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
-    if os.path.exists(creds_path):
-        creds = Credentials.from_service_account_file(creds_path, scopes=scope)
-    else:
-        creds = None
+    logger.warning("Google Sheets credentials not found in environment; Sheets features disabled.")
+    creds = None
 else:
-    creds = Credentials.from_service_account_info(info, scopes=scope)
+    try:
+        creds = Credentials.from_service_account_info(info, scopes=scope)
+    except Exception:
+        logger.exception("Failed to initialize Google credentials from environment; Sheets features disabled.")
+        creds = None
 
 if creds:
-    client = gspread.authorize(creds)
+    try:
+        client = gspread.authorize(creds)
+    except Exception:
+        logger.exception("Failed to authorize gspread client; Sheets features disabled.")
+        client = None
 else:
     client = None
 
@@ -52,10 +59,12 @@ enhanced_sheet = None
 if client:
     try:
         sheet = client.open("LinkedIn_Profile_DataScraper").sheet1
-    except: pass
+    except Exception:
+        logger.exception("Failed to open LinkedIn_Profile_DataScraper sheet.")
     try:
         enhanced_sheet = client.open("LinkedIn_Enhanced_Data").sheet1
-    except: pass
+    except Exception:
+        logger.exception("Failed to open LinkedIn_Enhanced_Data sheet.")
 
 def normalize_url(url):
     if not url: return ""
@@ -72,14 +81,16 @@ def save_to_sheet(user, profile, post_type, text, likes, comments, reposts, phot
     row = [str(user), str(profile), str(post_type), str(text), clean_num(likes), clean_num(comments), clean_num(reposts), str(post_time), str(photo_url), datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "TRUE" if is_repost else "FALSE", str(reposter_name), str(reposter_photo), str(original_author_name)]
     try:
         sheet.append_row(row)
-    except Exception as e: print(f"Error: {e}")
+    except Exception:
+        logger.exception("Failed to append row to sheet.")
 
 def save_enhanced_data(full_name, profile_url, headline, company, about, email, interaction_type, content, interaction_date, role="", work_description="", recent_activity=""):
     if not enhanced_sheet: return
     row = [str(full_name), str(profile_url), str(role), str(headline), str(company), str(about), str(work_description), str(email), str(interaction_type), str(content), str(interaction_date), str(recent_activity), datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
     try:
         enhanced_sheet.append_row(row)
-    except Exception as e: print(f"Error: {e}")
+    except Exception:
+        logger.exception("Failed to append row to enhanced sheet.")
 
 def get_profile_urls(sheet_name="Profiles"):
     try:
@@ -87,7 +98,9 @@ def get_profile_urls(sheet_name="Profiles"):
         profile_sheet = spreadsheet.worksheet(sheet_name)
         all_urls = profile_sheet.col_values(1)
         return [url.strip() for url in all_urls if "linkedin.com/in/" in url.lower()]
-    except: return []
+    except Exception:
+        logger.exception("Failed to get profile URLs from sheet.")
+        return []
 
 def sync_leads_status(leads_data):
     """Updates the status and tracking columns in the Google Sheet for all listed leads."""
@@ -162,7 +175,7 @@ def sync_leads_status(leads_data):
             profile_sheet.batch_update(updates)
         return True
     except Exception as e:
-        print(f"Sync error: {e}")
+        logger.exception("Sync error.")
         return False
 
 def get_enhanced_profile_data(profile_url):
@@ -184,7 +197,9 @@ def get_enhanced_profile_data(profile_url):
                     "email": norm.get("email") or ""
                 }
         return None
-    except: return None
+    except Exception:
+        logger.exception("Failed to read enhanced profile data.")
+        return None
 
 def get_latest_post_for_profile(profile_url):
     if not sheet: return None
@@ -204,7 +219,9 @@ def get_latest_post_for_profile(profile_url):
                     "timestamp": norm.get("scraped time") or norm.get("timestamp") or "Recently"
                 }
         return None
-    except: return None
+    except Exception:
+        logger.exception("Failed to read latest post for profile.")
+        return None
 
 def get_last_entries(count=5):
     if not sheet: return []
@@ -234,7 +251,9 @@ def get_last_entries(count=5):
                 "is_repost": str(get_val(["isrepost"])).upper() == "TRUE"
             })
         return results
-    except: return []
+    except Exception:
+        logger.exception("Failed to read last entries.")
+        return []
 
 def sync_sheet_status_async(linkedin_url, status, open_count=0):
     """Async wrapper to update a single lead's status in the sheet."""

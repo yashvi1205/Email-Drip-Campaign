@@ -8,25 +8,28 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from google_sheets import sync_leads_status
+import logging
+from api.settings import get_settings
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    DATABASE_URL = "postgresql://postgres:121205@localhost:5432/drip_campaign"
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger("force_sync_to_sheet")
 
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+DATABASE_URL = get_settings().database_url
 
 def force_sync():
-    print("Starting Force Sync from Database to Google Sheets...")
+    logger.info("Starting Force Sync from Database to Google Sheets...")
     
     try:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
         cur = conn.cursor()
         
         # 1. Fetch all sequence data and lead URLs
-        print("Fetching data from database...")
+        logger.info("Fetching data from database...")
         cur.execute("""
             SELECT 
                 l.linkedin_url, 
@@ -45,7 +48,7 @@ def force_sync():
         records = cur.fetchall()
         
         if not records:
-            print("No tracking data found in database.")
+            logger.info("No tracking data found in database.")
             return
 
         sync_payload = []
@@ -72,16 +75,16 @@ def force_sync():
                 "last_replied": r['last_replied']
             })
 
-        print(f"Prepared {len(sync_payload)} leads for sync.")
+        logger.info("Prepared %s leads for sync.", len(sync_payload))
         
         # 2. Push to Google Sheets
         if sync_leads_status(sync_payload):
-            print("Successfully synced all database records to Google Sheets!")
+            logger.info("Successfully synced all database records to Google Sheets!")
         else:
-            print("Sheet sync failed. Check your Google Sheets credentials/connection.")
+            logger.warning("Sheet sync failed. Check your Google Sheets credentials/connection.")
             
     except Exception as e:
-        print(f"Error during sync: {e}")
+        logger.exception("Error during sync: %s", e)
     finally:
         if 'conn' in locals():
             conn.close()

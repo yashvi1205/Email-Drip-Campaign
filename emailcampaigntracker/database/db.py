@@ -1,19 +1,12 @@
 import os
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-load_dotenv()
+from api.settings import get_settings
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    DATABASE_URL = "postgresql://postgres:121205@localhost:5432/drip_campaign"
-
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+DATABASE_URL = get_settings().database_url
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
