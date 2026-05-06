@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from api.settings import get_settings
+from app.core.settings import get_settings
 
 DATABASE_URL = get_settings().database_url
 
