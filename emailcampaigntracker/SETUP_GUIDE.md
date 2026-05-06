@@ -58,19 +58,19 @@ The Dashboard will be available at `http://localhost:5173`.
 ---
 
 ## 5. Setting up the Public Tunnel (Tracking Pixels)
-Because email tracking pixels and n8n need to talk to your local backend, you must use **ngrok**:
+Because email tracking pixels and n8n need to talk to your local backend, you must use a tunnel like **untun**:
 
-1.  Start ngrok: `ngrok http 8001`
-2.  Copy the Forwarding URL (e.g., `https://a1b2-c3d4.ngrok-free.app`).
-3.  **UPDATE YOUR .ENV**: Set `LOCAL_BACKEND_URL` to this new ngrok URL.
-4.  **UPDATE n8n**: In your n8n workflow, ensure any HTTP nodes pointing to your backend use this ngrok URL if they are running outside your local machine.
+1.  Start the tunnel: `npx untun@latest tunnel http://localhost:8001`
+2.  Copy the Forwarding URL (e.g., `https://your-unique-id.untun.io`).
+3.  **UPDATE YOUR .ENV**: Set `LOCAL_BACKEND_URL` to this new untun URL.
+4.  **UPDATE n8n**: In your n8n workflow, ensure any HTTP nodes pointing to your backend use this untun URL if they are running outside your local machine.
 
 ---
 
 ## 6. Updating Render (If using Hybrid Mode)
 If you have a production version running on Render:
 1.  Go to **Render Dashboard** -> Environment.
-2.  Update `LOCAL_BACKEND_URL` in Render to match your current ngrok URL.
+2.  Update `LOCAL_BACKEND_URL` in Render to match your current untun URL
 3.  This allows the Render "Public" server to forward tracking events (Opens/Clicks) to your local "Worker" machine.
 
 ---
