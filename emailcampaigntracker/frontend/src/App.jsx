@@ -11,8 +11,7 @@ import {
   Repeat,
   RefreshCw,
   Clock,
-  MousePointerClick,
-  Trash2
+  MousePointerClick
 } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +26,7 @@ function App() {
   const [toasts, setToasts] = useState([]);
   const [view, setView] = useState('monitor'); // 'monitor' or 'drip'
   const [dripData, setDripData] = useState([]);
+  const [filter, setFilter] = useState('all');
 
   const addToast = (message, type = 'info') => {
     const id = Date.now();
@@ -313,6 +313,43 @@ function App() {
                   <h2>Drip Campaign Status</h2>
                 </div>
                 
+                <div className="filter-bar">
+                  <button 
+                    className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+                    onClick={() => setFilter('all')}
+                  >
+                    All Leads ({dripData.length})
+                  </button>
+                  <button 
+                    className={`filter-btn ${filter === 'scraped' ? 'active' : ''}`}
+                    onClick={() => setFilter('scraped')}
+                  >
+                    <Users size={14} />
+                    Scraped ({dripData.filter(d => !d.sequence).length})
+                  </button>
+                  <button 
+                    className={`filter-btn ${filter === 'opened' ? 'active' : ''}`}
+                    onClick={() => setFilter('opened')}
+                  >
+                    <Clock size={14} />
+                    Opened ({dripData.filter(d => d.sequence?.open_count > 0).length})
+                  </button>
+                  <button 
+                    className={`filter-btn ${filter === 'clicked' ? 'active' : ''}`}
+                    onClick={() => setFilter('clicked')}
+                  >
+                    <MousePointerClick size={14} />
+                    Clicked ({dripData.filter(d => d.sequence?.click_count > 0).length})
+                  </button>
+                  <button 
+                    className={`filter-btn ${filter === 'replied' ? 'active' : ''}`}
+                    onClick={() => setFilter('replied')}
+                  >
+                    <MessageSquare size={14} />
+                    Replied ({dripData.filter(d => d.sequence?.replied).length})
+                  </button>
+                </div>
+
                 <div className="table-container card">
                   <table className="drip-table">
                     <thead>
@@ -324,7 +361,16 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dripData.map((item) => (
+                      {dripData
+                        .filter(item => {
+                          if (filter === 'all') return true;
+                          if (filter === 'scraped') return !item.sequence;
+                          if (filter === 'opened') return item.sequence?.open_count > 0;
+                          if (filter === 'clicked') return item.sequence?.click_count > 0;
+                          if (filter === 'replied') return item.sequence?.replied;
+                          return true;
+                        })
+                        .map((item) => (
                         <tr key={item.lead_id}>
                           <td>
                             <div style={{ fontWeight: 600 }}>{item.name}</div>
@@ -363,10 +409,6 @@ function App() {
                               <div className={`engagement-step ${item.sequence?.replied ? 'completed' : ''}`}>
                                 <MessageSquare size={14} />
                                 <span>Replied</span>
-                              </div>
-                              <div className={`engagement-step ${item.sequence?.deleted ? 'completed-danger' : ''}`}>
-                                <Trash2 size={14} />
-                                <span>Deleted</span>
                               </div>
                             </div>
                           </td>
