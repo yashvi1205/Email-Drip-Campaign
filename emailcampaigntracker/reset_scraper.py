@@ -13,18 +13,18 @@ def reset():
     try:
         r = redis.from_url(settings.redis_url)
         r.delete("scraper:run_lock")
-        print("✅ Redis lock cleared.")
+        print("[SUCCESS] Redis lock cleared.")
     except Exception as e:
-        print(f"❌ Redis clear failed: {e}")
+        print(f"[ERROR] Redis clear failed: {e}")
 
     # 2. Reset Status File
     try:
         path = "scraper_status.json"
         with open(path, "w") as f:
             json.dump({"status": "idle", "message": "Manual reset performed", "new_posts_found": 0}, f)
-        print("✅ scraper_status.json reset to idle.")
+        print("[SUCCESS] scraper_status.json reset to idle.")
     except Exception as e:
-        print(f"❌ File reset failed: {e}")
+        print(f"[ERROR] File reset failed: {e}")
 
     # 3. Clean up Database
     try:
@@ -35,11 +35,11 @@ def reset():
             job.last_error = "Cleaned up by manual reset script"
         session.commit()
         session.close()
-        print(f"✅ Database cleaned: {len(stuck_jobs)} stuck jobs marked as failed.")
+        print(f"[SUCCESS] Database cleaned: {len(stuck_jobs)} stuck jobs marked as failed.")
     except Exception as e:
-        print(f"❌ Database reset failed: {e}")
+        print(f"[ERROR] Database reset failed: {e}")
 
-    print("\n🚀 System is now IDLE. You can run n8n now!")
+    print("\n[READY] System is now IDLE. You can run n8n now!")
 
 if __name__ == "__main__":
     reset()
