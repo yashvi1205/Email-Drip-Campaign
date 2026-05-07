@@ -18,5 +18,5 @@ def get_redis_connection() -> Redis:
 @lru_cache(maxsize=1)
 def get_scraper_queue() -> Queue:
     settings = get_settings()
-    return Queue(name=settings.scraper_queue_name, connection=get_redis_connection())
+    return Queue(name=settings.scraper_queue_name, connection=get_redis_connection(), default_timeout=3600)
 
