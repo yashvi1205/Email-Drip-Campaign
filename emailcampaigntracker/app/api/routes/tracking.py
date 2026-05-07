@@ -214,6 +214,18 @@ async def track_click(
     if exp is not None and sig is not None:
         validate_tracking_signature(tracking_id, exp, sig)
     log_event(db, tracking_id, "click", request, {"target_url": url})
+    
+    # FORWARDING: Only forward if we are on Render
+    local_url = os.getenv("LOCAL_BACKEND_URL")
+    if os.getenv("RENDER") and local_url:
+        async def forward():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.get(f"{local_url}/api/tracking/click/{tracking_id}?url={url}", timeout=1.0)
+            except Exception:
+                logger.debug("Forwarding click event failed", exc_info=True)
+        asyncio.create_task(forward())
+
     return RedirectResponse(url=url)
 
 
