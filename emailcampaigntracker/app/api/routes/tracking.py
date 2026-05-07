@@ -59,95 +59,106 @@ def log_event(
     request: Request | None = None,
     additional_metadata=None,
 ) -> bool:
-    tracking_id = tracking_id.strip()
-    ip_address = request.client.host if request else "Unknown"
-    user_agent = request.headers.get("user-agent", "Unknown") if request else "Unknown"
+    try:
+        tracking_id = tracking_id.strip()
+        ip_address = "Unknown"
+        user_agent = "Unknown"
+        
+        if request:
+            try:
+                if request.client:
+                    ip_address = request.client.host
+                user_agent = request.headers.get("user-agent", "Unknown")
+            except: pass
 
-    seq: EmailSequence | None = (
-        db.query(EmailSequence).filter(EmailSequence.tracking_id == tracking_id).first()
-    )
-    if not seq:
-        logger.info("Tracking not found tracking_id=%s", tracking_id)
+        seq: EmailSequence | None = (
+            db.query(EmailSequence).filter(EmailSequence.tracking_id == tracking_id).first()
+        )
+        if not seq:
+            logger.warning("Tracking not found tracking_id=%s", tracking_id)
+            return False
+
+        lead_id = seq.lead_id
+        now = datetime.datetime.now()
+        meta = {"ip": ip_address, "user_agent": user_agent, "sequence_id": seq.id}
+        if additional_metadata:
+            meta.update(additional_metadata)
+
+        # Prevent rapid duplicate opens (within 10 seconds)
+        if event_type == "open":
+            last_open = (
+                db.query(Event.timestamp)
+                .filter(Event.lead_id == lead_id, Event.event_type == "open")
+                .order_by(Event.timestamp.desc())
+                .first()
+            )
+            if last_open is not None:
+                last_open_ts = last_open[0]
+                if last_open_ts and (now - last_open_ts).seconds < 10:
+                    logger.info("Duplicate open ignored tracking_id=%s", tracking_id)
+                    return True
+
+            seq.open_count = (seq.open_count or 0) + 1
+            seq.last_opened = now
+
+        elif event_type == "sent":
+            seq.sent_at = now
+
+        elif event_type == "click":
+            seq.click_count = (seq.click_count or 0) + 1
+            seq.last_clicked = now
+
+        elif event_type == "reply":
+            seq.replied = True
+            seq.last_replied = now
+
+        # Insert into events table (even for delete/unknown events)
+        db.add(
+            Event(
+                lead_id=lead_id,
+                event_type=event_type,
+                timestamp=now,
+                additional_data=meta,
+            )
+        )
+
+        # Derive final status (Latest Action Logic)
+        events = [
+            (seq.sent_at or datetime.datetime.min, "SENT"),
+            (seq.last_opened or datetime.datetime.min, "OPENED"),
+            (seq.last_clicked or datetime.datetime.min, "CLICKED"),
+            (seq.last_replied or datetime.datetime.min, "REPLIED"),
+        ]
+        events.sort(key=lambda x: x[0], reverse=True)
+        final_status = events[0][1]
+
+        lead = db.query(Lead).filter(Lead.id == lead_id).first()
+        if lead:
+            lead.status = final_status
+
+        if lead:
+            sync_data = {
+                "linkedin_url": lead.linkedin_url,
+                "email": lead.email,
+                "status": final_status,
+                "open_count": seq.open_count,
+                "last_opened": seq.last_opened,
+                "click_count": seq.click_count,
+                "last_clicked": seq.last_clicked,
+                "replied": seq.replied,
+                "last_replied": seq.last_replied,
+            }
+            threading.Thread(
+                target=sync_sheet_status_async,
+                args=(sync_data,),
+                daemon=True,
+            ).start()
+
+        db.commit()
+        return True
+    except Exception:
+        logger.exception("Event logging failed for tracking_id=%s", tracking_id)
         return False
-
-    lead_id = seq.lead_id
-    now = datetime.datetime.now()
-    meta = {"ip": ip_address, "user_agent": user_agent, "sequence_id": seq.id}
-    if additional_metadata:
-        meta.update(additional_metadata)
-
-    # Prevent rapid duplicate opens (within 10 seconds)
-    if event_type == "open":
-        last_open = (
-            db.query(Event.timestamp)
-            .filter(Event.lead_id == lead_id, Event.event_type == "open")
-            .order_by(Event.timestamp.desc())
-            .first()
-        )
-        if last_open is not None:
-            last_open_ts = last_open[0]
-            if last_open_ts and (now - last_open_ts).seconds < 10:
-                logger.info("Duplicate open ignored tracking_id=%s", tracking_id)
-                return True
-
-        seq.open_count = (seq.open_count or 0) + 1
-        seq.last_opened = now
-
-    elif event_type == "sent":
-        seq.sent_at = now
-
-    elif event_type == "click":
-        seq.click_count = (seq.click_count or 0) + 1
-        seq.last_clicked = now
-
-    elif event_type == "reply":
-        seq.replied = True
-        seq.last_replied = now
-
-    # Insert into events table (even for delete/unknown events)
-    db.add(
-        Event(
-            lead_id=lead_id,
-            event_type=event_type,
-            timestamp=now,
-            additional_data=meta,
-        )
-    )
-
-    # Derive final status (Latest Action Logic)
-    events = [
-        (seq.sent_at or datetime.datetime.min, "SENT"),
-        (seq.last_opened or datetime.datetime.min, "OPENED"),
-        (seq.last_clicked or datetime.datetime.min, "CLICKED"),
-        (seq.last_replied or datetime.datetime.min, "REPLIED"),
-    ]
-    events.sort(key=lambda x: x[0], reverse=True)
-    final_status = events[0][1]
-
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    if lead:
-        lead.status = final_status
-
-    if lead:
-        sync_data = {
-            "linkedin_url": lead.linkedin_url,
-            "email": lead.email,
-            "status": final_status,
-            "open_count": seq.open_count,
-            "last_opened": seq.last_opened,
-            "click_count": seq.click_count,
-            "last_clicked": seq.last_clicked,
-            "replied": seq.replied,
-            "last_replied": seq.last_replied,
-        }
-        threading.Thread(
-            target=sync_sheet_status_async,
-            args=(sync_data,),
-            daemon=True,
-        ).start()
-
-    db.commit()
-    return True
 
 
 @router.get("/track/{tracking_id}")
