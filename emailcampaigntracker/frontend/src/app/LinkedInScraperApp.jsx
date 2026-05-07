@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 
@@ -11,13 +11,13 @@ import ToastContainer from '../shared/toast/ToastContainer.jsx';
 import { useToasts } from '../shared/toast/useToasts.js';
 
 import { fetchDashboardDrip, fetchProfilesRaw } from '../services/api/monitorApi.js';
-import { fetchScraperStatus, triggerScrape } from '../services/api/scraperApi.js';
+import { triggerScrape } from '../services/api/scraperApi.js';
+import { useScraperStatusPolling } from '../features/scraper/hooks/useScraperStatusPolling.js';
 
 export default function LinkedInScraperApp() {
   const location = useLocation();
   const navigateView = location.pathname.startsWith('/drip') ? 'drip' : 'monitor';
 
-  const queryClient = useQueryClient();
   const { toasts, addToast } = useToasts();
 
   const [scraping, setScraping] = useState(false);
@@ -38,11 +38,10 @@ export default function LinkedInScraperApp() {
     staleTime: 25000,
   });
 
-  const scraperStatusQuery = useQuery({
-    queryKey: ['scraperStatus'],
-    queryFn: async ({ signal }) => fetchScraperStatus({ signal }),
+  useScraperStatusPolling({
     enabled: scraping,
-    refetchInterval: scraping ? 5000 : false,
+    addToast,
+    setScraping,
   });
 
   void motion;
@@ -65,37 +64,6 @@ export default function LinkedInScraperApp() {
     const msg = requestId ? `Failed to sync with backend (request_id: ${requestId})` : 'Failed to sync with backend';
     addToast(msg, 'error');
   }, [dashboardQuery.isError, dashboardQuery.error, addToast]);
-
-  useEffect(() => {
-    if (!scraping) return;
-    const data = scraperStatusQuery.data?.data || scraperStatusQuery.data; // axios vs query normalization
-    if (!data || !data.status) return;
-
-    const { status, timestamp, new_posts_found, error } = data;
-    const now = Date.now() / 1000;
-    const tsNum = typeof timestamp === 'number' ? timestamp : Number(timestamp || 0);
-    const isStale = status === 'running' && tsNum && now - tsNum > 45;
-
-    if (status === 'completed' || isStale || status === 'error') {
-      // Avoid direct synchronous state updates inside effects (lint rule).
-      queueMicrotask(() => setScraping(false));
-
-      if (status === 'completed') {
-        if (new_posts_found === 0) {
-          addToast('Scraping completed: No new posts found', 'info');
-        } else {
-          addToast(`Scraping completed: Found ${new_posts_found} new posts!`, 'success');
-        }
-      } else if (isStale) {
-        addToast('Scraper seems to have stopped or was closed', 'error');
-      } else if (status === 'error') {
-        addToast(`Scraper error: ${error || 'Unknown error'}`, 'error');
-      }
-
-      // Refresh the dashboard data after scraper finishes/stops.
-      queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
-    }
-  }, [scraping, scraperStatusQuery.data, addToast, queryClient]);
 
   const showSpinner = dashboardQuery.isFetching && profiles.length === 0;
 
