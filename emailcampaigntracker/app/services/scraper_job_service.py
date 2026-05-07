@@ -139,7 +139,7 @@ def enqueue_scraper_job(webhook_url: Optional[str], source: str) -> Tuple[dict, 
         rq_job = queue.enqueue(
             execute_scraper_job,
             job.id,
-            job_id=f"scraper:{job.id}",
+            job_id=f"scraper_{job.id}",
             retry=retry,
             timeout=settings.scraper_job_timeout_seconds + 30,
         )

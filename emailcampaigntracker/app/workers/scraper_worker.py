@@ -157,13 +157,15 @@ def execute_scraper_job(scraper_job_id: int) -> None:
                     f"Scraper job timed out after {settings.scraper_job_timeout_seconds}s"
                 )
 
-            try:
-                out, err = proc.communicate(timeout=settings.scraper_cancel_poll_seconds)
-                stdout_buf.append(out or "")
-                stderr_buf.append(err or "")
+            # Stream output to terminal
+            if proc.stdout:
+                line = proc.stdout.readline()
+                if line:
+                    print(f"[SCRAPER]: {line.strip()}")
+                    stdout_buf.append(line)
+            
+            if proc.poll() is not None:
                 break
-            except subprocess.TimeoutExpired:
-                continue
 
         stdout = "".join(stdout_buf)
         stderr = "".join(stderr_buf)
@@ -229,7 +231,7 @@ def execute_scraper_job(scraper_job_id: int) -> None:
 def main() -> None:
     redis_conn = get_redis_connection()
     queue = get_scraper_queue()
-    worker = Worker([queue], connection=redis_conn, name="scraper-worker")
+    worker = Worker([queue], connection=redis_conn, name=f"scraper-worker-{os.getpid()}")
     worker.work(logging_level="INFO")
 
 
