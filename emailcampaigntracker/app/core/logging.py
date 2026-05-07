@@ -33,20 +33,26 @@ class _JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=True)
 
 
+class _SafeFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        if not hasattr(record, "request_id"):
+            record.request_id = "-"
+        return super().format(record)
+
+
 def configure_logging(request_id_getter, level: Optional[str] = None) -> None:
     log_level = (level or os.getenv("LOG_LEVEL") or "INFO").upper()
     json_logs = os.getenv("LOG_JSON", "false").lower() == "true"
 
+    handler = logging.StreamHandler()
     if json_logs:
-        handler = logging.StreamHandler()
         handler.setFormatter(_JsonFormatter())
-        logging.basicConfig(level=log_level, handlers=[handler], force=True)
     else:
-        logging.basicConfig(
-            level=log_level,
-            format="%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s",
-            force=True,
-        )
+        fmt = "%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s"
+        handler.setFormatter(_SafeFormatter(fmt))
+
+    logging.basicConfig(level=log_level, handlers=[handler], force=True)
+    
     root = logging.getLogger()
     root.addFilter(_RequestIdFilter(request_id_getter))
 
