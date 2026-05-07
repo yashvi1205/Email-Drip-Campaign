@@ -1,15 +1,21 @@
-import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.settings import get_settings
 
 DATABASE_URL = get_settings().database_url
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine)
+engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
-def get_db_conn():
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+
+def get_db() -> Session:
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

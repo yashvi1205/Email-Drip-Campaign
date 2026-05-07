@@ -12,3 +12,5 @@ requests
 deep-translator
 httpx
 pytest
+PyJWT
+alembic

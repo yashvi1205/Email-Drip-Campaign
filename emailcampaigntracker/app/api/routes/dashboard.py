@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends
 
-from app.core.security import require_api_key
-from app.core.settings import get_settings
+from app.core.auth import require_roles
 from app.services.dashboard_service import drip_dashboard, sheets_status, sync_status_to_sheets
 
-settings = get_settings()
-dashboard_auth = require_api_key(settings.dashboard_api_key)
+dashboard_auth = require_roles("dashboard", "admin")
 
 router = APIRouter(tags=["Dashboard"])
 
@@ -21,6 +19,6 @@ def get_sheets_status(_auth: None = Depends(dashboard_auth)):
 
 
 @router.post("/api/sync-status")
-def sync_status(_auth: None = Depends(dashboard_auth)):
+def sync_status(_auth: None = Depends(require_roles("admin"))):
     return sync_status_to_sheets()
 

@@ -1,4 +1,5 @@
 import os
+import json
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Optional
@@ -48,6 +49,14 @@ class Settings:
     # Optional forwarding config used by tracking endpoints
     local_backend_url: Optional[str]
     render: bool
+    jwt_secret_key: str
+    jwt_refresh_secret_key: str
+    jwt_algorithm: str
+    jwt_access_token_exp_minutes: int
+    jwt_refresh_token_exp_minutes: int
+    auth_users_json: str
+    require_signed_tracking: bool
+    tracking_signing_secret: str
 
 
 def _normalize_database_url(url: str) -> str:
@@ -87,6 +96,24 @@ def get_settings() -> Settings:
 
     local_backend_url = os.getenv("LOCAL_BACKEND_URL")
     render = bool(os.getenv("RENDER"))
+    jwt_secret_key = _require_env("JWT_SECRET_KEY")
+    jwt_refresh_secret_key = _require_env("JWT_REFRESH_SECRET_KEY")
+    jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256").strip() or "HS256"
+    access_exp = _get_env_int("JWT_ACCESS_TOKEN_EXP_MINUTES", 30)
+    refresh_exp = _get_env_int("JWT_REFRESH_TOKEN_EXP_MINUTES", 60 * 24 * 7)
+    if access_exp <= 0 or refresh_exp <= 0:
+        raise RuntimeError("JWT token expiry values must be > 0")
+
+    auth_users_json = _require_env("AUTH_USERS_JSON")
+    try:
+        parsed_users = json.loads(auth_users_json)
+        if not isinstance(parsed_users, list) or not parsed_users:
+            raise RuntimeError("AUTH_USERS_JSON must be a non-empty JSON array")
+    except json.JSONDecodeError as e:
+        raise RuntimeError("AUTH_USERS_JSON must be valid JSON") from e
+
+    require_signed_tracking = os.getenv("REQUIRE_SIGNED_TRACKING", "false").lower() == "true"
+    tracking_signing_secret = _require_env("TRACKING_SIGNING_SECRET")
 
     return Settings(
         database_url=database_url,
@@ -98,5 +125,13 @@ def get_settings() -> Settings:
         scraper_rate_limit_per_minute=scraper_rate,
         local_backend_url=local_backend_url.strip() if local_backend_url else None,
         render=render,
+        jwt_secret_key=jwt_secret_key,
+        jwt_refresh_secret_key=jwt_refresh_secret_key,
+        jwt_algorithm=jwt_algorithm,
+        jwt_access_token_exp_minutes=access_exp,
+        jwt_refresh_token_exp_minutes=refresh_exp,
+        auth_users_json=auth_users_json,
+        require_signed_tracking=require_signed_tracking,
+        tracking_signing_secret=tracking_signing_secret,
     )
 
