@@ -2,9 +2,12 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+from dotenv import load_dotenv
 
 from app.core.settings import get_settings
 from database.models import Base
+
+load_dotenv()
 
 config = context.config
 if config.config_file_name is not None:

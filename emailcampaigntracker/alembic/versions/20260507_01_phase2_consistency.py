@@ -24,7 +24,19 @@ def upgrade() -> None:
     op.execute("ALTER TABLE events ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP")
     op.execute("ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_at TIMESTAMP")
     op.execute(
-        "ALTER TABLE email_sequences ADD CONSTRAINT IF NOT EXISTS unique_tracking_id UNIQUE (tracking_id)"
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_constraint
+                WHERE conname = 'unique_tracking_id'
+            ) THEN
+                ALTER TABLE email_sequences
+                ADD CONSTRAINT unique_tracking_id UNIQUE (tracking_id);
+            END IF;
+        END $$;
+        """
     )
     op.execute("UPDATE email_sequences SET open_count = 0 WHERE open_count IS NULL")
     op.execute("UPDATE email_sequences SET click_count = 0 WHERE click_count IS NULL")
