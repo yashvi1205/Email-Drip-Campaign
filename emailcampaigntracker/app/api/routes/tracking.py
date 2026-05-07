@@ -172,7 +172,8 @@ async def track_open(
     db: Session = Depends(get_db),
 ):
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
-    validate_tracking_signature(tracking_id, exp, sig)
+    if exp is not None and sig is not None:
+        validate_tracking_signature(tracking_id, exp, sig)
 
     ua = request.headers.get("user-agent", "").lower()
     if "googleimageproxy" not in ua:
@@ -210,7 +211,8 @@ async def track_click(
 ):
     print(f"\n[DEBUG] CLICK DETECTED! ID={tracking_id} URL={url}")
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
-    validate_tracking_signature(tracking_id, exp, sig)
+    if exp is not None and sig is not None:
+        validate_tracking_signature(tracking_id, exp, sig)
     log_event(db, tracking_id, "click", request, {"target_url": url})
     return RedirectResponse(url=url)
 
