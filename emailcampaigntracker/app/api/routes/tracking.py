@@ -8,8 +8,9 @@ import threading
 import httpx
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from database.models import EmailSequence, Event, Lead
 
 from app.core.tracking_security import validate_tracking_signature
 from database.db import get_db
@@ -51,113 +52,100 @@ def sync_sheet_status_async(sync_data):
         logger.exception("Sheet sync failed.")
 
 
-def log_event(db: Session, tracking_id, event_type, request=None, additional_metadata=None):
+def log_event(
+    db: Session,
+    tracking_id: str,
+    event_type: str,
+    request: Request | None = None,
+    additional_metadata=None,
+) -> bool:
     tracking_id = tracking_id.strip()
     ip_address = request.client.host if request else "Unknown"
     user_agent = request.headers.get("user-agent", "Unknown") if request else "Unknown"
 
-    res = db.execute(
-        text("SELECT id, lead_id FROM email_sequences WHERE tracking_id = :tracking_id"),
-        {"tracking_id": tracking_id},
-    ).mappings().first()
-    if not res:
+    seq: EmailSequence | None = (
+        db.query(EmailSequence).filter(EmailSequence.tracking_id == tracking_id).first()
+    )
+    if not seq:
         logger.info("Tracking not found tracking_id=%s", tracking_id)
         return False
 
-    seq_id = res["id"]
-    lead_id = res["lead_id"]
+    lead_id = seq.lead_id
     now = datetime.datetime.now()
-    meta = {"ip": ip_address, "user_agent": user_agent, "sequence_id": seq_id}
+    meta = {"ip": ip_address, "user_agent": user_agent, "sequence_id": seq.id}
     if additional_metadata:
         meta.update(additional_metadata)
 
-    if event_type == "sent":
-        db.execute(
-            text("UPDATE email_sequences SET sent_at = :sent_at WHERE id = :seq_id"),
-            {"sent_at": now, "seq_id": seq_id},
+    # Prevent rapid duplicate opens (within 10 seconds)
+    if event_type == "open":
+        last_open = (
+            db.query(Event.timestamp)
+            .filter(Event.lead_id == lead_id, Event.event_type == "open")
+            .order_by(Event.timestamp.desc())
+            .first()
         )
-    elif event_type == "open":
-        last = db.execute(
-            text(
-                "SELECT timestamp FROM events WHERE lead_id = :lead_id AND event_type = 'open' "
-                "ORDER BY timestamp DESC LIMIT 1"
-            ),
-            {"lead_id": lead_id},
-        ).mappings().first()
-        if last and (now - last["timestamp"]).seconds < 10:
-            logger.info("Duplicate open ignored tracking_id=%s", tracking_id)
-            return True
-        db.execute(
-            text(
-                "UPDATE email_sequences SET open_count = COALESCE(open_count, 0) + 1, "
-                "last_opened = :last_opened WHERE id = :seq_id"
-            ),
-            {"last_opened": now, "seq_id": seq_id},
-        )
-    elif event_type == "click":
-        db.execute(
-            text(
-                "UPDATE email_sequences SET click_count = COALESCE(click_count, 0) + 1, "
-                "last_clicked = :last_clicked WHERE id = :seq_id"
-            ),
-            {"last_clicked": now, "seq_id": seq_id},
-        )
-    elif event_type == "reply":
-        db.execute(
-            text(
-                "UPDATE email_sequences SET replied = TRUE, last_replied = :last_replied "
-                "WHERE id = :seq_id"
-            ),
-            {"last_replied": now, "seq_id": seq_id},
-        )
+        if last_open is not None:
+            last_open_ts = last_open[0]
+            if last_open_ts and (now - last_open_ts).seconds < 10:
+                logger.info("Duplicate open ignored tracking_id=%s", tracking_id)
+                return True
 
-    db.execute(
-        text(
-            "INSERT INTO events (lead_id, event_type, timestamp, metadata) "
-            "VALUES (:lead_id, :event_type, :ts, :metadata)"
-        ),
-        {"lead_id": lead_id, "event_type": event_type, "ts": now, "metadata": json.dumps(meta)},
+        seq.open_count = (seq.open_count or 0) + 1
+        seq.last_opened = now
+
+    elif event_type == "sent":
+        seq.sent_at = now
+
+    elif event_type == "click":
+        seq.click_count = (seq.click_count or 0) + 1
+        seq.last_clicked = now
+
+    elif event_type == "reply":
+        seq.replied = True
+        seq.last_replied = now
+
+    # Insert into events table (even for delete/unknown events)
+    db.add(
+        Event(
+            lead_id=lead_id,
+            event_type=event_type,
+            timestamp=now,
+            additional_data=meta,
+        )
     )
 
-    seq_data = db.execute(
-        text(
-            "SELECT sent_at, last_opened, last_clicked, last_replied, open_count, click_count, replied "
-            "FROM email_sequences WHERE id = :seq_id"
-        ),
-        {"seq_id": seq_id},
-    ).mappings().one()
-
+    # Derive final status (Latest Action Logic)
     events = [
-        (seq_data["sent_at"] or datetime.datetime.min, "SENT"),
-        (seq_data["last_opened"] or datetime.datetime.min, "OPENED"),
-        (seq_data["last_clicked"] or datetime.datetime.min, "CLICKED"),
-        (seq_data["last_replied"] or datetime.datetime.min, "REPLIED"),
+        (seq.sent_at or datetime.datetime.min, "SENT"),
+        (seq.last_opened or datetime.datetime.min, "OPENED"),
+        (seq.last_clicked or datetime.datetime.min, "CLICKED"),
+        (seq.last_replied or datetime.datetime.min, "REPLIED"),
     ]
     events.sort(key=lambda x: x[0], reverse=True)
     final_status = events[0][1]
 
-    db.execute(
-        text("UPDATE leads SET status = :status WHERE id = :lead_id"),
-        {"status": final_status, "lead_id": lead_id},
-    )
+    lead = db.query(Lead).filter(Lead.id == lead_id).first()
+    if lead:
+        lead.status = final_status
 
-    lead_info = db.execute(
-        text("SELECT linkedin_url, email FROM leads WHERE id = :lead_id"),
-        {"lead_id": lead_id},
-    ).mappings().first()
-    if lead_info:
+    if lead:
         sync_data = {
-            "linkedin_url": lead_info["linkedin_url"],
-            "email": lead_info["email"],
+            "linkedin_url": lead.linkedin_url,
+            "email": lead.email,
             "status": final_status,
-            "open_count": seq_data["open_count"],
-            "last_opened": seq_data["last_opened"],
-            "click_count": seq_data["click_count"],
-            "last_clicked": seq_data["last_clicked"],
-            "replied": seq_data["replied"],
-            "last_replied": seq_data["last_replied"],
+            "open_count": seq.open_count,
+            "last_opened": seq.last_opened,
+            "click_count": seq.click_count,
+            "last_clicked": seq.last_clicked,
+            "replied": seq.replied,
+            "last_replied": seq.last_replied,
         }
-        threading.Thread(target=sync_sheet_status_async, args=(sync_data,), daemon=True).start()
+        threading.Thread(
+            target=sync_sheet_status_async,
+            args=(sync_data,),
+            daemon=True,
+        ).start()
+
     return True
 
 
@@ -243,15 +231,12 @@ async def track_sent(
 ):
     tracking_id = tracking_id.strip()
     if log_event(db, tracking_id, "sent", additional_metadata={"step": step}):
-        updated = db.execute(
-            text(
-                "UPDATE email_sequences SET sent_at = :sent_at, step_number = :step "
-                "WHERE tracking_id = :tracking_id RETURNING id"
-            ),
-            {"sent_at": datetime.datetime.now(), "step": step, "tracking_id": tracking_id},
-        ).first()
-        if not updated:
+        seq = db.query(EmailSequence).filter(EmailSequence.tracking_id == tracking_id).first()
+        if not seq:
             logger.warning("Sent update failed tracking_id=%s", tracking_id)
+        else:
+            seq.sent_at = datetime.datetime.now()
+            seq.step_number = step
         return {"status": "success", "message": f"Email Step {step} logged"}
     return {"status": "error", "message": "Tracking ID not found"}
 
