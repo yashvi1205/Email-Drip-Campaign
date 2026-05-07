@@ -1,0 +1,317 @@
+import asyncio
+import datetime
+import json
+import logging
+import os
+import threading
+
+import httpx
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import RedirectResponse
+
+from database.db import get_db_conn
+
+logger = logging.getLogger("tracking")
+
+router = APIRouter(tags=["Tracking"])
+
+PIXEL_GIF = (
+    b"GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04\x01"
+    b"\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+)
+PIXEL_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08"
+    b"\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00"
+    b"\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+EVENT_TO_STATUS = {
+    "sent": "SENT",
+    "open": "OPENED",
+    "click": "CLICKED",
+    "reply": "REPLIED",
+}
+
+
+def normalize_url(url):
+    if not url:
+        return url
+    return (
+        url.strip()
+        .lower()
+        .replace("https://nl.linkedin.com", "https://www.linkedin.com")
+        .replace("http://", "https://")
+        .rstrip("/")
+    )
+
+
+def sync_sheet_status_async(sync_data):
+    """Sync lead tracking data to Google Sheet in background thread."""
+    try:
+        from google_sheets import sync_leads_status
+
+        if "linkedin_url" in sync_data:
+            sync_data["linkedin_url"] = normalize_url(sync_data["linkedin_url"])
+
+        for _ in range(3):
+            try:
+                sync_leads_status([sync_data])
+                break
+            except Exception as e:
+                logger.warning("Retrying sheet sync... error=%s", e)
+        logger.info(
+            "sheet_synced url=%s status=%s",
+            sync_data.get("linkedin_url"),
+            sync_data.get("status"),
+        )
+    except Exception:
+        logger.exception("Sheet sync failed.")
+
+
+def log_event(tracking_id, event_type, request=None, additional_metadata=None):
+    tracking_id = tracking_id.strip()
+    ip_address = request.client.host if request else "Unknown"
+    user_agent = request.headers.get("user-agent", "Unknown") if request else "Unknown"
+
+    with get_db_conn() as conn:
+        with conn.cursor() as cur:
+            logger.debug("Logging event type=%s tracking_id=%s", event_type, tracking_id)
+            cur.execute(
+                "SELECT id, lead_id FROM email_sequences WHERE tracking_id = %s",
+                (tracking_id,),
+            )
+            res = cur.fetchone()
+            if not res:
+                logger.info("Tracking not found tracking_id=%s", tracking_id)
+                return False
+
+            seq_id = res["id"]
+            lead_id = res["lead_id"]
+            now = datetime.datetime.now()
+
+            meta = {"ip": ip_address, "user_agent": user_agent, "sequence_id": seq_id}
+            if additional_metadata:
+                meta.update(additional_metadata)
+
+            if event_type == "sent":
+                cur.execute(
+                    "UPDATE email_sequences SET sent_at = %s WHERE id = %s",
+                    (now, seq_id),
+                )
+
+            elif event_type == "open":
+                cur.execute(
+                    """
+                    SELECT timestamp FROM events
+                    WHERE lead_id = %s AND event_type = 'open'
+                    ORDER BY timestamp DESC LIMIT 1
+                """,
+                    (lead_id,),
+                )
+                last = cur.fetchone()
+                if last and (now - last["timestamp"]).seconds < 10:
+                    logger.info("Duplicate open ignored tracking_id=%s", tracking_id)
+                    return True
+
+                cur.execute(
+                    """
+                    UPDATE email_sequences
+                    SET open_count = COALESCE(open_count, 0) + 1, last_opened = %s
+                    WHERE id = %s
+                """,
+                    (now, seq_id),
+                )
+
+            elif event_type == "click":
+                cur.execute(
+                    """
+                    UPDATE email_sequences
+                    SET click_count = COALESCE(click_count, 0) + 1, last_clicked = %s
+                    WHERE id = %s
+                """,
+                    (now, seq_id),
+                )
+
+            elif event_type == "reply":
+                cur.execute(
+                    """
+                    UPDATE email_sequences
+                    SET replied = TRUE, last_replied = %s
+                    WHERE id = %s
+                """,
+                    (now, seq_id),
+                )
+
+            cur.execute(
+                "INSERT INTO events (lead_id, event_type, timestamp, metadata) VALUES (%s, %s, %s, %s)",
+                (lead_id, event_type, now, json.dumps(meta)),
+            )
+
+            cur.execute(
+                """
+                SELECT sent_at, last_opened, last_clicked, last_replied, open_count, click_count, replied
+                FROM email_sequences WHERE id = %s
+            """,
+                (seq_id,),
+            )
+            seq_data = cur.fetchone()
+
+            events = [
+                (seq_data["sent_at"] or datetime.datetime.min, "SENT"),
+                (seq_data["last_opened"] or datetime.datetime.min, "OPENED"),
+                (seq_data["last_clicked"] or datetime.datetime.min, "CLICKED"),
+                (seq_data["last_replied"] or datetime.datetime.min, "REPLIED"),
+            ]
+            events.sort(key=lambda x: x[0], reverse=True)
+            final_status = events[0][1]
+
+            cur.execute("UPDATE leads SET status = %s WHERE id = %s", (final_status, lead_id))
+
+            cur.execute("SELECT linkedin_url, email FROM leads WHERE id = %s", (lead_id,))
+            lead_info = cur.fetchone()
+
+            conn.commit()
+
+            if lead_info:
+                sync_data = {
+                    "linkedin_url": lead_info["linkedin_url"],
+                    "email": lead_info["email"],
+                    "status": final_status,
+                    "open_count": seq_data["open_count"],
+                    "last_opened": seq_data["last_opened"],
+                    "click_count": seq_data["click_count"],
+                    "last_clicked": seq_data["last_clicked"],
+                    "replied": seq_data["replied"],
+                    "last_replied": seq_data["last_replied"],
+                }
+                threading.Thread(
+                    target=sync_sheet_status_async,
+                    args=(sync_data,),
+                    daemon=True,
+                ).start()
+
+            return True
+
+
+@router.get("/track/{tracking_id}")
+@router.get("/t/o/{tracking_id}")
+@router.get("/open/{tracking_id}")
+async def track_open(tracking_id: str, request: Request):
+    tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
+
+    user_agent = request.headers.get("user-agent", "Unknown")
+    is_gmail = "GoogleImageProxy" in user_agent
+
+    logger.info("pixel_open_detected tracking_id=%s gmail_proxy=%s", tracking_id, is_gmail)
+    if is_gmail:
+        logger.info("gmail_proxy_detected tracking_id=%s", tracking_id)
+
+    ua = request.headers.get("user-agent", "").lower()
+    is_gmail_proxy = "googleimageproxy" in ua
+
+    logger.debug("user_agent ua=%s", ua)
+
+    if is_gmail_proxy:
+        logger.info("gmail_proxy_ignored tracking_id=%s", tracking_id)
+    else:
+        log_event(tracking_id, "open", request)
+
+    local_url = os.getenv("LOCAL_BACKEND_URL")
+    if os.getenv("RENDER") and local_url:
+
+        async def forward():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.get(
+                        f"{local_url}/api/tracking/open/{tracking_id}", timeout=1.0
+                    )
+            except Exception:
+                logger.debug("Forwarding open event failed", exc_info=True)
+
+        asyncio.create_task(forward())
+
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "ngrok-skip-browser-warning": "1",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Disposition": "inline; filename=logo.png",
+    }
+
+    return Response(content=PIXEL_GIF, media_type="image/gif", headers=headers)
+
+
+@router.get("/click/{tracking_id}")
+async def track_click(tracking_id: str, url: str, request: Request):
+    log_event(tracking_id, "click", request, {"target_url": url})
+
+    local_url = os.getenv("LOCAL_BACKEND_URL")
+    if os.getenv("RENDER") and local_url:
+
+        async def forward():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.get(
+                        f"{local_url}/api/tracking/click/{tracking_id}?url={url}",
+                        timeout=1.0,
+                    )
+            except Exception:
+                logger.debug("Forwarding click event failed", exc_info=True)
+
+        asyncio.create_task(forward())
+
+    return RedirectResponse(url=url)
+
+
+@router.post("/reply/{tracking_id}")
+async def track_reply(tracking_id: str, request: Request):
+    log_event(tracking_id, "reply", request)
+
+    local_url = os.getenv("LOCAL_BACKEND_URL")
+    if os.getenv("RENDER") and local_url:
+
+        async def forward():
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"{local_url}/api/tracking/reply/{tracking_id}", timeout=1.0
+                    )
+            except Exception:
+                logger.debug("Forwarding reply event failed", exc_info=True)
+
+        asyncio.create_task(forward())
+
+    return {"status": "success", "message": "Reply tracked"}
+
+
+@router.post("/delete/{tracking_id}")
+async def track_delete(tracking_id: str, request: Request):
+    if log_event(tracking_id, "delete", request):
+        return {"status": "success", "message": "Deletion tracked"}
+    return {"status": "error", "message": "Tracking ID not found"}
+
+
+@router.post("/sent/{tracking_id}")
+@router.get("/sent/{tracking_id}")
+async def track_sent(tracking_id: str, step: int = 1):
+    tracking_id = tracking_id.strip()
+
+    logger.debug("track_sent tracking_id=%s step=%s", tracking_id, step)
+
+    if log_event(tracking_id, "sent", additional_metadata={"step": step}):
+        with get_db_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE email_sequences SET sent_at = %s, step_number = %s WHERE tracking_id = %s RETURNING id",
+                    (datetime.datetime.now(), step, tracking_id),
+                )
+
+                updated = cur.fetchone()
+
+                if not updated:
+                    logger.warning("Sent update failed tracking_id=%s", tracking_id)
+                conn.commit()
+        return {"status": "success", "message": f"Email Step {step} logged"}
+    return {"status": "error", "message": "Tracking ID not found"}
+
