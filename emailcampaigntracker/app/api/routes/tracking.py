@@ -208,6 +208,7 @@ async def track_click(
     sig: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    print(f"\n[DEBUG] CLICK DETECTED! ID={tracking_id} URL={url}")
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
     validate_tracking_signature(tracking_id, exp, sig)
     log_event(db, tracking_id, "click", request, {"target_url": url})
