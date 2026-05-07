@@ -18,7 +18,7 @@ from database.models import ScraperJob
 
 logger = logging.getLogger("scraper_worker")
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SCRAPER_SCRIPT = os.path.join(PROJECT_ROOT, "scraper", "scrape_automation.py")
 SCRAPER_STATUS_FILE = os.path.join(PROJECT_ROOT, "scraper_status.json")
 
@@ -38,7 +38,7 @@ def _tail_excerpt(stdout: str, stderr: str, limit_chars: int = 20000) -> str:
     return combined[-limit_chars:]
 
 
-def execute_scraper_job(scraper_job_id: int) -> None:
+def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
     settings = get_settings()
     session = SessionLocal()
     job: ScraperJob | None = None
@@ -80,21 +80,35 @@ def execute_scraper_job(scraper_job_id: int) -> None:
             }
         )
 
-        args = [sys.executable, SCRAPER_SCRIPT]
+        args = [sys.executable, "-u", SCRAPER_SCRIPT]
         if job.webhook_url:
             args.append(f"webhook_url={job.webhook_url}")
+
+        print(f"DEBUG: Running command: {' '.join(args)}")
 
         proc = subprocess.Popen(
             args,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
         )
 
+        from queue import Queue, Empty
+        from threading import Thread
+
+        def enqueue_output(out, queue):
+            for line in iter(out.readline, ''):
+                queue.put(line)
+            out.close()
+
+        q = Queue()
+        t = Thread(target=enqueue_output, args=(proc.stdout, q))
+        t.daemon = True
+        t.start()
+
         start_ts = time.monotonic()
         stdout_buf = []
-        stderr_buf = []
 
         while True:
             # Refresh cancellation state
@@ -102,74 +116,30 @@ def execute_scraper_job(scraper_job_id: int) -> None:
             job = session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).first()
             if job and job.cancelled:
                 proc.kill()
-                out, err = proc.communicate(timeout=5)
-                stdout_buf.append(out or "")
-                stderr_buf.append(err or "")
                 job.status = "cancelled"
                 job.finished_at = datetime.utcnow()
-                job.last_error = "Cancelled"
                 session.commit()
-                _persist_scraper_status(
-                    {
-                        "status": "cancelled",
-                        "message": f"Scraper job cancelled (id={job.id})",
-                        "timestamp": datetime.utcnow().timestamp(),
-                        "new_posts_found": 0,
-                    }
-                )
+                _persist_scraper_status({"status": "cancelled", "message": "Job cancelled", "timestamp": datetime.utcnow().timestamp()})
                 return
+
+            # Read from queue without blocking
+            try:
+                line = q.get_nowait()
+                print(f"[SCRAPER]: {line.strip()}")
+                stdout_buf.append(line)
+            except Empty:
+                if proc.poll() is not None:
+                    break
+                time.sleep(0.5) # Don't burn CPU
 
             elapsed = time.monotonic() - start_ts
             if elapsed > settings.scraper_job_timeout_seconds:
                 proc.kill()
-                out, err = proc.communicate(timeout=5)
-                stdout_buf.append(out or "")
-                stderr_buf.append(err or "")
-                # Mark job for retry/failed before raising so DB is accurate immediately.
-                job = session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).first()
-                job.finished_at = datetime.utcnow()
-                job.last_error = f"Scraper job timed out after {settings.scraper_job_timeout_seconds}s"
-                job.log_excerpt = _tail_excerpt("".join(stdout_buf), "".join(stderr_buf))
-                if (job.attempts or 0) < (job.max_attempts or 0):
-                    job.status = "retrying"
-                    _persist_scraper_status(
-                        {
-                            "status": "running",
-                            "message": f"Scraper job retrying after timeout (id={job.id})",
-                            "timestamp": datetime.utcnow().timestamp(),
-                            "new_posts_found": 0,
-                            "job_id": job.id,
-                        }
-                    )
-                else:
-                    job.status = "failed"
-                    _persist_scraper_status(
-                        {
-                            "status": "error",
-                            "message": f"Scraper job failed after timeout (id={job.id})",
-                            "timestamp": datetime.utcnow().timestamp(),
-                            "new_posts_found": 0,
-                            "job_id": job.id,
-                        }
-                    )
-                session.commit()
-                raise TimeoutError(
-                    f"Scraper job timed out after {settings.scraper_job_timeout_seconds}s"
-                )
-
-            # Stream output to terminal
-            if proc.stdout:
-                line = proc.stdout.readline()
-                if line:
-                    print(f"[SCRAPER]: {line.strip()}")
-                    stdout_buf.append(line)
-            
-            if proc.poll() is not None:
-                break
+                raise TimeoutError("Scraper job timed out")
 
         stdout = "".join(stdout_buf)
-        stderr = "".join(stderr_buf)
-        rc = proc.returncode
+        stderr = "" # Simple capture for now
+        rc = proc.wait()
 
         if rc == 0:
             job = session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).first()
@@ -234,6 +204,7 @@ def main() -> None:
     redis_conn = get_redis_connection()
     queue = get_scraper_queue()
     worker = SimpleWorker([queue], connection=redis_conn, name=f"scraper-worker-{os.getpid()}")
+    # Force a very high timeout for the worker itself on Windows
     worker.work(logging_level="INFO")
 
 

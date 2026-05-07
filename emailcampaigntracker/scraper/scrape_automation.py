@@ -178,7 +178,7 @@ def extract_role_company_from_headline(headline):
     # CASE 1: Role @ Company
     if "@" in h:
         parts = h.split("@")
-        return parts[0].strip(), parts[1].split("|")[0].strip()
+        return parts[0].strip(), parts[1].split("|")[0].split(" at ")[0].strip()
 
     # CASE 2: Role at Company
     if " at " in h.lower():
@@ -323,9 +323,12 @@ def scrape_profile_details(driver, profile_url):
             for li in right_panel:
                 txt = li.text.strip().split("\n")[0].strip().lower()
 
-                ui_junk = ["message", "connect", "follow", "more", "view profile", "visit my website"]
+                ui_junk = [
+                    "message", "connect", "follow", "more", "view profile", 
+                    "visit my website", "pending", "remove", "ignore"
+                ]
 
-                if any(j in txt for j in ui_junk):
+                if any(j == txt or j in txt for j in ui_junk):
                     continue
 
                 if any(k in txt for k in ["university", "college", "school", "institute"]):
