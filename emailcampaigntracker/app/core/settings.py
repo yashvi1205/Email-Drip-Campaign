@@ -67,6 +67,11 @@ class Settings:
     scraper_cancel_poll_seconds: int
     scraper_run_lock_ttl_seconds: int
     scraper_max_running_age_seconds: int
+    app_env: str
+    log_json: bool
+    otel_enabled: bool
+    otel_service_name: str
+    otel_exporter_otlp_endpoint: Optional[str]
 
 
 def _normalize_database_url(url: str) -> str:
@@ -141,6 +146,17 @@ def get_settings() -> Settings:
     if scraper_job_retry_interval_seconds < 0:
         raise RuntimeError("SCRAPER_JOB_RETRY_INTERVAL_SECONDS must be >= 0")
 
+    app_env = os.getenv("APP_ENV", "development").strip().lower()
+    if app_env not in {"development", "staging", "production", "test"}:
+        raise RuntimeError("APP_ENV must be one of development|staging|production|test")
+
+    log_json = os.getenv("LOG_JSON", "false").lower() == "true"
+    otel_enabled = os.getenv("OTEL_ENABLED", "false").lower() == "true"
+    otel_service_name = os.getenv("OTEL_SERVICE_NAME", "emailcampaigntracker-api").strip()
+    otel_exporter_otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if otel_enabled and (not otel_exporter_otlp_endpoint or not otel_exporter_otlp_endpoint.strip()):
+        raise RuntimeError("OTEL_ENABLED=true requires OTEL_EXPORTER_OTLP_ENDPOINT")
+
     return Settings(
         database_url=database_url,
         cors_allow_origins=cors_allow_origins,
@@ -167,5 +183,10 @@ def get_settings() -> Settings:
         scraper_cancel_poll_seconds=scraper_cancel_poll_seconds,
         scraper_run_lock_ttl_seconds=scraper_run_lock_ttl_seconds,
         scraper_max_running_age_seconds=scraper_max_running_age_seconds,
+        app_env=app_env,
+        log_json=log_json,
+        otel_enabled=otel_enabled,
+        otel_service_name=otel_service_name,
+        otel_exporter_otlp_endpoint=otel_exporter_otlp_endpoint.strip() if otel_exporter_otlp_endpoint else None,
     )
 

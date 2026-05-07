@@ -16,3 +16,8 @@ PyJWT
 alembic
 redis
 rq
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
+opentelemetry-exporter-otlp
+prometheus-fastapi-instrumentator

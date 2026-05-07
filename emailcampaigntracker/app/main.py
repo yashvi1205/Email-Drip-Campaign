@@ -20,6 +20,7 @@ from app.core.errors import (
     starlette_http_exception_handler,
     unhandled_exception_handler,
 )
+from app.core.observability import setup_opentelemetry, setup_prometheus
 from app.core.settings import get_settings
 from app.middleware.request_context import (
     RequestIdMiddleware,
@@ -50,6 +51,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+setup_prometheus(app)
+if settings.otel_enabled and settings.otel_exporter_otlp_endpoint:
+    setup_opentelemetry(
+        app,
+        service_name=settings.otel_service_name,
+        otlp_endpoint=settings.otel_exporter_otlp_endpoint,
+    )
 
 # Tracking endpoints: rate limiting (Phase 0)
 tracking_rate_limit = rate_limit("tracking", settings.tracking_rate_limit_per_minute)

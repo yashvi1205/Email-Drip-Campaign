@@ -1,0 +1,133 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: emailcampaigntracker
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d emailcampaigntracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      LOG_LEVEL: INFO
+      LOG_JSON: "true"
+      DATABASE_URL: postgresql://appuser:apppassword@postgres:5432/emailcampaigntracker
+      CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:8080
+      API_KEY: dev-api-key
+      DASHBOARD_API_KEY: dev-api-key
+      SCRAPER_API_KEY: dev-api-key
+      JWT_SECRET_KEY: dev-jwt-secret
+      JWT_REFRESH_SECRET_KEY: dev-jwt-refresh-secret
+      AUTH_USERS_JSON: >-
+        [{"username":"admin","password":"admin123","role":"admin"},{"username":"scraper","password":"scraper123","role":"scraper"},{"username":"dashboard","password":"dashboard123","role":"dashboard"}]
+      TRACKING_SIGNING_SECRET: dev-tracking-secret
+      REQUIRE_SIGNED_TRACKING: "false"
+      REDIS_URL: redis://redis:6379/0
+      SCRAPER_QUEUE_NAME: scraper
+      SCRAPER_JOB_TIMEOUT_SECONDS: "1800"
+      SCRAPER_JOB_MAX_ATTEMPTS: "3"
+      SCRAPER_JOB_RETRY_INTERVAL_SECONDS: "30"
+      SCRAPER_CANCEL_POLL_SECONDS: "2"
+      SCRAPER_RUN_LOCK_TTL_SECONDS: "3600"
+      SCRAPER_MAX_RUNNING_AGE_SECONDS: "2700"
+      OTEL_ENABLED: "false"
+      OTEL_SERVICE_NAME: emailcampaigntracker-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/api/health/readiness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      LOG_LEVEL: INFO
+      LOG_JSON: "true"
+      DATABASE_URL: postgresql://appuser:apppassword@postgres:5432/emailcampaigntracker
+      CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:8080
+      API_KEY: dev-api-key
+      DASHBOARD_API_KEY: dev-api-key
+      SCRAPER_API_KEY: dev-api-key
+      JWT_SECRET_KEY: dev-jwt-secret
+      JWT_REFRESH_SECRET_KEY: dev-jwt-refresh-secret
+      AUTH_USERS_JSON: >-
+        [{"username":"admin","password":"admin123","role":"admin"},{"username":"scraper","password":"scraper123","role":"scraper"},{"username":"dashboard","password":"dashboard123","role":"dashboard"}]
+      TRACKING_SIGNING_SECRET: dev-tracking-secret
+      REQUIRE_SIGNED_TRACKING: "false"
+      REDIS_URL: redis://redis:6379/0
+      SCRAPER_QUEUE_NAME: scraper
+      SCRAPER_JOB_TIMEOUT_SECONDS: "1800"
+      SCRAPER_JOB_MAX_ATTEMPTS: "3"
+      SCRAPER_JOB_RETRY_INTERVAL_SECONDS: "30"
+      SCRAPER_CANCEL_POLL_SECONDS: "2"
+      SCRAPER_RUN_LOCK_TTL_SECONDS: "3600"
+      SCRAPER_MAX_RUNNING_AGE_SECONDS: "2700"
+      OTEL_ENABLED: "false"
+      OTEL_SERVICE_NAME: emailcampaigntracker-worker
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VITE_API_BASE_URL: http://localhost:8001/api
+      VITE_API_KEY: dev-api-key
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:
+
