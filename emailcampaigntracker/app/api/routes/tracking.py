@@ -146,6 +146,7 @@ def log_event(
             daemon=True,
         ).start()
 
+    db.commit()
     return True
 
 
