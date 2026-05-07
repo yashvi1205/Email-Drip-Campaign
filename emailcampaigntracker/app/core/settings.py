@@ -58,6 +58,16 @@ class Settings:
     require_signed_tracking: bool
     tracking_signing_secret: str
 
+    # Scraper background jobs (Phase 3)
+    redis_url: str
+    scraper_queue_name: str
+    scraper_job_timeout_seconds: int
+    scraper_job_max_attempts: int
+    scraper_job_retry_interval_seconds: int
+    scraper_cancel_poll_seconds: int
+    scraper_run_lock_ttl_seconds: int
+    scraper_max_running_age_seconds: int
+
 
 def _normalize_database_url(url: str) -> str:
     if url.startswith("postgres://"):
@@ -115,6 +125,22 @@ def get_settings() -> Settings:
     require_signed_tracking = os.getenv("REQUIRE_SIGNED_TRACKING", "false").lower() == "true"
     tracking_signing_secret = _require_env("TRACKING_SIGNING_SECRET")
 
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0").strip()
+    scraper_queue_name = os.getenv("SCRAPER_QUEUE_NAME", "scraper").strip() or "scraper"
+    scraper_job_timeout_seconds = _get_env_int("SCRAPER_JOB_TIMEOUT_SECONDS", 60 * 30)
+    scraper_job_max_attempts = _get_env_int("SCRAPER_JOB_MAX_ATTEMPTS", 3)
+    scraper_job_retry_interval_seconds = _get_env_int("SCRAPER_JOB_RETRY_INTERVAL_SECONDS", 30)
+    scraper_cancel_poll_seconds = _get_env_int("SCRAPER_CANCEL_POLL_SECONDS", 2)
+    scraper_run_lock_ttl_seconds = _get_env_int("SCRAPER_RUN_LOCK_TTL_SECONDS", 60 * 60)
+    scraper_max_running_age_seconds = _get_env_int("SCRAPER_MAX_RUNNING_AGE_SECONDS", 45 * 60)
+
+    if scraper_job_timeout_seconds <= 0:
+        raise RuntimeError("SCRAPER_JOB_TIMEOUT_SECONDS must be > 0")
+    if scraper_job_max_attempts <= 0:
+        raise RuntimeError("SCRAPER_JOB_MAX_ATTEMPTS must be > 0")
+    if scraper_job_retry_interval_seconds < 0:
+        raise RuntimeError("SCRAPER_JOB_RETRY_INTERVAL_SECONDS must be >= 0")
+
     return Settings(
         database_url=database_url,
         cors_allow_origins=cors_allow_origins,
@@ -133,5 +159,13 @@ def get_settings() -> Settings:
         auth_users_json=auth_users_json,
         require_signed_tracking=require_signed_tracking,
         tracking_signing_secret=tracking_signing_secret,
+        redis_url=redis_url,
+        scraper_queue_name=scraper_queue_name,
+        scraper_job_timeout_seconds=scraper_job_timeout_seconds,
+        scraper_job_max_attempts=scraper_job_max_attempts,
+        scraper_job_retry_interval_seconds=scraper_job_retry_interval_seconds,
+        scraper_cancel_poll_seconds=scraper_cancel_poll_seconds,
+        scraper_run_lock_ttl_seconds=scraper_run_lock_ttl_seconds,
+        scraper_max_running_age_seconds=scraper_max_running_age_seconds,
     )
 

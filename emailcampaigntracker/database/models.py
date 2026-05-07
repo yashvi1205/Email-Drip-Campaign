@@ -55,3 +55,26 @@ class Event(Base):
     additional_data = Column("metadata", JSON) # Use Column name to avoid reserved keyword conflict
 
     lead = relationship("Lead", back_populates="events")
+
+
+class ScraperJob(Base):
+    __tablename__ = "scraper_jobs"
+
+    id = Column(Integer, primary_key=True)
+    status = Column(String, default="queued")  # queued|running|succeeded|failed|cancelled
+    source = Column(String, default="unknown")
+    webhook_url = Column(Text, nullable=True)
+
+    attempts = Column(Integer, default=0)
+    max_attempts = Column(Integer, default=3)
+
+    cancelled = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+
+    last_error = Column(Text, nullable=True)
+    log_excerpt = Column(Text, nullable=True)
+
+    rq_job_id = Column(String, nullable=True)  # RQ job id (string)

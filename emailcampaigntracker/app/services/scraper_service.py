@@ -3,12 +3,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-import subprocess
-import sys
 from datetime import datetime
 from typing import Any, Dict, Optional
-
-from fastapi import HTTPException
 
 logger = logging.getLogger("scraper")
 
@@ -31,43 +27,32 @@ def get_scraper_status_from_file() -> dict:
 
 
 def trigger_scrape(webhook_url: Optional[str] = None, source: str = "unknown") -> dict:
-    global SCRAPER_STATUS
-
-    if SCRAPER_STATUS.get("status") == "running":
-        now = datetime.utcnow().timestamp()
-        last_update = SCRAPER_STATUS.get("timestamp", 0)
-        if now - last_update < 300:
-            logger.warning("scrape_rejected_already_running source=%s", source)
-            return {"status": "already running", "source": source}
+    from app.services.scraper_job_service import enqueue_scraper_job
 
     logger.info("scraper_triggered source=%s webhook=%s", source, bool(webhook_url))
-
-    SCRAPER_STATUS["status"] = "running"
-    SCRAPER_STATUS["message"] = f"Scraper started by {source}"
-    SCRAPER_STATUS["timestamp"] = datetime.utcnow().timestamp()
-    SCRAPER_STATUS["new_posts_found"] = 0
-
-    try:
-        args = [sys.executable, SCRAPER_SCRIPT]
-        if webhook_url:
-            args.append(f"webhook_url={webhook_url}")
-
-        subprocess.Popen(args)
-
-        with open(SCRAPER_STATUS_FILE, "w") as f:
-            json.dump(SCRAPER_STATUS, f)
-
-        return {"status": "started", "source": source, "webhook_url": webhook_url}
-    except Exception as e:
-        SCRAPER_STATUS["status"] = "error"
-        SCRAPER_STATUS["error"] = str(e)
-        raise HTTPException(status_code=500, detail=str(e))
+    result, job_id = enqueue_scraper_job(webhook_url=webhook_url, source=source)
+    if result.get("status") == "started" and job_id is not None:
+        SCRAPER_STATUS["status"] = "running"
+        SCRAPER_STATUS["message"] = f"Scraper started by {source}"
+        SCRAPER_STATUS["timestamp"] = datetime.utcnow().timestamp()
+        SCRAPER_STATUS["new_posts_found"] = 0
+        SCRAPER_STATUS["job_id"] = job_id
+    return result
 
 
 def update_status(data: dict) -> dict:
     global SCRAPER_STATUS
-    SCRAPER_STATUS.update(data)
-    SCRAPER_STATUS["timestamp"] = datetime.utcnow().timestamp()
+    # Fault tolerance: merge update into persisted state so fields like job_id survive restarts.
+    try:
+        persisted = get_scraper_status_from_file()
+    except Exception:
+        persisted = {}
+
+    persisted.update(data)
+    persisted["timestamp"] = datetime.utcnow().timestamp()
+
+    # Keep the in-memory dict in sync for backward compatibility.
+    SCRAPER_STATUS = persisted  # type: ignore[assignment]
 
     try:
         with open(SCRAPER_STATUS_FILE, "w") as f:
@@ -79,5 +64,6 @@ def update_status(data: dict) -> dict:
 
 
 def get_in_memory_status() -> dict:
-    return SCRAPER_STATUS
+    # Return persisted state for multi-instance safety.
+    return get_scraper_status_from_file()
 
