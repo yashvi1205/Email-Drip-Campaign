@@ -228,10 +228,12 @@ def execute_scraper_job(scraper_job_id: int) -> None:
         session.close()
 
 
+from rq.worker import SimpleWorker
+
 def main() -> None:
     redis_conn = get_redis_connection()
     queue = get_scraper_queue()
-    worker = Worker([queue], connection=redis_conn, name=f"scraper-worker-{os.getpid()}")
+    worker = SimpleWorker([queue], connection=redis_conn, name=f"scraper-worker-{os.getpid()}")
     worker.work(logging_level="INFO")
 
 
