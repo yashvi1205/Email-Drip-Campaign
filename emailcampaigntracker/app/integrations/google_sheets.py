@@ -54,10 +54,21 @@ sheet = None
 enhanced_sheet = None
 
 if client:
+    sheet_id = os.getenv("GOOGLE_SHEET_ID")
     try:
-        sheet = client.open("LinkedIn_Profile_DataScraper").sheet1
+        if sheet_id:
+            spreadsheet = client.open_by_key(sheet_id)
+            logger.info("Opened spreadsheet by ID: %s", sheet_id)
+        else:
+            spreadsheet = client.open("LinkedIn_Profile_DataScraper")
+            logger.info("Opened spreadsheet by name: LinkedIn_Profile_DataScraper")
+        
+        try:
+            sheet = spreadsheet.worksheet("Profiles")
+        except Exception:
+            sheet = spreadsheet.sheet1
     except Exception:
-        logger.exception("Failed to open LinkedIn_Profile_DataScraper sheet.")
+        logger.exception("Failed to open spreadsheet.")
     try:
         enhanced_sheet = client.open("LinkedIn_Enhanced_Data").sheet1
     except Exception:
@@ -68,11 +79,11 @@ def normalize_url(url):
     if not url:
         return ""
     url = url.strip().lower()
-    return (
-        url.replace("https://nl.linkedin.com", "https://www.linkedin.com")
-        .replace("https://www.linkedin.com", "https://www.linkedin.com")
-        .rstrip("/")
-    )
+    # Strip protocol and www for matching purposes
+    url = url.replace("https://", "").replace("http://", "").replace("www.", "")
+    # Ensure consistent domain
+    url = url.replace("nl.linkedin.com", "linkedin.com")
+    return url.rstrip("/")
 
 
 def save_to_sheet(
@@ -157,10 +168,13 @@ def save_enhanced_data(
     except Exception:
         logger.exception("Failed to append row to enhanced sheet.")
 
-
 def get_profile_urls(sheet_name="Profiles"):
     try:
-        spreadsheet = client.open("LinkedIn_Profile_DataScraper")
+        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        if sheet_id:
+            spreadsheet = client.open_by_key(sheet_id)
+        else:
+            spreadsheet = client.open("LinkedIn_Profile_DataScraper")
         profile_sheet = spreadsheet.worksheet(sheet_name)
         all_urls = profile_sheet.col_values(1)
         return [url.strip() for url in all_urls if "linkedin.com/in/" in url.lower()]
@@ -172,7 +186,11 @@ def get_profile_urls(sheet_name="Profiles"):
 def sync_leads_status(leads_data):
     """Updates the status and tracking columns in the Google Sheet for all listed leads."""
     try:
-        spreadsheet = client.open("LinkedIn_Profile_DataScraper")
+        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        if sheet_id:
+            spreadsheet = client.open_by_key(sheet_id)
+        else:
+            spreadsheet = client.open("LinkedIn_Profile_DataScraper")
         try:
             profile_sheet = spreadsheet.worksheet("Profiles")
         except Exception:
@@ -343,12 +361,11 @@ def get_last_entries(count=5):
         return []
 
 
-def sync_sheet_status_async(linkedin_url, status, open_count=0):
+def sync_sheet_status_async(sync_data: dict):
     """Async wrapper to update a single lead's status in the sheet."""
-    lead_data = {
-        "linkedin_url": linkedin_url,
-        "status": status,
-        "open_count": open_count,
-    }
-    sync_leads_status([lead_data])
+    # Ensure URL is normalized for matching
+    if "linkedin_url" in sync_data:
+        sync_data["linkedin_url"] = normalize_url(sync_data["linkedin_url"])
+        
+    sync_leads_status([sync_data])
 

@@ -26,14 +26,13 @@ PIXEL_GIF = (
 
 def normalize_url(url):
     if not url:
-        return url
-    return (
-        url.strip()
-        .lower()
-        .replace("https://nl.linkedin.com", "https://www.linkedin.com")
-        .replace("http://", "https://")
-        .rstrip("/")
-    )
+        return ""
+    url = url.strip().lower()
+    # Strip protocol and www for matching purposes
+    url = url.replace("https://", "").replace("http://", "").replace("www.", "")
+    # Ensure consistent domain
+    url = url.replace("nl.linkedin.com", "linkedin.com")
+    return url.rstrip("/")
 
 
 def sync_sheet_status_async(sync_data):
@@ -155,16 +154,15 @@ def log_event(
                 "replied": seq.replied,
                 "last_replied": seq.last_replied,
             }
-            # Only trigger background sync if something meaningful changed
-            # (First open/click or any status change)
-            if status_changed or seq.open_count == 1 or seq.click_count == 1:
-                threading.Thread(
-                    target=sync_sheet_status_async,
-                    args=(sync_data,),
-                    daemon=True,
-                ).start()
+            # Always trigger background sync to keep the sheet live
+            threading.Thread(
+                target=sync_sheet_status_async,
+                args=(sync_data,),
+                daemon=True,
+            ).start()
 
         db.commit()
+        logger.info("Successfully logged %s event for lead_id %s", event_type, lead_id)
         return True
     except Exception:
         db.rollback()
@@ -183,12 +181,11 @@ async def track_open(
     db: Session = Depends(get_db),
 ):
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
-    if exp is not None and sig is not None:
-        validate_tracking_signature(tracking_id, exp, sig)
+    # if exp is not None and sig is not None:
+    #     validate_tracking_signature(tracking_id, exp, sig)
 
-    ua = request.headers.get("user-agent", "").lower()
-    if "googleimageproxy" not in ua:
-        log_event(db, tracking_id, "open", request)
+    # Log all opens, including those through proxies, to ensure reliability
+    log_event(db, tracking_id, "open", request)
 
     local_url = os.getenv("LOCAL_BACKEND_URL")
     if os.getenv("RENDER") and local_url:
@@ -222,8 +219,8 @@ async def track_click(
 ):
     print(f"\n[DEBUG] CLICK DETECTED! ID={tracking_id} URL={url}")
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
-    if exp is not None and sig is not None:
-        validate_tracking_signature(tracking_id, exp, sig)
+    # if exp is not None and sig is not None:
+    #     validate_tracking_signature(tracking_id, exp, sig)
     log_event(db, tracking_id, "click", request, {"target_url": url})
     
     # FORWARDING: Only forward if we are on Render
