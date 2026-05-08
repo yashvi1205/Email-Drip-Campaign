@@ -70,32 +70,44 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
         if job.webhook_url:
             args.append(f"webhook_url={job.webhook_url}")
 
-        proc = subprocess.Popen(
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            bufsize=1,
-            env={**os.environ, "BACKEND_INTERNAL_URL": settings.backend_internal_url}
-        )
+        # 2. INTERACTIVE MODE (Phase 3)
+        # If not headless, we allow direct terminal access so user can log in manually
+        if not settings.headless:
+            logger.info("Starting scraper in INTERACTIVE mode (Headless=False)")
+            proc = subprocess.Popen(
+                args,
+                env={**os.environ, "BACKEND_INTERNAL_URL": settings.backend_internal_url}
+            )
+            # No thread needed for queue in interactive mode
+            stdout_buf = ["Interactive session - logs in terminal"]
+            q = None 
+        else:
+            proc = subprocess.Popen(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                bufsize=1,
+                env={**os.environ, "BACKEND_INTERNAL_URL": settings.backend_internal_url}
+            )
 
-        from queue import Queue, Empty
-        from threading import Thread
+            from queue import Queue, Empty
+            from threading import Thread
 
-        def enqueue_output(out, queue):
-            for line in iter(out.readline, ''):
-                queue.put(line)
-            out.close()
+            def enqueue_output(out, queue):
+                try:
+                    for line in iter(out.readline, ''):
+                        queue.put(line)
+                    out.close()
+                except Exception:
+                    pass
 
-        q = Queue()
-        t = Thread(target=enqueue_output, args=(proc.stdout, q))
-        t.daemon = True
-        t.start()
-
-        start_ts = time.monotonic()
-        last_heartbeat_ts = start_ts
-        stdout_buf = []
+            q = Queue()
+            t = Thread(target=enqueue_output, args=(proc.stdout, q))
+            t.daemon = True
+            t.start()
+            stdout_buf = []
 
         while True:
             # 2. HEARTBEAT & CANCELLATION CHECK
@@ -119,13 +131,19 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
                 return
 
             # Read from queue without blocking
-            try:
-                line = q.get_nowait()
-                stdout_buf.append(line)
-                # Keep stdout minimal in worker logs, full logs in DB
-                if "error" in line.lower() or "critical" in line.lower():
-                    logger.error("[SCRAPER %s]: %s", scraper_job_id, line.strip())
-            except Empty:
+            if q:
+                try:
+                    line = q.get_nowait()
+                    stdout_buf.append(line)
+                    # Keep stdout minimal in worker logs, full logs in DB
+                    if "error" in line.lower() or "critical" in line.lower():
+                        logger.error("[SCRAPER %s]: %s", scraper_job_id, line.strip())
+                except Empty:
+                    if proc.poll() is not None:
+                        break
+                    time.sleep(1)
+            else:
+                # Interactive mode: just wait for process to exit
                 if proc.poll() is not None:
                     break
                 time.sleep(1)
@@ -151,14 +169,6 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
             logger.info("Scraper job %s transition: succeeded", scraper_job_id)
             return
 
-        # failure -> retry if allowed by rq retry config
-        job = session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).first()
-        job.finished_at = datetime.utcnow()
-        job.last_error = f"Scraper process failed (rc={rc})"
-        job.log_excerpt = _tail_excerpt(stdout, stderr)
-        if (job.attempts or 0) < (job.max_attempts or 0):
-            job.status = "retrying"
-            message = f"Scraper retrying (id={job.id}, attempts={job.attempts}/{job.max_attempts})"
         # 3. FAILURE HANDLING
         job = session.query(ScraperJob).get(scraper_job_id)
         job.finished_at = datetime.utcnow()

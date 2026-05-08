@@ -39,6 +39,20 @@ def reset():
     except Exception as e:
         print(f"[ERROR] Database reset failed: {e}")
 
+    # 4. Optional: Clear Chrome Profile (Phase 3)
+    if os.getenv("CLEAN_PROFILE", "false").lower() == "true":
+        import shutil
+        from pathlib import Path
+        try:
+            profile_path = Path(settings.chrome_profile_base_path) / settings.linkedin_profile_name
+            if profile_path.exists():
+                shutil.rmtree(profile_path)
+                print(f"[SUCCESS] Chrome profile cleared: {profile_path}")
+            else:
+                print(f"[SKIP] Profile path does not exist: {profile_path}")
+        except Exception as e:
+            print(f"[ERROR] Profile clear failed: {e}")
+
     print("\n[READY] System is now IDLE. You can run n8n now!")
 
 if __name__ == "__main__":
