@@ -716,6 +716,16 @@ def run_scraper():
 
             update_backend_status("completed", f"Finished! Found {len(all_results)} profiles.", new_posts=len(all_results))
 
+            # ✅ FINAL WEBHOOK TRIGGER (Phase 4)
+            if webhook_url and all_results:
+                logger.info("Triggering final n8n webhook with %d results...", len(all_results))
+                try:
+                    # n8n often expects a list of items or a JSON object
+                    response = requests.post(webhook_url, json={"profiles": all_results}, timeout=30)
+                    logger.info("Webhook triggered! n8n responded: %s", response.status_code)
+                except Exception as e:
+                    logger.warning("Failed to trigger n8n webhook: %s", e)
+
         except Exception as e:
             logger.exception("CRITICAL ERROR: %s", e)
             update_backend_status("error", error=str(e))
