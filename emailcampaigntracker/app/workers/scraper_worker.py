@@ -109,6 +109,9 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
             t.start()
             stdout_buf = []
 
+        start_ts = time.monotonic()
+        last_heartbeat_ts = start_ts
+
         while True:
             # 2. HEARTBEAT & CANCELLATION CHECK
             current_ts = time.monotonic()
