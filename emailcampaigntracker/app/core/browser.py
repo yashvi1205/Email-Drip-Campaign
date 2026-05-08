@@ -81,6 +81,7 @@ def get_browser_options() -> Options:
     
     # Anti-detection: Real user agent (optional but safer)
     options.add_argument("--lang=en-US")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
     
     return options
 
@@ -113,32 +114,47 @@ def validate_session(driver: webdriver.Chrome) -> bool:
     Returns True if logged in, False if at login screen or challenged.
     """
     try:
-        driver.get("https://www.linkedin.com/feed/")
-        time.sleep(5) # Wait for initial redirect/load
-        
+        # 1. Check if we are ALREADY at the feed (important for manual login)
         current_url = driver.current_url
+        if "linkedin.com/feed" in current_url:
+            logger.info("Session validated: Already at feed URL.")
+            return True
+
+        # 2. Try to navigate to feed if not there
+        if "login" in current_url or "checkpoint" in current_url or "linkedin.com" not in current_url:
+            driver.get("https://www.linkedin.com/feed/")
+            time.sleep(5)
+            current_url = driver.current_url
+
         if "login" in current_url or "checkpoint" in current_url:
             logger.warning("Session invalid: Redirected to %s", current_url)
             return False
             
-        # Robust multi-element check for feed presence
-        # Look for the search bar, the nav bar, or the identity card
+        if "linkedin.com/feed" in current_url:
+            return True
+
+        # 3. Robust multi-element check for feed presence
         success_selectors = [
             (By.ID, "global-nav"),
             (By.CLASS_NAME, "search-global-typeahead__input"),
             (By.CSS_SELECTOR, ".global-nav__me-photo"),
-            (By.CSS_SELECTOR, "[data-test-global-nav-link='feed']")
+            (By.CSS_SELECTOR, "[data-test-global-nav-link='feed']"),
+            (By.XPATH, "//button[contains(@class, 'global-nav__primary-link')]")
         ]
         
         for selector in success_selectors:
             try:
-                WebDriverWait(driver, 15).until(EC.presence_of_element_located(selector))
+                WebDriverWait(driver, 10).until(EC.presence_of_element_located(selector))
                 logger.info("Session validated using selector: %s", str(selector))
                 return True
             except:
                 continue
                 
-        logger.warning("Session validation failed: None of the success elements were found.")
+        # Final check: if we are on a page that looks like linkedin and NOT login
+        if "linkedin.com" in current_url and "login" not in current_url:
+            logger.info("Session validated: On LinkedIn page (%s)", current_url)
+            return True
+
         return False
     except Exception as e:
         logger.warning("Session validation check failed: %s", e)
