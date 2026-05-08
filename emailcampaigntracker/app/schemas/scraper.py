@@ -23,7 +23,8 @@ class ScraperStatusUpdateResponse(BaseModel):
 
 class ScrapeStartResponse(BaseModel):
     status: str
-    source: str
+    job_id: Optional[int] = None
+    source: Optional[str] = None
     webhook_url: Optional[str] = None
 
 

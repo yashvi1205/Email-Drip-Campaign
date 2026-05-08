@@ -29,6 +29,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from deep_translator import GoogleTranslator
 
+# Core Project Imports (Phase 3+)
+from app.core.browser import create_driver, validate_session, check_browser_health, chrome_profile_lock
+from app.core.settings import get_settings
+from database.db import SessionLocal
+from database.models import Event
+from google_sheets import get_profile_urls
+
 try:
     from database.save_data import save_lead, save_event, get_or_create_sequence
     from google_sheets import save_enhanced_data
@@ -571,8 +578,6 @@ def scrape_profile(driver, profile_url):
         current_content = latest_item.get("text", "")
         current_hash = get_content_hash(current_content)
 
-        from database.db import SessionLocal
-        from database.models import Event
 
         db = SessionLocal()
 
@@ -643,7 +648,6 @@ def save_cookies(driver):
     except Exception as e:
         logger.warning("Failed to save cookies: %s", e)
 
-from app.core.browser import create_driver, validate_session, check_browser_health
 
 # Networking Configuration (Phase 0)
 BACKEND_URL = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8001").rstrip("/")
@@ -664,12 +668,9 @@ def run_scraper():
     logger.info("Binary: %s", health['binary'])
     logger.info("-----------------------------------")
 
-    from google_sheets import get_profile_urls
     urls = get_profile_urls()
     all_results = []
     
-    from app.core.browser import create_driver, validate_session, check_browser_health, chrome_profile_lock
-    from app.core.settings import get_settings
     settings = get_settings()
 
     # 1. PROFILE LOCKING (Phase 3)

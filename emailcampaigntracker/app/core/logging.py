@@ -6,10 +6,7 @@ def setup_logging():
     settings = get_settings()
     
     # Use structured-like formatting for human readability
-    log_format = (
-        "%(asctime)s | %(levelname)-8s | %(name)-15s | "
-        "[req:%(request_id)s] [job:%(job_id)s] - %(message)s"
-    )
+    log_format = "%(asctime)s | %(levelname)-8s | %(name)-15s | [req:%(request_id)s] [job:%(job_id)s] - %(message)s"
     
     # Custom Filter to ensure request_id and job_id are always present in record
     class ContextFilter(logging.Filter):
