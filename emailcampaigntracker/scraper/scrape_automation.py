@@ -685,9 +685,25 @@ def run_scraper():
             update_backend_status("running", "Validating LinkedIn session...")
             
             if not validate_session(driver):
-                logger.error("AUTHENTICATION REQUIRED. The session has expired or been challenged.")
-                update_backend_status("error", "LinkedIn session expired. Login required.")
-                return
+                if not settings.headless:
+                    logger.error("AUTHENTICATION REQUIRED. The session has expired or been challenged.")
+                    update_backend_status("running", "Waiting for manual login in browser...")
+                    print("\n" + "!"*60)
+                    print("⚠️  LINKEDIN LOGIN REQUIRED!")
+                    print("👉 Please log in manually in the Chrome window that just opened.")
+                    print("👉 Once you see your LinkedIn Feed, come back here and press ENTER.")
+                    print("!"*60 + "\n")
+                    input("Press ENTER after you have logged in...")
+                    
+                    # Retry validation after manual login
+                    if not validate_session(driver):
+                        logger.error("Session still invalid after manual attempt. Aborting.")
+                        update_backend_status("error", "LinkedIn session expired. Manual login failed.")
+                        return
+                else:
+                    logger.error("AUTHENTICATION REQUIRED. The session has expired or been challenged.")
+                    update_backend_status("error", "LinkedIn session expired. Login required.")
+                    return
 
             for i, url in enumerate(urls):
                 update_backend_status("running", f"Scraping profile {i+1}/{len(urls)}: {url}")
