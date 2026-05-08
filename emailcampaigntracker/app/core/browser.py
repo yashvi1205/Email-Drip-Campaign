@@ -114,19 +114,32 @@ def validate_session(driver: webdriver.Chrome) -> bool:
     """
     try:
         driver.get("https://www.linkedin.com/feed/")
-        time.sleep(3) # Wait for redirects
+        time.sleep(5) # Wait for initial redirect/load
         
         current_url = driver.current_url
         if "login" in current_url or "checkpoint" in current_url:
             logger.warning("Session invalid: Redirected to %s", current_url)
             return False
             
-        # Look for common feed element
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.ID, "global-nav"))
-        )
-        logger.info("Session validated: Successfully authenticated.")
-        return True
+        # Robust multi-element check for feed presence
+        # Look for the search bar, the nav bar, or the identity card
+        success_selectors = [
+            (By.ID, "global-nav"),
+            (By.CLASS_NAME, "search-global-typeahead__input"),
+            (By.CSS_SELECTOR, ".global-nav__me-photo"),
+            (By.CSS_SELECTOR, "[data-test-global-nav-link='feed']")
+        ]
+        
+        for selector in success_selectors:
+            try:
+                WebDriverWait(driver, 15).until(EC.presence_of_element_located(selector))
+                logger.info("Session validated using selector: %s", str(selector))
+                return True
+            except:
+                continue
+                
+        logger.warning("Session validation failed: None of the success elements were found.")
+        return False
     except Exception as e:
         logger.warning("Session validation check failed: %s", e)
         return False
