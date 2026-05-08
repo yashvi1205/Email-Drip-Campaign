@@ -15,6 +15,8 @@ def get_request_id() -> str | None:
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
         incoming = request.headers.get("x-request-id")
         rid = incoming.strip() if incoming else str(uuid.uuid4())
         token = _request_id_ctx.set(rid)
@@ -33,6 +35,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         self._logger = logger
 
     async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
         start = time.perf_counter()
         try:
             response: Response = await call_next(request)

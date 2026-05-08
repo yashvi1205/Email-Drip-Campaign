@@ -42,15 +42,15 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(StarletteHTTPException, starlette_http_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
-app.add_middleware(RequestIdMiddleware)
-app.add_middleware(RequestLoggingMiddleware, logger=logger)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# app.add_middleware(RequestIdMiddleware)
+# app.add_middleware(RequestLoggingMiddleware, logger=logger)
 
 setup_prometheus(app)
 if settings.otel_enabled and settings.otel_exporter_otlp_endpoint:
