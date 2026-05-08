@@ -41,6 +41,17 @@ class Settings:
     database_url: str
     cors_allow_origins: List[str]
 
+    # Networking
+    backend_internal_url: str
+    n8n_webhook_url: Optional[str]
+
+    # Browser & Scraper Configuration (Phase 1)
+    chrome_binary_path: Optional[str]
+    chrome_profile_base_path: str
+    linkedin_profile_name: str
+    headless: bool
+    browser_window_size: str
+
     # Temporary API keys (Phase 0)
     api_key: str
     dashboard_api_key: str
@@ -98,6 +109,10 @@ def get_settings() -> Settings:
     database_url = _validate_database_url(_require_env("DATABASE_URL"))
     cors_allow_origins = _parse_origins(_require_env("CORS_ALLOW_ORIGINS"))
 
+    # Default to localhost for dev, but require env for production/docker
+    backend_internal_url = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8001").strip()
+    n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "").strip() or None
+
     api_key = _require_env("API_KEY")
     dashboard_api_key = os.getenv("DASHBOARD_API_KEY", api_key).strip()
     scraper_api_key = os.getenv("SCRAPER_API_KEY", api_key).strip()
@@ -154,16 +169,33 @@ def get_settings() -> Settings:
     if app_env not in {"development", "staging", "production", "test"}:
         raise RuntimeError("APP_ENV must be one of development|staging|production|test")
 
+    # Browser & Scraper Settings (Phase 1)
+    chrome_binary_path = os.getenv("CHROME_BINARY_PATH", "").strip() or None
+    
+    # Default profile path varies by OS to keep things tidy
+    import platform
+    default_profile_base = "/app/data/browser" if platform.system() == "Linux" else r"C:\selenium-profile"
+    chrome_profile_base_path = os.getenv("CHROME_PROFILE_BASE_PATH", default_profile_base).strip()
+    
+    linkedin_profile_name = os.getenv("LINKEDIN_PROFILE_NAME", "Default").strip()
+    headless = os.getenv("HEADLESS", "true").lower() == "true"
+    browser_window_size = os.getenv("BROWSER_WINDOW_SIZE", "1920,1080").strip()
+
     log_json = os.getenv("LOG_JSON", "false").lower() == "true"
     otel_enabled = os.getenv("OTEL_ENABLED", "false").lower() == "true"
-    otel_service_name = os.getenv("OTEL_SERVICE_NAME", "emailcampaigntracker-api").strip()
-    otel_exporter_otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-    if otel_enabled and (not otel_exporter_otlp_endpoint or not otel_exporter_otlp_endpoint.strip()):
-        raise RuntimeError("OTEL_ENABLED=true requires OTEL_EXPORTER_OTLP_ENDPOINT")
+    otel_service_name = os.getenv("OTEL_SERVICE_NAME", "emailcampaigntracker").strip()
+    otel_exporter_otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip() or None
 
     return Settings(
         database_url=database_url,
         cors_allow_origins=cors_allow_origins,
+        backend_internal_url=backend_internal_url,
+        n8n_webhook_url=n8n_webhook_url,
+        chrome_binary_path=chrome_binary_path,
+        chrome_profile_base_path=chrome_profile_base_path,
+        linkedin_profile_name=linkedin_profile_name,
+        headless=headless,
+        browser_window_size=browser_window_size,
         api_key=api_key,
         dashboard_api_key=dashboard_api_key,
         scraper_api_key=scraper_api_key,
@@ -191,6 +223,6 @@ def get_settings() -> Settings:
         log_json=log_json,
         otel_enabled=otel_enabled,
         otel_service_name=otel_service_name,
-        otel_exporter_otlp_endpoint=otel_exporter_otlp_endpoint.strip() if otel_exporter_otlp_endpoint else None,
+        otel_exporter_otlp_endpoint=otel_exporter_otlp_endpoint,
     )
 

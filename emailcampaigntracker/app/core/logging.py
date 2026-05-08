@@ -1,58 +1,55 @@
 import logging
-import os
-import json
-from typing import Optional
+import sys
+from app.core.settings import get_settings
 
-
-class _RequestIdFilter(logging.Filter):
-    def __init__(self, request_id_getter):
-        super().__init__()
-        self._get_request_id = request_id_getter
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        rid = None
-        try:
-            rid = self._get_request_id()
-        except Exception:
-            rid = None
-        record.request_id = rid or "-"
-        return True
-
-
-class _JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        payload = {
-            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "request_id": getattr(record, "request_id", "-"),
-        }
-        if record.exc_info:
-            payload["exc_info"] = self.formatException(record.exc_info)
-        return json.dumps(payload, ensure_ascii=True)
-
-
-class _SafeFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        if not hasattr(record, "request_id"):
-            record.request_id = "-"
-        return super().format(record)
-
-
-def configure_logging(request_id_getter, level: Optional[str] = None) -> None:
-    log_level = (level or os.getenv("LOG_LEVEL") or "INFO").upper()
-    json_logs = os.getenv("LOG_JSON", "false").lower() == "true"
-
-    handler = logging.StreamHandler()
-    if json_logs:
-        handler.setFormatter(_JsonFormatter())
-    else:
-        fmt = "%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s"
-        handler.setFormatter(_SafeFormatter(fmt))
-
-    logging.basicConfig(level=log_level, handlers=[handler], force=True)
+def setup_logging():
+    settings = get_settings()
     
-    root = logging.getLogger()
-    root.addFilter(_RequestIdFilter(request_id_getter))
+    # Use structured-like formatting for human readability
+    log_format = (
+        "%(asctime)s | %(levelname)-8s | %(name)-15s | "
+        "[req:%(request_id)s] [job:%(job_id)s] - %(message)s"
+    )
+    
+    # Custom Filter to ensure request_id and job_id are always present in record
+    class ContextFilter(logging.Filter):
+        def filter(self, record):
+            if not hasattr(record, "request_id"):
+                record.request_id = "none"
+            if not hasattr(record, "job_id"):
+                record.job_id = "none"
+            return True
 
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO if settings.app_env == "production" else logging.DEBUG)
+    
+    # Remove existing handlers to avoid duplicates
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Create handlers
+    stream_handler = logging.StreamHandler(sys.stdout)
+    file_handler = logging.FileHandler("app.log")
+    
+    # Create and set formatter
+    formatter = logging.Formatter(log_format)
+    stream_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
+    
+    # Add context filter to handlers
+    context_filter = ContextFilter()
+    stream_handler.addFilter(context_filter)
+    file_handler.addFilter(context_filter)
+    
+    # Add handlers to root logger
+    root_logger.addHandler(stream_handler)
+    root_logger.addHandler(file_handler)
+    
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    
+    root_logger.info("Logging initialized (Env: %s)", settings.app_env)
+
+def get_logger(name: str):
+    return logging.getLogger(name)

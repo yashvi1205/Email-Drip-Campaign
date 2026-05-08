@@ -41,50 +41,34 @@ def _tail_excerpt(stdout: str, stderr: str, limit_chars: int = 20000) -> str:
 def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
     settings = get_settings()
     session = SessionLocal()
-    job: ScraperJob | None = None
     try:
-        job = session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).first()
-        if not job:
-            logger.error("Scraper job not found id=%s", scraper_job_id)
-            return
-
         now = datetime.utcnow()
-        job.attempts = (job.attempts or 0) + 1
-        job.status = "running"
-        job.started_at = now
+        # 1. ATOMIC TRANSITION: queued/retrying -> running
+        # We use optimistic locking (version) and status check to ensure atomicity
+        rows = session.query(ScraperJob).filter(
+            ScraperJob.id == scraper_job_id,
+            ScraperJob.status.in_(["queued", "retrying"]),
+            ScraperJob.cancelled == False
+        ).update({
+            "status": "running",
+            "started_at": now,
+            "last_heartbeat": now,
+            "attempts": ScraperJob.attempts + 1,
+            "version": ScraperJob.version + 1
+        }, synchronize_session=False)
         session.commit()
 
-        # cancellation check before launching
-        session.refresh(job)
-        if job.cancelled:
-            job.status = "cancelled"
-            job.finished_at = datetime.utcnow()
-            session.commit()
-            _persist_scraper_status(
-                {
-                    "status": "cancelled",
-                    "message": f"Scraper job cancelled (id={job.id})",
-                    "timestamp": datetime.utcnow().timestamp(),
-                    "new_posts_found": 0,
-                }
-            )
+        if rows == 0:
+            logger.warning("Scraper job %s skip: already running, cancelled, or missing", scraper_job_id)
             return
 
-        _persist_scraper_status(
-            {
-                "status": "running",
-                "message": f"Scraper started by {job.source}",
-                "timestamp": datetime.utcnow().timestamp(),
-                "new_posts_found": 0,
-                "job_id": job.id,
-            }
-        )
+        # Fetch fresh job state
+        job = session.query(ScraperJob).get(scraper_job_id)
+        logger.info("Scraper job %s transition: running (attempt %s)", job.id, job.attempts)
 
         args = [sys.executable, "-u", SCRAPER_SCRIPT]
         if job.webhook_url:
             args.append(f"webhook_url={job.webhook_url}")
-
-        print(f"DEBUG: Running command: {' '.join(args)}")
 
         proc = subprocess.Popen(
             args,
@@ -92,6 +76,7 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            env={**os.environ, "BACKEND_INTERNAL_URL": settings.backend_internal_url}
         )
 
         from queue import Queue, Empty
@@ -108,55 +93,61 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
         t.start()
 
         start_ts = time.monotonic()
+        last_heartbeat_ts = start_ts
         stdout_buf = []
 
         while True:
+            # 2. HEARTBEAT & CANCELLATION CHECK
+            current_ts = time.monotonic()
+            if current_ts - last_heartbeat_ts > 30:  # Every 30s
+                session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).update({
+                    "last_heartbeat": datetime.utcnow()
+                })
+                session.commit()
+                last_heartbeat_ts = current_ts
+
             # Refresh cancellation state
             session.expire_all()
-            job = session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).first()
+            job = session.query(ScraperJob).get(scraper_job_id)
             if job and job.cancelled:
+                logger.info("Scraper job %s: termination requested (cancelled)", scraper_job_id)
                 proc.kill()
                 job.status = "cancelled"
                 job.finished_at = datetime.utcnow()
                 session.commit()
-                _persist_scraper_status({"status": "cancelled", "message": "Job cancelled", "timestamp": datetime.utcnow().timestamp()})
                 return
 
             # Read from queue without blocking
             try:
                 line = q.get_nowait()
-                print(f"[SCRAPER]: {line.strip()}")
                 stdout_buf.append(line)
+                # Keep stdout minimal in worker logs, full logs in DB
+                if "error" in line.lower() or "critical" in line.lower():
+                    logger.error("[SCRAPER %s]: %s", scraper_job_id, line.strip())
             except Empty:
                 if proc.poll() is not None:
                     break
-                time.sleep(0.5) # Don't burn CPU
+                time.sleep(1)
 
             elapsed = time.monotonic() - start_ts
             if elapsed > settings.scraper_job_timeout_seconds:
+                logger.error("Scraper job %s: TIMEOUT (elapsed=%ds)", scraper_job_id, elapsed)
                 proc.kill()
-                raise TimeoutError("Scraper job timed out")
+                raise TimeoutError(f"Scraper job timed out after {elapsed}s")
 
         stdout = "".join(stdout_buf)
-        stderr = "" # Simple capture for now
+        stderr = ""
         rc = proc.wait()
 
         if rc == 0:
-            job = session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).first()
-            job.status = "succeeded"
-            job.finished_at = datetime.utcnow()
-            job.log_excerpt = _tail_excerpt(stdout, stderr)
-            job.last_error = None
+            session.query(ScraperJob).filter(ScraperJob.id == scraper_job_id).update({
+                "status": "succeeded",
+                "finished_at": datetime.utcnow(),
+                "log_excerpt": _tail_excerpt(stdout, stderr),
+                "last_error": None
+            })
             session.commit()
-            _persist_scraper_status(
-                {
-                    "status": "completed",
-                    "message": f"Scraper completed (id={job.id})",
-                    "timestamp": datetime.utcnow().timestamp(),
-                    "new_posts_found": 0,
-                    "job_id": job.id,
-                }
-            )
+            logger.info("Scraper job %s transition: succeeded", scraper_job_id)
             return
 
         # failure -> retry if allowed by rq retry config
@@ -167,32 +158,38 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
         if (job.attempts or 0) < (job.max_attempts or 0):
             job.status = "retrying"
             message = f"Scraper retrying (id={job.id}, attempts={job.attempts}/{job.max_attempts})"
+        # 3. FAILURE HANDLING
+        job = session.query(ScraperJob).get(scraper_job_id)
+        job.finished_at = datetime.utcnow()
+        job.log_excerpt = _tail_excerpt(stdout, stderr)
+        job.last_error = f"Scraper process failed (rc={rc})"
+        
+        if (job.attempts or 0) < (job.max_attempts or 0):
+            job.status = "retrying"
+            logger.warning("Scraper job %s failed (rc=%s), will retry", scraper_job_id, rc)
         else:
             job.status = "failed"
-            message = f"Scraper failed (id={job.id}, attempts={job.attempts}/{job.max_attempts})"
+            logger.error("Scraper job %s failed permanently (rc=%s)", scraper_job_id, rc)
+        
         session.commit()
-
-        _persist_scraper_status(
-            {
-                "status": "running" if job.status == "retrying" else "error",
-                "message": message,
-                "timestamp": datetime.utcnow().timestamp(),
-                "new_posts_found": 0,
-                "job_id": job.id,
-            }
-        )
-
         raise RuntimeError(f"Scraper process failed (rc={rc})")
 
     except Exception as e:
-        logger.exception("Scraper job execution failed job_id=%s", scraper_job_id)
-        if job:
-            job.last_error = str(e)
-            job.log_excerpt = job.log_excerpt or ""
-            # keep status as-is if already set; otherwise mark failed
-            if job.status not in {"cancelled"}:
-                job.status = job.status if job.status else "failed"
+        # 4. CRITICAL EXCEPTION HANDLING
+        logger.exception("Scraper job %s: execution exception", scraper_job_id)
+        # Try to mark as failed in DB if not already finalized
+        try:
+            session.query(ScraperJob).filter(
+                ScraperJob.id == scraper_job_id,
+                ScraperJob.status == "running"
+            ).update({
+                "status": "failed",
+                "finished_at": datetime.utcnow(),
+                "last_error": str(e)
+            })
             session.commit()
+        except:
+            pass
         raise
     finally:
         session.close()

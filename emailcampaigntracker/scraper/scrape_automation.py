@@ -38,7 +38,10 @@ except ImportError:
     def get_or_create_sequence(*args, **kwargs): pass
     def save_enhanced_data(**kwargs): pass
 
-API_URL = "http://localhost:8001/api"
+# Networking Configuration (Phase 0)
+BACKEND_URL = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8001").rstrip("/")
+API_URL = f"{BACKEND_URL}/api"
+
 webhook_url = None
 
 for arg in sys.argv:
@@ -640,63 +643,71 @@ def save_cookies(driver):
     except Exception as e:
         logger.warning("Failed to save cookies: %s", e)
 
+from app.core.browser import create_driver, validate_session, check_browser_health
+
+# Networking Configuration (Phase 0)
+BACKEND_URL = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8001").rstrip("/")
+API_URL = f"{BACKEND_URL}/api"
+
+webhook_url = None
+
+for arg in sys.argv:
+    if "webhook_url=" in arg:
+        webhook_url = arg.split("webhook_url=")[-1]
+
 def run_scraper():
-    logger.info("Deploying v14 'Auto-Learning' Scraper.")
+    health = check_browser_health()
+    logger.info("--- SCRAPER STARTUP DIAGNOSTICS ---")
+    logger.info("OS: %s", health['os'])
+    logger.info("Headless: %s", health['headless'])
+    logger.info("Profile Path: %s", health['profile_path'])
+    logger.info("Binary: %s", health['binary'])
+    logger.info("-----------------------------------")
+
     from google_sheets import get_profile_urls
     urls = get_profile_urls()
     all_results = []
     
-    chrome_options = Options()
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
+    from app.core.browser import create_driver, validate_session, check_browser_health, chrome_profile_lock
+    from app.core.settings import get_settings
+    settings = get_settings()
 
-    chrome_options.add_argument(r"--user-data-dir=C:\selenium-profile")
-    chrome_options.add_argument("--profile-directory=Default")
-    chrome_options.add_argument("--lang=en-US")
+    # 1. PROFILE LOCKING (Phase 3)
+    with chrome_profile_lock(settings.linkedin_profile_name) as acquired:
+        if not acquired:
+            logger.error("Job aborted: Chrome profile %s is currently locked by another worker", settings.linkedin_profile_name)
+            update_backend_status("error", f"Concurrency Lock: Profile {settings.linkedin_profile_name} in use")
+            raise RuntimeError(f"Lock active for {settings.linkedin_profile_name}")
 
-    
-    driver = webdriver.Chrome(options=chrome_options)
-    try:
-        update_backend_status("running", "Initializing browser...")
-        driver.get("https://www.linkedin.com/feed/")
-        time.sleep(5)
-
-        ensure_logged_in(driver)
-        save_cookies(driver)
-
-        for i, url in enumerate(urls):
-            update_backend_status("running", f"Scraping profile {i+1}/{len(urls)}: {url}")
-            result = scrape_profile(driver, url)
-            if result:
-                all_results.append(result)
-                logger.info("Sync complete: %s", url)
-                update_backend_status("running", f"Synced {len(all_results)} profiles...", new_posts=len(all_results))
-            time.sleep(10)
-
-        update_backend_status("completed", f"Finished! Found {len(all_results)} profiles.", new_posts=len(all_results))
-
-    except Exception as e:
-        logger.exception("CRITICAL ERROR: %s", e)
-        update_backend_status("error", error=str(e))
-    finally:
-        logger.info("All tasks finished. Closing browser automatically.")
-
-        if webhook_url and all_results:
-            try:
-                logger.info("Sending %s profiles to webhook...", len(all_results))
-                # Add loop protection flag to webhook call
-                response = requests.post(webhook_url, json={"data": all_results, "source": "scraper_direct"})
-                logger.info("Webhook response: %s", response.status_code)
-            except Exception as e:
-                logger.exception("Webhook failed: %s", e)
-        else:
-            logger.info("No webhook URL or no data to send")
-        
+        driver = create_driver()
         try:
-            driver.quit()
-        except: pass
+            update_backend_status("running", "Validating LinkedIn session...")
+            
+            if not validate_session(driver):
+                logger.error("AUTHENTICATION REQUIRED. The session has expired or been challenged.")
+                update_backend_status("error", "LinkedIn session expired. Login required.")
+                return
+
+            for i, url in enumerate(urls):
+                update_backend_status("running", f"Scraping profile {i+1}/{len(urls)}: {url}")
+                result = scrape_profile(driver, url)
+                if result:
+                    all_results.append(result)
+                    logger.info("Sync complete: %s", url)
+                    update_backend_status("running", f"Synced {len(all_results)} profiles...", new_posts=len(all_results))
+                time.sleep(10)
+
+            update_backend_status("completed", f"Finished! Found {len(all_results)} profiles.", new_posts=len(all_results))
+
+        except Exception as e:
+            logger.exception("CRITICAL ERROR: %s", e)
+            update_backend_status("error", error=str(e))
+            raise
+        finally:
+            logger.info("Closing browser.")
+            try:
+                driver.quit()
+            except: pass
 
 if __name__ == "__main__":
     run_scraper()

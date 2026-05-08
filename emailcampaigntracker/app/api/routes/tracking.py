@@ -75,7 +75,7 @@ def log_event(
             db.query(EmailSequence).filter(EmailSequence.tracking_id == tracking_id).first()
         )
         if not seq:
-            logger.warning("Tracking not found tracking_id=%s", tracking_id)
+            logger.warning("Tracking ID not found: %s", tracking_id)
             return False
 
         lead_id = seq.lead_id
@@ -84,35 +84,33 @@ def log_event(
         if additional_metadata:
             meta.update(additional_metadata)
 
-        # Prevent rapid duplicate opens (within 10 seconds)
-        if event_type == "open":
-            last_open = (
-                db.query(Event.timestamp)
-                .filter(Event.lead_id == lead_id, Event.event_type == "open")
-                .order_by(Event.timestamp.desc())
-                .first()
-            )
-            if last_open is not None:
-                last_open_ts = last_open[0]
-                if last_open_ts and (now - last_open_ts).seconds < 10:
-                    logger.info("Duplicate open ignored tracking_id=%s", tracking_id)
-                    return True
+        # IDEMPOTENCY CHECK: Prevent rapid duplicate events of same type (within 10 seconds)
+        last_event = (
+            db.query(Event.timestamp)
+            .filter(Event.lead_id == lead_id, Event.event_type == event_type)
+            .order_by(Event.timestamp.desc())
+            .first()
+        )
+        if last_event is not None:
+            last_event_ts = last_event[0]
+            if last_event_ts and (now - last_event_ts).total_seconds() < 10:
+                logger.info("Idempotency: Ignoring rapid duplicate %s for lead %s", event_type, lead_id)
+                return True
 
+        # State Transitions
+        if event_type == "open":
             seq.open_count = (seq.open_count or 0) + 1
             seq.last_opened = now
-
         elif event_type == "sent":
             seq.sent_at = now
-
         elif event_type == "click":
             seq.click_count = (seq.click_count or 0) + 1
             seq.last_clicked = now
-
         elif event_type == "reply":
             seq.replied = True
             seq.last_replied = now
 
-        # Insert into events table (even for delete/unknown events)
+        # Insert into events table
         db.add(
             Event(
                 lead_id=lead_id,
@@ -122,19 +120,28 @@ def log_event(
             )
         )
 
-        # Derive final status (Latest Action Logic)
+        # Status Derivation (Source of Truth: sequence actions)
+        status_weights = {"SENT": 1, "OPENED": 2, "CLICKED": 3, "REPLIED": 4}
         events = [
-            (seq.sent_at or datetime.datetime.min, "SENT"),
-            (seq.last_opened or datetime.datetime.min, "OPENED"),
-            (seq.last_clicked or datetime.datetime.min, "CLICKED"),
-            (seq.last_replied or datetime.datetime.min, "REPLIED"),
+            (seq.sent_at, "SENT"),
+            (seq.last_opened, "OPENED"),
+            (seq.last_clicked, "CLICKED"),
+            (seq.last_replied, "REPLIED"),
         ]
-        events.sort(key=lambda x: x[0], reverse=True)
-        final_status = events[0][1]
+        
+        current_max_weight = 0
+        final_status = "SENT"
+        
+        for ts, status in events:
+            if ts and status_weights[status] > current_max_weight:
+                current_max_weight = status_weights[status]
+                final_status = status
 
         lead = db.query(Lead).filter(Lead.id == lead_id).first()
-        if lead:
+        status_changed = False
+        if lead and lead.status != final_status:
             lead.status = final_status
+            status_changed = True
 
         if lead:
             sync_data = {
@@ -148,16 +155,20 @@ def log_event(
                 "replied": seq.replied,
                 "last_replied": seq.last_replied,
             }
-            threading.Thread(
-                target=sync_sheet_status_async,
-                args=(sync_data,),
-                daemon=True,
-            ).start()
+            # Only trigger background sync if something meaningful changed
+            # (First open/click or any status change)
+            if status_changed or seq.open_count == 1 or seq.click_count == 1:
+                threading.Thread(
+                    target=sync_sheet_status_async,
+                    args=(sync_data,),
+                    daemon=True,
+                ).start()
 
         db.commit()
         return True
     except Exception:
-        logger.exception("Event logging failed for tracking_id=%s", tracking_id)
+        db.rollback()
+        logger.exception("Consistency Error: Event logging failed for %s", tracking_id)
         return False
 
 

@@ -16,23 +16,25 @@ from database.models import Event, Lead
 logger = logging.getLogger("dashboard")
 
 
+from sqlalchemy.orm import joinedload
+
 def drip_dashboard() -> List[Dict[str, Any]]:
     """
-    Preserve existing response format and error behavior from Phase 0:
-    returns [] on exception.
+    Optimized dashboard query using joinedload to prevent N+1 issues.
     """
+    db = SessionLocal()
     try:
-        leads = get_all_leads()
+        # Fetch all leads with their sequences in one/two queries
+        leads = db.query(Lead).options(joinedload(Lead.sequences)).all()
         result: List[Dict[str, Any]] = []
 
         for lead in leads:
-            latest_seq = get_latest_sequence_for_lead(lead.id)
+            # Get the latest sequence from the prefetched list
+            sorted_seqs = sorted(lead.sequences, key=lambda s: s.id, reverse=True)
+            latest_seq = sorted_seqs[0] if sorted_seqs else None
 
-            sent_count = count_events(lead.id, "sent")
-            click_count = count_events(lead.id, "click")
-            open_count = count_events(lead.id, "open")
-            deleted = has_event(lead.id, "delete")
-
+            # Note: We use the denormalized counts on EmailSequence for speed.
+            # These are kept in sync by the tracking log_event logic.
             result.append(
                 {
                     "lead_id": lead.id,
@@ -51,7 +53,7 @@ def drip_dashboard() -> List[Dict[str, Any]]:
                         "clicked": (latest_seq.click_count or 0) > 0 if latest_seq else False,
                         "click_count": latest_seq.click_count if latest_seq else 0,
                         "open_count": latest_seq.open_count if latest_seq else 0,
-                        "sent_count": sent_count,
+                        "sent_count": 1 if latest_seq and latest_seq.sent_at else 0,
                         "last_replied": latest_seq.last_replied if latest_seq else None,
                     }
                     if latest_seq
@@ -61,8 +63,10 @@ def drip_dashboard() -> List[Dict[str, Any]]:
 
         return result
     except Exception:
-        logger.exception("Error in drip dashboard.")
+        logger.exception("Error in optimized drip dashboard.")
         return []
+    finally:
+        db.close()
 
 
 def sheets_status() -> dict:
@@ -73,19 +77,18 @@ def sheets_status() -> dict:
 
 def sync_status_to_sheets() -> dict:
     """
-    Preserves the existing implementation approach and response shape.
+    Optimized sheet sync using prefetched data.
     """
     db = SessionLocal()
     try:
-        leads = db.query(Lead).all()
+        leads = db.query(Lead).options(joinedload(Lead.sequences)).all()
         leads_data = []
 
         for lead in leads:
-            open_count = (
-                db.query(Event)
-                .filter(Event.lead_id == lead.id, Event.event_type == "open")
-                .count()
-            )
+            # Find open count from the latest sequence
+            sorted_seqs = sorted(lead.sequences, key=lambda s: s.id, reverse=True)
+            latest_seq = sorted_seqs[0] if sorted_seqs else None
+            open_count = latest_seq.open_count if latest_seq else 0
 
             leads_data.append(
                 {

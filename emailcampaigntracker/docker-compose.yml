@@ -77,11 +77,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.worker
+    restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - scraper_profiles:/app/data/browser_profiles
     environment:
       APP_ENV: development
       LOG_LEVEL: INFO
@@ -130,4 +133,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  scraper_profiles:
 
