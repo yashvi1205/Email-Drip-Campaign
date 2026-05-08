@@ -75,6 +75,7 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
             bufsize=1,
             env={**os.environ, "BACKEND_INTERNAL_URL": settings.backend_internal_url}
         )
