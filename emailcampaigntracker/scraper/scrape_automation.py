@@ -721,7 +721,7 @@ def run_scraper():
                 logger.info("Triggering final n8n webhook with %d results...", len(all_results))
                 try:
                     # n8n often expects a list of items or a JSON object
-                    response = requests.post(webhook_url, json={"profiles": all_results}, timeout=30)
+                    response = requests.post(webhook_url, json={"data": all_results}, timeout=30)
                     logger.info("Webhook triggered! n8n responded: %s", response.status_code)
                 except Exception as e:
                     logger.warning("Failed to trigger n8n webhook: %s", e)
