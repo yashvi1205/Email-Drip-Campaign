@@ -409,6 +409,10 @@ def scrape_profile_details(driver, profile_url):
 
     # 2. ZONE B: EMAIL EXTRACTION (Bounty Hunter Dual Path)
     logger.info("Extracting Contact Info (Plus Premium Check)...")
+    if not profile_url or "http" not in str(profile_url):
+        logger.error("Invalid profile URL provided to scrape_profile_details: %s", profile_url)
+        return details
+
     driver.get(profile_url.rstrip("/") + "/overlay/contact-info/")
     time.sleep(15)
     
@@ -742,6 +746,10 @@ def run_scraper():
                     return
 
             for i, url in enumerate(urls):
+                if not url or not str(url).strip() or "linkedin.com" not in str(url):
+                    logger.warning("Skipping invalid URL at row %s: %s", i+1, url)
+                    continue
+
                 update_backend_status("running", f"Scraping profile {i+1}/{len(urls)}: {url}")
                 result = scrape_profile(driver, url)
                 if result:
