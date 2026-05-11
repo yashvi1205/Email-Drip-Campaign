@@ -172,9 +172,16 @@ def safe_set(details, key, value):
         details[key] = value
 
 def normalize_url(url):
-    """Converts localized subdomains (nl., in., etc) to standard www. to avoid 404s."""
-    if not url: return url
-    return url.replace("nl.linkedin.com", "www.linkedin.com").replace("in.linkedin.com", "www.linkedin.com").replace("uk.linkedin.com", "www.linkedin.com")
+    """Converts any LinkedIn URL to a consistent format for database matching."""
+    if not url: return ""
+    url = url.strip().lower()
+    # Remove protocol
+    url = url.replace("https://", "").replace("http://", "")
+    # Standardize all subdomains (nl., in., www., etc) to just 'linkedin.com'
+    url = re.sub(r'^[a-z]{2}\.linkedin\.com', 'linkedin.com', url)
+    url = url.replace("www.linkedin.com", "linkedin.com")
+    # Remove trailing slash and parameters
+    return url.split('?')[0].rstrip('/')
 
 def extract_role_company_from_headline(headline):
     if not headline:
@@ -526,7 +533,10 @@ def get_content_hash(text):
 def scrape_profile(driver, profile_url):
     db = SessionLocal()
     from database.models import Lead
-    existing_lead = db.query(Lead).filter(Lead.linkedin_url == profile_url).first()
+    
+    # Normalize URL for consistent matching
+    target_url = normalize_url(profile_url)
+    existing_lead = db.query(Lead).filter(Lead.linkedin_url == target_url).first()
     
     is_new_lead = False
     if not existing_lead:
@@ -560,7 +570,7 @@ def scrape_profile(driver, profile_url):
 
     # ✅ Save/Update lead
     lead_id = save_lead(
-        linkedin_url=profile_url,
+        linkedin_url=target_url,
         name=details.get("full_name"),
         email=details.get("email", ""),
         company=details.get("company", ""),
@@ -626,7 +636,7 @@ def scrape_profile(driver, profile_url):
             # ✅ Save to Google Sheets (Now handles updates internally)
             save_enhanced_data(
                 full_name=details.get("full_name"),
-                profile_url=profile_url,
+                profile_url=target_url,
                 headline=details.get("headline"),
                 company=details.get("company"),
                 about=details.get("about"),
