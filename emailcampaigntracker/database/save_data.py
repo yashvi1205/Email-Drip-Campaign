@@ -2,13 +2,18 @@ from .db import SessionLocal
 from .models import Lead, Event, EmailSequence
 from datetime import datetime
 import json
+from app.core.utils import normalize_linkedin_url
 
 def save_lead(linkedin_url, name=None, email=None, company=None, role=None, headline=None, about=None, work_description=None, status="active"):
     db = SessionLocal()
-    lead = db.query(Lead).filter(Lead.linkedin_url == linkedin_url).first()
+    
+    # 🛡️ MANDATORY NORMALIZATION (The Duplicate Killer)
+    clean_url = normalize_linkedin_url(linkedin_url)
+    
+    lead = db.query(Lead).filter(Lead.linkedin_url == clean_url).first()
     if not lead:
         lead = Lead(
-            linkedin_url=linkedin_url,
+            linkedin_url=clean_url,
             name=name,
             email=email,
             company=company,

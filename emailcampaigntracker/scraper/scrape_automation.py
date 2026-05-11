@@ -171,17 +171,7 @@ def safe_set(details, key, value):
     if not details.get(key) or details[key] in junk:
         details[key] = value
 
-def normalize_url(url):
-    """Converts any LinkedIn URL to a consistent format for database matching."""
-    if not url: return ""
-    url = url.strip().lower()
-    # Remove protocol
-    url = url.replace("https://", "").replace("http://", "")
-    # Standardize all subdomains (nl., in., www., etc) to just 'linkedin.com'
-    url = re.sub(r'^[a-z]{2}\.linkedin\.com', 'linkedin.com', url)
-    url = url.replace("www.linkedin.com", "linkedin.com")
-    # Remove trailing slash and parameters
-    return url.split('?')[0].rstrip('/')
+from app.core.utils import normalize_linkedin_url as normalize_url
 
 def extract_role_company_from_headline(headline):
     if not headline:
