@@ -182,10 +182,16 @@ def extract_role_company_from_headline(headline):
     # Normalize
     h = h.replace("\n", " ").strip()
 
-    # CASE 1: Role @ Company
+    # CASE 1: Role @ Company or Role & Company
     if "@" in h:
         parts = h.split("@")
         return parts[0].strip(), parts[1].split("|")[0].split(" at ")[0].strip()
+    
+    if " & " in h and " at " not in h.lower() and "@" not in h:
+        parts = h.split(" & ")
+        # Usually "Founder & CEO" or "Founder & Company"
+        # We'll take the first part as role and everything after as company if it looks like one
+        return parts[0].strip(), " ".join(parts[1:]).split("|")[0].strip()
 
     # CASE 2: Role at Company
     if " at " in h.lower():
@@ -357,7 +363,7 @@ def scrape_profile_details(driver, profile_url):
     try:
         logger.info("Navigating to dedicated Experience Page...")
         driver.get(profile_url.rstrip('/') + '/details/experience/')
-        time.sleep(12)
+        time.sleep(20)
     except: pass
 
     # 4. FINAL CLEANUP & FORMATTING
