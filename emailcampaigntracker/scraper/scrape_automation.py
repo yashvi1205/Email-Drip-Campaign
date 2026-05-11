@@ -258,7 +258,6 @@ def extract_from_experience(driver):
 
 
 def scrape_profile_details(driver, profile_url):
-    profile_url = normalize_url(profile_url)
     logger.info("Scraping detailed info for: %s", profile_url)
     details = {
         "full_name": "", "headline": "", "role": "", "company": "",
@@ -367,7 +366,7 @@ def scrape_profile_details(driver, profile_url):
     # 2. PASS 2: EXPERIENCE SUB-PAGE
     try:
         logger.info("Navigating to dedicated Experience Page...")
-        driver.get(normalize_url(profile_url.rstrip('/') + '/details/experience/'))
+        driver.get(profile_url.rstrip('/') + '/details/experience/')
         time.sleep(12)
     except: pass
 
@@ -538,7 +537,7 @@ def scrape_profile(driver, profile_url):
     db = SessionLocal()
     from database.models import Lead
     
-    # Normalize URL for consistent matching
+    # Normalize URL ONLY for consistent database matching
     target_url = normalize_url(profile_url)
     existing_lead = db.query(Lead).filter(Lead.linkedin_url == target_url).first()
     
@@ -546,9 +545,10 @@ def scrape_profile(driver, profile_url):
     if not existing_lead:
         is_new_lead = True
         logger.info("New lead detected: %s", profile_url)
+        # ✅ USE ORIGINAL URL (profile_url) FOR SELENIUM
         details = scrape_profile_details(driver, profile_url)
     else:
-        logger.info("Existing lead detected, skipping full details scrape: %s", profile_url)
+        logger.info("Existing lead detected, skipping full details scrape: %s", target_url)
         details = {
             "full_name": existing_lead.name,
             "headline": existing_lead.headline,
