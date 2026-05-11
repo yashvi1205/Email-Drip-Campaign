@@ -180,6 +180,7 @@ async def track_open(
     sig: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
+    print(f"\n[DEBUG] OPEN REQUEST RECEIVED! ID={tracking_id}")
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
     # if exp is not None and sig is not None:
     #     validate_tracking_signature(tracking_id, exp, sig)
