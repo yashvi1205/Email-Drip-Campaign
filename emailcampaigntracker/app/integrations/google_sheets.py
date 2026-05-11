@@ -148,25 +148,55 @@ def save_enhanced_data(
 ):
     if not enhanced_sheet:
         return
-    row = [
-        str(full_name),
-        str(profile_url),
-        str(role),
-        str(headline),
-        str(company),
-        str(about),
-        str(work_description),
-        str(email),
-        str(interaction_type),
-        str(content),
-        str(interaction_date),
-        str(recent_activity),
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    ]
+
     try:
-        enhanced_sheet.append_row(row)
+        # Normalize target URL for matching
+        target_url = normalize_url(profile_url)
+        
+        # Get all profile URLs (Column 2)
+        urls = enhanced_sheet.col_values(2)
+        found_row_idx = -1
+        
+        for i, url in enumerate(urls):
+            if i == 0: continue # Skip header
+            if normalize_url(url) == target_url:
+                found_row_idx = i + 1
+                break
+        
+        scraped_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        if found_row_idx > 0:
+            logger.info("Updating existing row in enhanced sheet for: %s", profile_url)
+            # Columns to update for existing user:
+            # 9: interaction_type, 10: content, 11: interaction_date, 12: recent_activity, 13: scraped_date
+            updates = [
+                {"range": gspread.utils.rowcol_to_a1(found_row_idx, 9), "values": [[str(interaction_type)]]},
+                {"range": gspread.utils.rowcol_to_a1(found_row_idx, 10), "values": [[str(content)]]},
+                {"range": gspread.utils.rowcol_to_a1(found_row_idx, 11), "values": [[str(interaction_date)]]},
+                {"range": gspread.utils.rowcol_to_a1(found_row_idx, 12), "values": [[str(recent_activity)]]},
+                {"range": gspread.utils.rowcol_to_a1(found_row_idx, 13), "values": [[scraped_date]]},
+            ]
+            enhanced_sheet.batch_update(updates)
+        else:
+            logger.info("Adding new row to enhanced sheet for: %s", profile_url)
+            row = [
+                str(full_name),
+                str(profile_url),
+                str(role),
+                str(headline),
+                str(company),
+                str(about),
+                str(work_description),
+                str(email),
+                str(interaction_type),
+                str(content),
+                str(interaction_date),
+                str(recent_activity),
+                scraped_date,
+            ]
+            enhanced_sheet.append_row(row)
     except Exception:
-        logger.exception("Failed to append row to enhanced sheet.")
+        logger.exception("Failed to save/update row in enhanced sheet.")
 
 def get_profile_urls(sheet_name="Profiles"):
     try:

@@ -524,18 +524,41 @@ def get_content_hash(text):
     return hashlib.md5(text.encode('utf-8')).hexdigest()
 
 def scrape_profile(driver, profile_url):
-    details = scrape_profile_details(driver, profile_url)
+    db = SessionLocal()
+    from database.models import Lead
+    existing_lead = db.query(Lead).filter(Lead.linkedin_url == profile_url).first()
+    
+    is_new_lead = False
+    if not existing_lead:
+        is_new_lead = True
+        logger.info("New lead detected: %s", profile_url)
+        details = scrape_profile_details(driver, profile_url)
+    else:
+        logger.info("Existing lead detected, skipping full details scrape: %s", profile_url)
+        details = {
+            "full_name": existing_lead.name,
+            "headline": existing_lead.headline,
+            "role": existing_lead.role,
+            "company": existing_lead.company,
+            "about": existing_lead.about,
+            "work_description": existing_lead.work_description,
+            "email": existing_lead.email
+        }
+    
+    db.close()
 
     if not details or not details.get("full_name") or "LinkedIn" in details.get("full_name", ""):
-        return False
+        return None
 
-    details["headline"] = safe_translate(details.get("headline"))
-    details["about"] = safe_translate(details.get("about"))
-    details["work_description"] = safe_translate(details.get("work_description"))
-    details["company"] = safe_translate(details.get("company"))
-    details["role"] = safe_translate(details.get("role"))
+    # Only translate if it's a new lead (existing leads already have translated data in DB)
+    if is_new_lead:
+        details["headline"] = safe_translate(details.get("headline"))
+        details["about"] = safe_translate(details.get("about"))
+        details["work_description"] = safe_translate(details.get("work_description"))
+        details["company"] = safe_translate(details.get("company"))
+        details["role"] = safe_translate(details.get("role"))
 
-    # ✅ Save lead AFTER cleaning/translation
+    # ✅ Save/Update lead
     lead_id = save_lead(
         linkedin_url=profile_url,
         name=details.get("full_name"),
@@ -573,11 +596,11 @@ def scrape_profile(driver, profile_url):
         translated_text = safe_translate(act.get("text", ""))
 
         activity_list.append(f"{pref}: {translated_text[:50]} ({act.get('post_time','')})")
+    
     # 🔁 DEDUPLICATION LOGIC
     if latest_item:
         current_content = latest_item.get("text", "")
         current_hash = get_content_hash(current_content)
-
 
         db = SessionLocal()
 
@@ -600,7 +623,7 @@ def scrape_profile(driver, profile_url):
                 "has_new_activity": True
             })
 
-            # ✅ Save to Google Sheets
+            # ✅ Save to Google Sheets (Now handles updates internally)
             save_enhanced_data(
                 full_name=details.get("full_name"),
                 profile_url=profile_url,
@@ -617,7 +640,7 @@ def scrape_profile(driver, profile_url):
             )
 
             db.close()
-            # ✅ ONLY RETURN IF NEW ACTIVITY (Prevents Webhook Loops)
+            
             return {
                 "name": details.get("full_name"),
                 "headline": details.get("headline"),
@@ -626,7 +649,10 @@ def scrape_profile(driver, profile_url):
                 "about": details.get("about"),
                 "work_description": details.get("work_description"),
                 "email": details.get("email"),
-                "url": profile_url
+                "url": profile_url,
+                "is_new_lead": is_new_lead,
+                "interaction_type": latest_item.get("interaction_type"),
+                "latest_content": current_content
             }
 
         else:
@@ -709,9 +735,15 @@ def run_scraper():
                 update_backend_status("running", f"Scraping profile {i+1}/{len(urls)}: {url}")
                 result = scrape_profile(driver, url)
                 if result:
+                    # Send to n8n if there is ANY new result (new lead OR new activity)
                     all_results.append(result)
-                    logger.info("Sync complete: %s", url)
-                    update_backend_status("running", f"Synced {len(all_results)} profiles...", new_posts=len(all_results))
+                    
+                    if result.get("is_new_lead"):
+                        logger.info("New lead queued for webhook: %s", url)
+                    else:
+                        logger.info("New activity for existing lead queued for webhook: %s", url)
+                    
+                    update_backend_status("running", f"Synced {i+1} profiles...", new_posts=len(all_results))
                 time.sleep(10)
 
             update_backend_status("completed", f"Finished! Found {len(all_results)} profiles.", new_posts=len(all_results))
