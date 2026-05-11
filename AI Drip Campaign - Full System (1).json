@@ -21,7 +21,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1728,
+        -1744,
         0
       ],
       "retryOnFail": false,
@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "body.data",
+        "fieldToSplitOut": "body",
         "options": {}
       },
       "id": "ee7b367a-50f0-4db1-804d-827c80f35986",
@@ -37,8 +37,8 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -1728,
-        304
+        -1744,
+        368
       ]
     },
     {
@@ -65,8 +65,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        -1504,
-        304
+        -1520,
+        368
       ],
       "executeOnce": true,
       "credentials": {
@@ -78,15 +78,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const profiles = $('Split Into Individual Profiles').all();\n\nconst sheetRows = $('Read Emails from Google Sheet').all().map(i => i.json);\n\nfunction normalizeUrl(url) {\n  return (url || '')\n    .toLowerCase()\n    .replace('www.', '')\n    .trim();\n}\n\nconst emailMap = {};\n\nfor (const row of sheetRows) {\n\n  const urlKey = Object.keys(row).find(k =>\n    k.toLowerCase().includes('profile') &&\n    k.toLowerCase().includes('url')\n  );\n\n  const emailKey = Object.keys(row).find(k =>\n    k.toLowerCase().includes('email') &&\n    !k.toLowerCase().includes('status')   // 🚨 IMPORTANT\n  );\n\n  const url = normalizeUrl(urlKey ? row[urlKey] : '');\n  const email = (emailKey ? row[emailKey] : '').trim();\n\n  if (url && email && email.includes('@') && !email.toLowerCase().includes('restricted')) {\n    emailMap[url] = email;\n  }\n}\n\nconst results = [];\n\nfor (const item of profiles) {\n\n  const p = { ...item.json };\n\n  if (!p.linkedin_url && !p.url) {\n    console.log(\"Skipping non-profile item:\", p);\n    continue;\n  }\n\n  const currentEmail = (p.email || '').toLowerCase();\n\n  const isInvalid =\n    !currentEmail ||\n    !currentEmail.includes('@') ||\n    currentEmail.includes('restricted');\n\n  if (isInvalid) {\n    const url = normalizeUrl(p.url || p.linkedin_url || '');\n    const sheetEmail = emailMap[url];\n\n    if (sheetEmail) {\n      p.email = sheetEmail;\n      p.email_source = 'google_sheet';\n    }\n  }\n\n  const finalEmail = (p.email || '').trim();\n\n  if (!finalEmail.includes('@')) continue;\n  if (finalEmail.toLowerCase().includes('restricted')) continue;\n\n  const status = (p[\"Email Status\"] || p.status || '').toUpperCase();\n\n  if (status === 'STOPPED' || status === 'REPLIED') continue;\n\n  results.push({ json: p });\n}\n\nif (results.length === 0) {\n  console.log(\"⚠️ No valid leads found — returning empty but safe output\");\n  return [];\n}\n\nreturn results;"
+        "jsCode": "const profiles = $('Split Into Individual Profiles').all();\nconst sheetRows = $('Read Emails from Google Sheet').all().map(i => i.json);\n\nfunction normalizeUrl(url) {\n  if (!url) return '';\n  return url.toLowerCase().replace('https://', '').replace('http://', '').replace('www.', '')\n    .replace(/[a-z]{2}\\.linkedin\\.com/, 'linkedin.com').split('?')[0].replace(/\\/$/, '').trim();\n}\n\nconst emailMap = {};\nfor (const row of sheetRows) {\n  const urlKey = Object.keys(row).find(k => k.toLowerCase().includes('profile') && k.toLowerCase().includes('url'));\n  const emailKey = Object.keys(row).find(k => k.toLowerCase().includes('email'));\n  const url = normalizeUrl(urlKey ? row[urlKey] : '');\n  const email = (emailKey ? row[emailKey] : '').trim();\n  if (url && email && email.includes('@')) emailMap[url] = email;\n}\n\nconst results = [];\nfor (const item of profiles) {\n  const p = { ...item.json };\n  const currentUrl = normalizeUrl(p.url || p.linkedin_url || '');\n  const email = (p.email || '').toLowerCase();\n  if (!email || email.includes('restricted') || !email.includes('@')) {\n    const sheetEmail = emailMap[currentUrl];\n    if (sheetEmail) { p.email = sheetEmail; p.email_source = 'google_sheet'; }\n  }\n  results.push({ json: p });\n}\nreturn results;\n"
       },
       "id": "54bf4acf-2f7e-4d92-a5a2-06ab4191be95",
       "name": "Fill Missing Emails from Sheet",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1280,
-        304
+        -1296,
+        384
       ]
     },
     {
@@ -99,22 +99,22 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1056,
-        304
+        -1072,
+        368
       ],
       "executeOnce": true
     },
     {
       "parameters": {
-        "jsCode": "const existingLeads = $input.all().map(i => i.json);\nconst flat = Array.isArray(existingLeads[0]) ? existingLeads[0] : existingLeads;\nconst existingEmails = new Set(flat.map(l => (l.email || '').toLowerCase()));\nconst existingUrls = new Set(flat.map(l => (l.linkedin_url || l.url || '').toLowerCase()));\n\n// Get scraped profiles from the EARLIER node (not $input)\nconst currentItems = $('Fill Missing Emails from Sheet').all();\nconst results = [];\n\nfor (const item of currentItems) {\n  console.log(item)\n  const email = (item.json.email || '').toLowerCase();\n  const url = (item.json.url || '').toLowerCase();\n  const status = (item.json.status || 'NEW').toUpperCase();\n  const isNew = !existingEmails.has(email) && !existingUrls.has(url);\n  const isIgnored = status === 'IGNORED';\n  const isNewStatus = status === 'NEW' || status === 'ACTIVE';\n  if (isNew || isIgnored || isNewStatus) {\n    results.push(item);\n  }\n}\nreturn results;\n"
+        "jsCode": "const currentItems = $('Fill Missing Emails from Sheet').all();\nconst results = [];\nfor (const item of currentItems) {\n  const email = (item.json.email || '').toLowerCase();\n  // Filter out invalid emails to prevent Gmail errors\n  if (!email || !email.includes('@') || email.includes('restricted')) continue;\n  results.push(item);\n}\nreturn results;\n"
       },
       "id": "e4d5f5be-bf07-42c2-a5dd-ee0510b3c238",
       "name": "Deduplicate Against DB",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -832,
-        304
+        -848,
+        368
       ]
     },
     {
@@ -126,20 +126,20 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -384,
+        -176,
         224
       ]
     },
     {
       "parameters": {
-        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\n\nconst parts =\n  $('AI Generate Personalized Email')\n    .first()\n    .json.content?.parts || [];\n\nconst jsonPart = parts.find(p =>\n  p.text &&\n  (\n    p.text.trim().startsWith('```json') ||\n    p.text.trim().startsWith('{')\n  )\n);\n\nlet aiRaw = jsonPart?.text || '';\n\nlet parsed = {};\n\ntry {\n\n  aiRaw = aiRaw\n    .replace(/```json/g, '')\n    .replace(/```/g, '')\n    .trim();\n\n  parsed = JSON.parse(aiRaw);\n\n} catch (e) {\n\n  console.log(\"JSON parse failed:\", e);\n\n  parsed = {\n    subject: \"Quick question\",\n    body: \"Hi, wanted to follow up and see if this topic is relevant for you right now.\"\n  };\n}\n\nconst body = parsed.body || 'Quick follow-up';\nconst subjectBase = parsed.subject || 'Quick question';\n\nconst subject = subjectBase;\n\nconst trackingId =\n  'trk_' +\n  Date.now() +\n  '_' +\n  Math.random().toString(36).substring(2, 10);\n\nconst trackingPixel = `\n<img \n  src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" \n  width=\"1\" \n  height=\"1\" \n  style=\"display:none;\" \n/>\n`;\n\nconst urlRegex = /(https?:\\/\\/[^\\s<>\\\"]+)/g;\n\nlet emailBody = String(body).replace(urlRegex, (url) => {\n\n  if (url.includes(BACKEND_URL)) {\n    return url;\n  }\n\n  const trackedUrl =\n    `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(url)}`;\n\n  return `\n    <a href=\"${trackedUrl}\"\n       target=\"_blank\"\n       style=\"color:#1a73e8;text-decoration:none;\">\n       View details\n    </a>\n  `;\n});\n\n// CTA URL\nconst CTA_URL = \"https://example.com\"; // Replace with real CTA\n\nconst trackedCTA =\n  `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(CTA_URL)}`;\n\nconst ctaButton = `\n<br><br>\n\n<a href=\"${trackedCTA}\"\n   target=\"_blank\"\n   style=\"\n      background:#1a73e8;\n      color:#ffffff;\n      padding:10px 16px;\n      text-decoration:none;\n      border-radius:5px;\n      display:inline-block;\n   \">\n   Book a quick call\n</a>\n`;\n\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nconst hiddenTracking = `\n<div style=\"display:none;font-size:1px;color:#ffffff;\">\n${trackingId}\n</div>\n`;\n\n// Final email HTML\nconst emailHTML = `\n<html>\n<body style=\"font-family:Arial,sans-serif;line-height:1.6;\">\n\n${emailBody}\n\n${ctaButton}\n\n${hiddenTracking}\n\n${trackingPixel}\n\n</body>\n</html>\n`;\n\n// Return output\nreturn [{\n  json: {\n    tracking_id: trackingId,\n    email_subject: subject,\n    email_body_html: emailHTML,\n    email_body_plain: body,\n    step_number: 1\n  }\n}];\n\n"
+        "jsCode": "const BACKEND_URL = 'https://email-drip-campaign-hpo2.onrender.com';\n\nconst inputData = $input.first().json;\nconst parts = inputData.content?.parts || [];\n\nconst jsonPart = parts.find(p =>\n  p.text &&\n  (\n    p.text.trim().startsWith('```json') ||\n    p.text.trim().startsWith('{')\n  )\n);\n\nlet aiRaw = jsonPart?.text || '';\n\nlet parsed = {};\n\ntry {\n  aiRaw = aiRaw\n    .replace(/```json/g, '')\n    .replace(/```/g, '')\n    .trim();\n\n  parsed = JSON.parse(aiRaw);\n} catch (e) {\n  console.log(\"JSON parse failed:\", e);\n  parsed = {\n    subject: \"Quick question\",\n    body: \"Hi, wanted to follow up and see if this topic is relevant for you right now.\"\n  };\n}\n\nconst body = parsed.body || 'Quick follow-up';\nconst subjectBase = parsed.subject || 'Quick question';\n\nconst subject = subjectBase;\n\nconst trackingId =\n  'trk_' +\n  Date.now() +\n  '_' +\n  Math.random().toString(36).substring(2, 10);\n\nconst trackingPixel = `\n<img \n  src=\"${BACKEND_URL}/api/tracking/track/${trackingId}\" \n  width=\"1\" \n  height=\"1\" \n  style=\"display:none;\" \n/>\n`;\n\nconst urlRegex = /(https?:\\/\\/[^\\s<>\\\"]+)/g;\n\nlet emailBody = String(body).replace(urlRegex, (url) => {\n  if (url.includes(BACKEND_URL)) {\n    return url;\n  }\n  const trackedUrl =\n    `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(url)}`;\n\n  return `\n    <a href=\"${trackedUrl}\"\n       target=\"_blank\"\n       style=\"color:#1a73e8;text-decoration:none;\">\n       View details\n    </a>\n  `;\n});\n\n// CTA URL\nconst CTA_URL = \"https://example.com\"; // Replace with real CTA\n\nconst trackedCTA =\n  `${BACKEND_URL}/api/tracking/click/${trackingId}?url=${encodeURIComponent(CTA_URL)}`;\n\nconst ctaButton = `\n<br><br>\n<a href=\"${trackedCTA}\"\n   target=\"_blank\"\n   style=\"\n      background:#1a73e8;\n      color:#ffffff;\n      padding:10px 16px;\n      text-decoration:none;\n      border-radius:5px;\n      display:inline-block;\n   \">\n   Book a quick call\n</a>\n`;\n\nemailBody = emailBody.replace(/\\n/g, '<br>');\n\nconst hiddenTracking = `\n<div style=\"display:none;font-size:1px;color:#ffffff;\">\n${trackingId}\n</div>\n`;\n\n// Final email HTML\nconst emailHTML = `\n<html>\n<body style=\"font-family:Arial,sans-serif;line-height:1.6;\">\n${emailBody}\n${ctaButton}\n${hiddenTracking}\n${trackingPixel}\n</body>\n</html>\n`;\n\n// Return output\nreturn [{\n  json: {\n    tracking_id: trackingId,\n    email_subject: subject,\n    email_body_html: emailHTML,\n    email_body_plain: body,\n    step_number: 1\n  }\n}];\n"
       },
       "id": "de4a25e1-1846-49a7-b60d-aa47b49677e1",
       "name": "Prepare Email with Tracking",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        192,
+        400,
         224
       ]
     },
@@ -154,7 +154,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        640,
+        848,
         224
       ],
       "credentials": {
@@ -173,7 +173,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        864,
+        1072,
         224
       ]
     },
@@ -188,7 +188,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1088,
+        1296,
         224
       ],
       "credentials": {
@@ -212,7 +212,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1536,
+        1744,
         224
       ],
       "webhookId": "c9ffab8c-2856-4821-8dc0-1c83688c1223",
@@ -234,8 +234,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1760,
-        304
+        1968,
+        296
       ]
     },
     {
@@ -254,8 +254,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -1952,
-        592
+        -1968,
+        808
       ]
     },
     {
@@ -269,8 +269,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -1728,
-        592
+        -1744,
+        808
       ],
       "credentials": {
         "postgres": {
@@ -288,8 +288,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1280,
-        528
+        -1296,
+        736
       ]
     },
     {
@@ -301,8 +301,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -704,
-        528
+        -720,
+        736
       ]
     },
     {
@@ -316,8 +316,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -480,
-        528
+        -496,
+        736
       ],
       "credentials": {
         "postgres": {
@@ -338,8 +338,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        -256,
-        528
+        -272,
+        736
       ],
       "webhookId": "947a392a-82d5-4cd0-9c8a-2269f9b49396",
       "credentials": {
@@ -360,8 +360,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -32,
-        528
+        -48,
+        736
       ]
     },
     {
@@ -375,8 +375,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        192,
-        592
+        176,
+        808
       ],
       "credentials": {
         "postgres": {
@@ -392,20 +392,20 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -608,
-        304
+        -400,
+        296
       ],
       "id": "649b76ac-e5c4-4422-92d6-10a2cc7d782b",
       "name": "Loop Over Items"
     },
     {
       "parameters": {
-        "jsCode": "const emailData = $('Prepare Email with Tracking').first().json;\nconst leadData = $('Build AI Summary').first().json;\n\nconst dbResult = $input.first().json;\nconst leadId = dbResult.id || dbResult.rows?.[0]?.id;\n\nreturn [{\n  json: {\n    ...emailData,\n    ...leadData,  \n    lead_id: leadId\n  }\n}];"
+        "jsCode": "const emailData = $('Prepare Email with Tracking').first().json;\nlet leadData;\ntry { leadData = $('Build AI Summary').first().json; } \ncatch (e) { leadData = $('Build Activity Summary').first().json; }\nconst dbResult = $input.first().json;\nconst leadId = dbResult.id || dbResult.rows?.[0]?.id;\nreturn [{ json: { ...emailData, ...leadData, lead_id: leadId } }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        416,
+        624,
         224
       ],
       "id": "f9b8d4db-d714-4dd7-a91f-99542af01578",
@@ -420,8 +420,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -1952,
-        304
+        -1968,
+        368
       ],
       "id": "89a060b4-d846-4b4e-8675-8e7805c3d1e8",
       "name": "Webhook",
@@ -434,8 +434,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -1504,
-        592
+        -1520,
+        808
       ],
       "id": "2f881976-7699-444e-b434-37ddcea93074",
       "name": "Loop Over Items1"
@@ -460,8 +460,8 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1.2,
       "position": [
-        -1056,
-        528
+        -1072,
+        736
       ],
       "id": "5d06aa98-9baf-4929-9906-b3ac902abb39",
       "name": "AI Generate Follow-up Email",
@@ -493,7 +493,7 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1.2,
       "position": [
-        -160,
+        48,
         224
       ],
       "id": "ae23e726-1162-4f15-a4d7-2452b91681bf",
@@ -507,12 +507,12 @@
     },
     {
       "parameters": {
-        "jsCode": "const emailData = $('Prepare Email with Tracking').first().json;\nconst leadData = $('Build AI Summary').first().json;\nconst insertData = $input.first().json;\n\nreturn [{\n  json: {\n    ...emailData,\n    ...leadData,\n    ...insertData\n  }\n}];"
+        "jsCode": "const emailData = $('Prepare Email with Tracking').first().json;\nlet leadData;\ntry { leadData = $('Build AI Summary').first().json; } \ncatch (e) { leadData = $('Build Activity Summary').first().json; }\nconst insertData = $input.first().json;\nreturn [{ json: { ...emailData, ...leadData, ...insertData } }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1312,
+        1520,
         224
       ],
       "id": "02b061b7-ff75-4407-b6ba-7562ba4fbb0e",
@@ -534,8 +534,8 @@
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1.3,
       "position": [
-        -1952,
-        816
+        -1968,
+        1032
       ],
       "id": "a5a18f3e-8615-4b14-ac98-3a11b3a9c2e2",
       "name": "Gmail Trigger",
@@ -574,8 +574,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1728,
-        816
+        -1744,
+        1032
       ],
       "id": "54a6e2b4-ea9c-440a-bba6-fdeb2835d258",
       "name": "Filter only replies"
@@ -588,8 +588,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1504,
-        816
+        -1520,
+        1032
       ],
       "id": "c07fd949-c106-4a42-a180-1d6752a63311",
       "name": "Extract tracking_id"
@@ -622,8 +622,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1280,
-        816
+        -1296,
+        1032
       ],
       "id": "0385a770-acf0-4b79-ade0-9a110a49c3a3",
       "name": "Ensure ID exists"
@@ -637,8 +637,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1056,
-        816
+        -1072,
+        1032
       ],
       "id": "3ee0dcbb-340e-462b-ab4e-c81db7645722",
       "name": "HTTP Request"
@@ -653,6 +653,85 @@
       ],
       "id": "b79fa2f2-3942-4c89-ac2a-dd4b0c00b2b1",
       "name": "Start Scrapping Profiles"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "65cead46-86d3-435e-abcb-e00ef2cec061",
+              "leftValue": "={{ $json.is_new_lead }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -624,
+        368
+      ],
+      "id": "ad63ce17-a54b-44a0-b85c-2c3a31377541",
+      "name": "Is New Lead?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst summary = [`Name: ${item.name}`, `Company: ${item.company}`, `Action: ${item.interaction_type}ed: ${item.latest_content}`].join('\\n');\nreturn [{ json: { ...item, ai_summary: summary } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        512
+      ],
+      "id": "4409ac10-d273-4035-867f-02a467354c53",
+      "name": "Build Activity Summary"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are writing a quick follow-up email to someone you already know.\n\nContext:\n{{ $json.ai_summary }}\n\nTask:\nWrite a very short (max 50 words) email mentioning their latest {{ $json.interaction_type }}.\n\nRules:\n- Sound like a human following up.\n- Mention specifically: \"{{ $json.latest_content }}\"\n- End with a low-pressure question about the topic.\n\nReturn ONLY valid JSON:\n{ \"subject\": \"Saw your post about...\", \"body\": \"...\" }\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        512
+      ],
+      "id": "25a4af8f-8cbc-43bd-800a-e701a9cad95d",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "iQXxd8SzxzIfBUCb",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -705,7 +784,7 @@
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "Is New Lead?",
             "type": "main",
             "index": 0
           }
@@ -1010,6 +1089,46 @@
           }
         ]
       ]
+    },
+    "Is New Lead?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Activity Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Activity Summary": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email with Tracking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -1017,7 +1136,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "1f80b655-2632-4e20-b246-d60cfb31abf5",
+  "versionId": "c34fc7f9-4542-4bf7-bb1d-2b8b2c135314",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "33d34b326952ecabddd2f1d86cb6da1b848c6a6fbd816c280e2b4cc7de6ff4e0"

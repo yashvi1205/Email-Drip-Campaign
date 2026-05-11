@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+logs/
+*.log
+error.log
+
+# Scraper & Browser Data
+cookies/
+*.pkl
+selenium_data/
+browser_profiles/
+chrome_data/
+C:\selenium-profile/
+scraper_status.json
+last_posts.json
+profiles.txt
+
+# Database & Migrations
+*.db
+*.sqlite
+/migrations/versions/*.pyc
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary Files
+tmp/
+temp/

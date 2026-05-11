@@ -89,7 +89,40 @@ Because the **Public Tunnel (untun)** provides a new URL every time it is starte
 
 ---
 
-## 🧪 4. Testing & Verification Guide
+## 🏗️ Phase 1: Production Hardening (Docker & Profiles)
+The system is now fully containerized and cross-platform. 
+
+### 🐋 1. Docker Setup (Production)
+To run the scraper in a production-ready Linux environment:
+1.  **Build the Image:** `docker build -t scraper-worker -f Dockerfile.worker .`
+2.  **Run with Persistence:**
+    ```bash
+    docker run -v scraper_profiles:/app/data/browser --env-file .env scraper-worker
+    ```
+    *Note: The volume `scraper_profiles` ensures your LinkedIn session stays alive even if the container is deleted.*
+
+### 📂 2. Profile Management
+Instead of using your personal browser, the system now uses dedicated "Browser Profiles":
+*   **Windows Default:** `C:\selenium-profile\Default`
+*   **Linux/Docker Default:** `/app/data/browser/Default`
+*   **Configuring Multiple Accounts:** Use the `LINKEDIN_PROFILE_NAME` env var to switch between accounts (e.g., `LINKEDIN_PROFILE_NAME=Account_A`).
+
+### 🔑 3. Session Refresh Process
+If the scraper logs an **"AUTHENTICATION REQUIRED"** error:
+1.  **Local (Windows/Mac):** Run the scraper in "Headful" mode (`HEADLESS=false`), log in manually to LinkedIn when the browser opens, and then close it. The session is now saved.
+2.  **Remote (Server):** 
+    *   **Option A:** Use a browser extension (like *EditThisCookie*) to export cookies from your laptop and paste them into the `cookies.pkl` backup on the server.
+    *   **Option B:** Temporarily run the container with a VNC/Desktop interface to log in manually.
+
+### 🩺 4. Scraper Diagnostics
+Every time the scraper starts, it prints a **Diagnostic Block**:
+*   **OS Type:** Confirms if it's running on Windows or Linux.
+*   **Binary Path:** Shows which Chrome/Chromium version is being used.
+*   **Session State:** Confirms if the LinkedIn login is still valid before starting.
+
+---
+
+## 🧪 5. Testing & Verification Guide
 To verify the system is working correctly for seniors:
 
 ### A. Scraper Verification
