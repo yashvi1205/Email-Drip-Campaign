@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   db:
@@ -52,6 +50,9 @@ services:
       APP_ENV: development
       SECRET_KEY: dev-secret-key-change-in-production
       CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000
+      API_KEY: dev-api-key-change-in-production
+      JWT_SECRET_KEY: dev-jwt-secret-change-in-production
+      JWT_REFRESH_SECRET_KEY: dev-jwt-refresh-secret-change-in-production
     ports:
       - "8000:8000"
     volumes:
