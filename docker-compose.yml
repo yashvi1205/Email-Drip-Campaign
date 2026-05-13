@@ -57,7 +57,7 @@ services:
       JWT_SECRET_KEY: dev-jwt-secret-change-in-production
       JWT_REFRESH_SECRET_KEY: dev-jwt-refresh-secret-change-in-production
       TRACKING_SIGNING_SECRET: dev-tracking-signing-secret-change-in-production
-      AUTH_USERS_JSON: '[{"email":"admin@example.com","password_hash":"$2b$12$R9h7cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUe","is_admin":true}]'
+      AUTH_USERS_JSON: '[{"email":"admin@example.com","password_hash":"$$2b$12$R9h7cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUe","is_admin":true}]'
       # Optional Settings
       BACKEND_INTERNAL_URL: http://localhost:8001
       TRACKING_RATE_LIMIT_PER_MINUTE: 120
