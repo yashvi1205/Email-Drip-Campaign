@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: emailcampaign_db
+    environment:
+      POSTGRES_USER: emailcampaign
+      POSTGRES_PASSWORD: emailcampaign_dev_pass
+      POSTGRES_DB: emailcampaign
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emailcampaign"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - emailcampaign_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: emailcampaign_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - emailcampaign_network
+
+  # API Server
+  api:
+    build:
+      context: ./emailcampaigntracker
+      dockerfile: Dockerfile
+    container_name: emailcampaign_api
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://emailcampaign:emailcampaign_dev_pass@db:5432/emailcampaign
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: development
+      SECRET_KEY: dev-secret-key-change-in-production
+      CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./emailcampaigntracker:/app
+      - ./emailcampaigntracker/alembic:/app/alembic
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - emailcampaign_network
+
+  # Frontend (optional, for full-stack testing)
+  frontend:
+    image: node:20-alpine
+    container_name: emailcampaign_frontend
+    working_dir: /app
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./emailcampaigntracker/frontend:/app
+      - /app/node_modules
+    command: npm run dev
+    depends_on:
+      - api
+    networks:
+      - emailcampaign_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  emailcampaign_network:
+    driver: bridge
