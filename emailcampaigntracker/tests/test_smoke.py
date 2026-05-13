@@ -5,7 +5,7 @@ def test_health_smoke():
     from app.main import app
 
     client = TestClient(app)
-    r = client.get("/api/health")
+    r = client.get("/health/status")
     assert r.status_code == 200
     body = r.json()
     assert body.get("status") == "healthy"
