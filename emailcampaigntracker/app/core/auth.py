@@ -79,7 +79,7 @@ def _decode_token(token: str, *, refresh: bool) -> Dict[str, Any]:
     return payload
 
 
-def _extract_api_key(request: Request) -> str | None:
+def _extract_api_key(request: Request) -> Optional[str]:
     header_key = request.headers.get("x-api-key")
     if header_key:
         return header_key.strip()
@@ -88,7 +88,7 @@ def _extract_api_key(request: Request) -> str | None:
 
 def get_current_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ) -> AuthUser:
     settings = get_settings()
 

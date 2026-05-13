@@ -21,3 +21,6 @@ opentelemetry-sdk
 opentelemetry-instrumentation-fastapi
 opentelemetry-exporter-otlp
 prometheus-fastapi-instrumentator
+bcrypt
+python-json-logger
+email-validator
