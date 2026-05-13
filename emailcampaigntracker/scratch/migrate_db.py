@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import psycopg2
 import logging
-from api.settings import get_settings
+from app.core.settings import get_settings
 
 load_dotenv()
 

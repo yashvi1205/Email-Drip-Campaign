@@ -39,7 +39,14 @@ logger = get_logger("api")
 
 settings = get_settings()  # fail-fast on invalid configuration
 
-app = FastAPI(title="LinkedIn Scraper API")
+app = FastAPI(
+    title="LinkedIn Scraper API",
+    description="Email campaign tracking and LinkedIn profile scraping API",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(StarletteHTTPException, starlette_http_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)

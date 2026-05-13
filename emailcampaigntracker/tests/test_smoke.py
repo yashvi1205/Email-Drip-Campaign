@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 
 def test_health_smoke():
-    from api.main import app
+    from app.main import app
 
     client = TestClient(app)
     r = client.get("/api/health")
@@ -12,7 +12,7 @@ def test_health_smoke():
 
 
 def test_dashboard_drip_smoke():
-    from api.main import app
+    from app.main import app
 
     client = TestClient(app)
     r = client.get("/api/dashboard/drip", headers={"X-API-Key": "test-api-key"})
@@ -31,7 +31,7 @@ def test_tracking_open_smoke_without_db():
     Use the Gmail proxy user-agent so the endpoint will NOT attempt a DB write.
     This verifies the tracking route wiring, middleware, and rate limiting without requiring DB.
     """
-    from api.main import app
+    from app.main import app
 
     client = TestClient(app)
     r = client.get(

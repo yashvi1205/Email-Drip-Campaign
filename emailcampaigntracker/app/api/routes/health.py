@@ -7,15 +7,26 @@ from rq.worker import Worker
 
 from app.services.health_service import health_payload
 
-router = APIRouter(tags=["Health"])
+router = APIRouter(tags=["Health"], prefix="")
 
 
-@router.get("/api/health")
+@router.get(
+    "/api/health",
+    summary="Health Check",
+    description="Check if the API is running and responding to requests",
+    response_description="API health status"
+)
 def health_check():
+    """Check API health status"""
     return health_payload()
 
 
-@router.get("/api/health/readiness")
+@router.get(
+    "/api/health/readiness",
+    summary="Readiness Check",
+    description="Check if all dependencies (database, Redis, queue) are available",
+    response_description="Readiness status with dependency health checks"
+)
 def readiness_check():
     checks = {"database": "ok", "redis": "ok", "queue": "ok"}
 

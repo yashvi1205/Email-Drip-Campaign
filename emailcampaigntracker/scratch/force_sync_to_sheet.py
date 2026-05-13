@@ -9,7 +9,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from google_sheets import sync_leads_status
 import logging
-from api.settings import get_settings
+from app.core.settings import get_settings
 
 load_dotenv()
 
