@@ -24,6 +24,7 @@ from app.core.errors import (
 )
 from app.core.observability import setup_opentelemetry, setup_prometheus
 from app.core.settings import get_settings
+from app.api.middleware import RequestTracingMiddleware, setup_tracing_middleware
 from app.middleware.request_context import (
     RequestIdMiddleware,
     RequestLoggingMiddleware,
@@ -34,7 +35,7 @@ from fastapi import HTTPException
 load_dotenv()
 
 # 1. Initialize Standardized Logging (Phase 4)
-setup_logging()
+context_filter = setup_logging()
 logger = get_logger("api")
 
 settings = get_settings()  # fail-fast on invalid configuration
@@ -57,6 +58,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add request tracing middleware with logging context
+setup_tracing_middleware(app, context_filter)
 
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(RequestLoggingMiddleware, logger=logger)
