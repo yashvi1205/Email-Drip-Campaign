@@ -121,8 +121,7 @@ LinkedIn Email Campaign Tracker is a comprehensive system for:
 **Requirements**: Docker Desktop 4.0+ (includes Docker Compose)
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/emailcampaigntracker.git
+# Navigate to the project directory
 cd emailcampaigntracker
 
 # Start all services (PostgreSQL, Redis, API, Frontend)
@@ -272,20 +271,17 @@ npx tsc --noEmit
 ### Option 1: Docker Compose (Single Server)
 
 ```bash
-# Clone and prepare
-git clone https://github.com/your-org/emailcampaigntracker.git
+# Navigate to project directory
 cd emailcampaigntracker
 
 # Create environment file
 cp .env.production.example .env.production
 # Edit .env.production with production values
 
-# Build application image (from emailcampaigntracker directory)
-cd emailcampaigntracker
+# Build application image
 docker build -t emailcampaign-api:latest .
-cd ..
 
-# Start services using docker compose (run from root directory)
+# Start services using docker compose
 docker compose -f docker-compose.prod.yml up -d
 # Legacy: docker-compose -f docker-compose.prod.yml up -d
 
@@ -309,8 +305,7 @@ docker compose -f docker-compose.prod.yml down
 ```
 
 **Important Notes**:
-- The `docker build` command must run from the `emailcampaigntracker/` directory
-- The `docker compose` commands run from the root directory
+- Run all commands from the `emailcampaigntracker/` directory
 - Use `docker compose` (modern, all platforms) or `docker-compose` (legacy)
 
 ### Option 2: Kubernetes (Cloud-Native)
