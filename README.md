@@ -116,7 +116,9 @@ LinkedIn Email Campaign Tracker is a comprehensive system for:
 
 ## Quick Start
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Docker Compose (Recommended) - macOS/Linux/Windows
+
+**Requirements**: Docker Desktop 4.0+ (includes Docker Compose)
 
 ```bash
 # Clone the repository
@@ -124,23 +126,43 @@ git clone https://github.com/your-org/emailcampaigntracker.git
 cd emailcampaigntracker
 
 # Start all services (PostgreSQL, Redis, API, Frontend)
-docker-compose up -d
+# Modern syntax (Docker Desktop 4.0+) - works on all platforms
+docker compose up -d
 
-# Run migrations
-docker-compose exec api alembic upgrade head
+# Run migrations (apply database schema)
+docker compose exec api alembic upgrade head
 
-# View logs
-docker-compose logs -f
+# View logs in real-time
+docker compose logs -f
 
-# Stop services
-docker-compose down
+# View logs for specific service
+docker compose logs -f api      # API logs
+docker compose logs -f db       # Database logs
+docker compose logs -f redis    # Redis logs
+docker compose logs -f frontend # Frontend logs
+
+# Stop all services
+docker compose down
+
+# Stop and remove data (clean slate)
+docker compose down -v
 ```
 
-Services will be available at:
+**macOS/Linux Troubleshooting**: If `docker compose` command not found:
+- Upgrade Docker Desktop to 4.0+
+- Or use legacy syntax: `docker-compose up -d` (requires separate installation)
+- Check: `docker --version` should be 20.10+
+
+**Windows PowerShell**: Use the same commands above. If `docker compose` fails:
+- Restart Docker Desktop
+- Or use Docker Desktop UI instead
+
+**Services will be available at**:
 - **Frontend**: http://localhost:5173
 - **API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/api/docs
-- **Database**: localhost:5432 (user: emailcampaign)
+- **API Health**: http://localhost:8000/health/status
+- **Database**: localhost:5432 (user: `emailcampaign`, password: `emailcampaign_dev_pass`)
 - **Redis**: localhost:6379
 
 ### Option 2: Manual Setup (Local Development)
@@ -203,22 +225,33 @@ Frontend will be available at http://localhost:5173
 
 ```bash
 # Start development environment
-docker-compose up -d
+docker compose up -d
+# Legacy: docker-compose up -d
 
-# View logs
-docker-compose logs -f api
+# View logs (all services)
+docker compose logs -f
+# Legacy: docker-compose logs -f
+
+# View logs for specific service
+docker compose logs -f api
+# Legacy: docker-compose logs -f api
 
 # Run migrations
-docker-compose exec api alembic upgrade head
+docker compose exec api alembic upgrade head
+# Legacy: docker-compose exec api alembic upgrade head
 
 # Access services
 # - Frontend: http://localhost:5173
 # - API: http://localhost:8000
-# - Database: localhost:5432
+# - Database: localhost:5432 (user: emailcampaign, password: emailcampaign_dev_pass)
 # - Redis: localhost:6379
 
 # Stop services
-docker-compose down
+docker compose down
+# Legacy: docker-compose down
+
+# Remove containers and volumes (clean slate)
+docker compose down -v
 ```
 
 ### Running Tests
@@ -247,18 +280,38 @@ cd emailcampaigntracker
 cp .env.production.example .env.production
 # Edit .env.production with production values
 
-# Build application
+# Build application image (from emailcampaigntracker directory)
+cd emailcampaigntracker
 docker build -t emailcampaign-api:latest .
+cd ..
 
-# Start services
-docker-compose -f docker-compose.prod.yml up -d
+# Start services using docker compose (run from root directory)
+docker compose -f docker-compose.prod.yml up -d
+# Legacy: docker-compose -f docker-compose.prod.yml up -d
 
-# Run migrations
-docker-compose -f docker-compose.prod.yml exec api alembic upgrade head
+# Run database migrations
+docker compose -f docker-compose.prod.yml exec api alembic upgrade head
+# Legacy: docker-compose -f docker-compose.prod.yml exec api alembic upgrade head
 
-# Check health
+# View logs
+docker compose -f docker-compose.prod.yml logs -f api
+# Legacy: docker-compose -f docker-compose.prod.yml logs -f api
+
+# Check service health
+curl http://localhost:8000/health/status
+
+# For HTTPS:
 curl https://your-domain.com/health/status
+
+# Stop services
+docker compose -f docker-compose.prod.yml down
+# Legacy: docker-compose -f docker-compose.prod.yml down
 ```
+
+**Important Notes**:
+- The `docker build` command must run from the `emailcampaigntracker/` directory
+- The `docker compose` commands run from the root directory
+- Use `docker compose` (modern, all platforms) or `docker-compose` (legacy)
 
 ### Option 2: Kubernetes (Cloud-Native)
 
@@ -484,24 +537,76 @@ See [MONITORING.md](MONITORING.md) for detailed setup.
 
 ## Troubleshooting
 
+### macOS Docker Issues
+
+**Problem: `command not found: docker-compose`**
+```bash
+# Solution 1: Use modern syntax (Docker Desktop 4.0+)
+docker compose up -d
+# Not: docker-compose up -d
+
+# Solution 2: Check Docker Desktop version
+docker --version  # Should be 20.10+
+docker compose version  # If this fails, upgrade Docker Desktop
+
+# Solution 3: Reinstall Docker Desktop
+# Download latest from: https://www.docker.com/products/docker-desktop/
+```
+
+**Problem: Docker runs out of disk space (macOS)**
+```bash
+# Check Docker disk usage
+docker system df
+
+# Clean up unused resources
+docker system prune -a
+
+# Reset Docker Desktop completely
+# Open Docker → Preferences → Reset → Reset to factory defaults
+```
+
+**Problem: Slow performance on macOS (Intel Macs)**
+```bash
+# Edit docker-compose.yml and reduce resource limits:
+# services:
+#   api:
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 512M  # Reduce from 2G
+```
+
+**Problem: Network connectivity issues**
+```bash
+# Test connectivity
+docker compose exec api curl http://db:5432 -v
+docker compose exec api redis-cli -h redis ping
+
+# Restart Docker Desktop
+# Preferences → Reset → Restart Docker
+```
+
 ### Database Connection Errors
 
 ```bash
 # Check database is running
-docker-compose ps db
+docker compose ps db
+# or: docker-compose ps db
 
 # Test database connection
 psql -h localhost -U emailcampaign -d emailcampaign -c "SELECT 1"
 
 # Check connection pooling
-docker-compose logs db | grep "connection"
+docker compose logs db | grep "connection"
+# or: docker-compose logs db | grep "connection"
 ```
 
 ### Redis Connection Errors
 
 ```bash
 # Check Redis is running
-docker-compose ps redis
+docker compose ps redis
+# or: docker-compose ps redis
 
 # Test Redis connection
 redis-cli -h localhost ping
@@ -514,13 +619,15 @@ redis-cli info memory
 
 ```bash
 # Check API logs
-docker-compose logs api
+docker compose logs api
+# or: docker-compose logs api
 
 # Check health status
 curl http://localhost:8000/health/status
 
 # Restart API
-docker-compose restart api
+docker compose restart api
+# or: docker-compose restart api
 ```
 
 ### High Memory Usage
