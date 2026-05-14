@@ -4,6 +4,17 @@ This guide contains everything you need to run, maintain, and troubleshoot the s
 
 ---
 
+## ⚠️ Safety & Limits (VERY IMPORTANT)
+
+LinkedIn has strict automation detection. To keep your account safe, follow these rules:
+
+- **The Rule of 50**: Never scrape more than **50 profiles per day**.
+- **The "Human" Look**: Do not run the scraper multiple times in a row without a break.
+- **Risk of Ban**: If you exceed 50+ profiles daily, LinkedIn may permanently **BAN** your account. The scraper has built-in delays, but the total volume is what LinkedIn monitors.
+- **Warm-up**: If your account is new to scraping, start with only **10-15 profiles per day** and slowly increase.
+
+---
+
 ## 🗓️ 1. Daily Startup Routine (The "Morning Check")
 
 Follow these steps every morning to ensure the system is healthy:
