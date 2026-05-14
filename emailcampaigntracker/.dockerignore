@@ -1,27 +1,24 @@
-__pycache__
+# Ignore everything in the frontend (it has its own build process)
+frontend/
+emailcampaigntracker/frontend/
+
+# Ignore local python environments
+.venv/
+venv/
+__pycache__/
 *.pyc
-*.pyo
-*.pyd
-.Python
-*.egg-info
-dist
-build
-.git
-.gitignore
-.dockerignore
+
+# Ignore local data and secrets
 .env
-.env.*
-.venv
-venv
+cookies.json
+scraper/cookies.pkl
+C:/selenium-profile/
+data/browser/
+
+# Ignore Git
+.git/
+.github/
+
+# Ignore logs
 *.log
-.pytest_cache
-.mypy_cache
-.coverage
-htmlcov
-node_modules
-npm-debug.log
-.next
-.nuxt
-dist
-build
-.DS_Store
+logs/
