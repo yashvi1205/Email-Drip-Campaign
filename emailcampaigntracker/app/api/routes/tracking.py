@@ -37,7 +37,7 @@ def normalize_url(url):
 
 def sync_sheet_status_async(sync_data):
     try:
-        from google_sheets import sync_leads_status
+        from app.integrations.google_sheets import sync_leads_status
 
         if "linkedin_url" in sync_data:
             sync_data["linkedin_url"] = normalize_url(sync_data["linkedin_url"])

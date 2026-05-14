@@ -7,7 +7,7 @@ import datetime
 from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from google_sheets import sync_leads_status
+from app.integrations.google_sheets import sync_leads_status
 import logging
 from app.core.settings import get_settings
 

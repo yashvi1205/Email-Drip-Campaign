@@ -51,6 +51,13 @@ services:
       SECRET_KEY: dev-secret-key-change-in-production
       CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000
       BACKEND_INTERNAL_URL: http://api:8000
+      API_KEY: admin-key-123
+      DASHBOARD_API_KEY: dashboard-key-456
+      SCRAPER_API_KEY: scraper-key-789
+      AUTH_USERS_JSON: '[{"username":"admin","password":"admin123","role":"admin"},{"username":"scraper","password":"scraper123","role":"scraper"},{"username":"dashboard","password":"dashboard123","role":"dashboard"}]'
+      JWT_SECRET_KEY: dev-jwt-secret
+      JWT_REFRESH_SECRET_KEY: dev-jwt-refresh-secret
+      TRACKING_SIGNING_SECRET: dev-tracking-signing-secret
     ports:
       - "8000:8000"
     volumes:
@@ -83,6 +90,8 @@ services:
       HEADLESS: "true"
       CHROME_BIN: /usr/bin/chromium
       BACKEND_INTERNAL_URL: http://api:8000
+      API_KEY: admin-key-123
+      SCRAPER_API_KEY: scraper-key-789
     volumes:
       - .:/app
       - /c/selenium-profile:/app/data/browser

@@ -34,11 +34,11 @@ from app.core.browser import create_driver, validate_session, check_browser_heal
 from app.core.settings import get_settings
 from database.db import SessionLocal
 from database.models import Event
-from google_sheets import get_profile_urls
+from app.integrations.google_sheets import get_profile_urls
 
 try:
     from database.save_data import save_lead, save_event, get_or_create_sequence
-    from google_sheets import save_enhanced_data
+    from app.integrations.google_sheets import save_enhanced_data
 except ImportError:
     def save_lead(**kwargs): return 1
     def save_event(**kwargs): pass
