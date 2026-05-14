@@ -569,17 +569,24 @@ def scrape_profile(driver, profile_url):
         details["company"] = safe_translate(details.get("company"))
         details["role"] = safe_translate(details.get("role"))
 
-    # ✅ Save/Update lead
-    lead_id = save_lead(
-        linkedin_url=target_url,
-        name=details.get("full_name"),
-        email=details.get("email", ""),
-        company=details.get("company", ""),
-        role=details.get("role") or details.get("headline", ""),
-        headline=details.get("headline", ""),
-        about=details.get("about", ""),
-        work_description=details.get("work_description", "")
-    )
+    # ✅ Save/Update lead (with Safety Net)
+    try:
+        lead_id = save_lead(
+            linkedin_url=target_url,
+            name=details.get("full_name"),
+            email=details.get("email", ""),
+            company=details.get("company", ""),
+            role=details.get("role") or details.get("headline", ""),
+            headline=details.get("headline", ""),
+            about=details.get("about", ""),
+            work_description=details.get("work_description", "")
+        )
+        if not lead_id:
+            logger.error("Failed to get a valid lead_id for %s. Skipping events.", target_url)
+            return None
+    except Exception as e:
+        logger.error("Database error while saving lead %s: %s", target_url, e)
+        return None
 
     base_url = profile_url.rstrip("/")
     all_activities = []
@@ -614,66 +621,74 @@ def scrape_profile(driver, profile_url):
         current_hash = get_content_hash(current_content)
 
         db = SessionLocal()
+        try:
+            last_event = db.query(Event).filter(
+                Event.lead_id == lead_id,
+                Event.event_type == "interaction_summary"
+            ).order_by(Event.timestamp.desc()).first()
 
-        last_event = db.query(Event).filter(
-            Event.lead_id == lead_id,
-            Event.event_type == "interaction_summary"
-        ).order_by(Event.timestamp.desc()).first()
+            last_hash = ""
+            if last_event and last_event.additional_data and "content_hash" in last_event.additional_data:
+                last_hash = last_event.additional_data["content_hash"]
 
-        last_hash = ""
-        if last_event and last_event.additional_data and "content_hash" in last_event.additional_data:
-            last_hash = last_event.additional_data["content_hash"]
+            if current_hash != last_hash:
+                logger.info("New activity detected for %s", details.get("full_name"))
 
-        if current_hash != last_hash:
-            logger.info("New activity detected for %s", details.get("full_name"))
+                try:
+                    save_event(lead_id, "interaction_summary", {
+                        "content_hash": current_hash,
+                        "recent_activity": activity_list,
+                        "latest_text": current_content[:200],
+                        "has_new_activity": True
+                    })
+                except Exception as e:
+                    logger.warning("Could not save interaction_summary event: %s", e)
 
-            save_event(lead_id, "interaction_summary", {
-                "content_hash": current_hash,
-                "recent_activity": activity_list,
-                "latest_text": current_content[:200],
-                "has_new_activity": True
-            })
+                # ✅ Save to Google Sheets
+                save_enhanced_data(
+                    full_name=details.get("full_name"),
+                    profile_url=target_url,
+                    headline=details.get("headline"),
+                    company=details.get("company"),
+                    about=details.get("about"),
+                    email=details.get("email"),
+                    interaction_type=latest_item.get("interaction_type"),
+                    content=latest_item.get("text"),
+                    interaction_date=time.strftime("%Y-%m-%d"),
+                    role=details.get("role", ""),
+                    work_description=details.get("work_description", ""),
+                    recent_activity="\n".join(activity_list)
+                )
 
-            # ✅ Save to Google Sheets (Now handles updates internally)
-            save_enhanced_data(
-                full_name=details.get("full_name"),
-                profile_url=target_url,
-                headline=details.get("headline"),
-                company=details.get("company"),
-                about=details.get("about"),
-                email=details.get("email"),
-                interaction_type=latest_item.get("interaction_type"),
-                content=latest_item.get("text"),
-                interaction_date=time.strftime("%Y-%m-%d"),
-                role=details.get("role", ""),
-                work_description=details.get("work_description", ""),
-                recent_activity="\n".join(activity_list)
-            )
+                return {
+                    "name": details.get("full_name"),
+                    "headline": details.get("headline"),
+                    "company": details.get("company"),
+                    "role": details.get("role"),
+                    "about": details.get("about"),
+                    "work_description": details.get("work_description"),
+                    "email": details.get("email"),
+                    "url": profile_url,
+                    "is_new_lead": is_new_lead,
+                    "interaction_type": latest_item.get("interaction_type"),
+                    "latest_content": current_content
+                }
 
+            else:
+                logger.info("Duplicate: no new activity for %s", details.get("full_name"))
+                try:
+                    save_event(lead_id, "profile_scraped", {"status": "no_new_activity"})
+                except Exception as e:
+                    logger.warning("Could not save profile_scraped event: %s", e)
+                return None
+        finally:
             db.close()
-            
-            return {
-                "name": details.get("full_name"),
-                "headline": details.get("headline"),
-                "company": details.get("company"),
-                "role": details.get("role"),
-                "about": details.get("about"),
-                "work_description": details.get("work_description"),
-                "email": details.get("email"),
-                "url": profile_url,
-                "is_new_lead": is_new_lead,
-                "interaction_type": latest_item.get("interaction_type"),
-                "latest_content": current_content
-            }
-
-        else:
-            logger.info("Duplicate: no new activity for %s", details.get("full_name"))
-            save_event(lead_id, "profile_scraped", {"status": "no_new_activity"})
-            db.close()
-            return None
 
     else:
-        save_event(lead_id, "profile_scraped", {"status": "no_activity_found"})
+        try:
+            save_event(lead_id, "profile_scraped", {"status": "no_activity_found"})
+        except Exception as e:
+            logger.warning("Could not save profile_scraped event: %s", e)
         return None
 
 
