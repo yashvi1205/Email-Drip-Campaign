@@ -294,22 +294,37 @@ def scrape_profile_details(driver, profile_url):
         for attempt in range(3):
             details["headline"] = driver.execute_script(r"""
                 function findHeadline() {
-                    // Method 1: The Left Panel container
+                    let docTitle = document.title.split('|')[0].split('-')[0].trim().toLowerCase();
+                    let blacklist = ["contact info", "connections", "followers", "following"];
+                    
+                    function isJunk(txt) {
+                        let t = txt.toLowerCase();
+                        if (t.length < 10) return true;
+                        if (blacklist.some(b => t.includes(b))) return true;
+                        // Reject only if it's almost exactly the name
+                        if (t === docTitle || (t.includes(docTitle) && t.length < docTitle.length + 5)) return true;
+                        return false;
+                    }
+
+                    // Method 1: The Left Panel container (Primary)
                     let leftPanel = document.querySelector('.pv-text-details__left-panel');
                     if (leftPanel) {
                         let textEls = Array.from(leftPanel.querySelectorAll('div, span, p'));
-                        let candidate = textEls.find(el => el.innerText.length > 10 && !el.querySelector('h1') && !el.innerText.includes(document.title.split('|')[0].trim()));
+                        let candidate = textEls.find(el => {
+                            let txt = el.innerText.trim();
+                            return !isJunk(txt) && !el.querySelector('h1');
+                        });
                         if (candidate) return candidate.innerText.trim();
                     }
                     
                     // Method 2: Specific classes
                     let specific = document.querySelector('.text-body-medium.break-words');
-                    if (specific) return specific.innerText.trim();
+                    if (specific && !isJunk(specific.innerText)) return specific.innerText.trim();
                     
                     // Method 3: Broad text search near the top
                     let topCard = document.querySelector('main');
                     if (topCard) {
-                        let text = topCard.innerText.split('\n').filter(t => t.length > 20 && t.length < 200)[0];
+                        let text = topCard.innerText.split('\n').filter(t => !isJunk(t) && t.length < 200)[0];
                         if (text) return text.trim();
                     }
                     return "";
