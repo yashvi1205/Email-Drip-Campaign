@@ -90,6 +90,7 @@ services:
       HEADLESS: "true"
       CHROME_BIN: /usr/bin/chromium
       BACKEND_INTERNAL_URL: http://api:8000
+      CHROME_PROFILE_BASE_PATH: /app/data/browser/Default
       API_KEY: admin-key-123
       SCRAPER_API_KEY: scraper-key-789
     volumes:
