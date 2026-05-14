@@ -49,7 +49,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       APP_ENV: development
       SECRET_KEY: dev-secret-key-change-in-production
-      CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000
+      CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
       BACKEND_INTERNAL_URL: http://api:8000
       API_KEY: admin-key-123
       DASHBOARD_API_KEY: dashboard-key-456
