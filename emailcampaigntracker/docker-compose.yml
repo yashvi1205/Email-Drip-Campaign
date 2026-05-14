@@ -50,6 +50,7 @@ services:
       APP_ENV: development
       SECRET_KEY: dev-secret-key-change-in-production
       CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000
+      BACKEND_INTERNAL_URL: http://api:8000
     ports:
       - "8000:8000"
     volumes:
@@ -81,8 +82,10 @@ services:
       APP_ENV: development
       HEADLESS: "true"
       CHROME_BIN: /usr/bin/chromium
+      BACKEND_INTERNAL_URL: http://api:8000
     volumes:
       - .:/app
+      - /c/selenium-profile:/app/data/browser
     networks:
       - emailcampaign_network
 

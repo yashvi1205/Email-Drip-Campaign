@@ -27,7 +27,7 @@ from app.services.scraper_job_service import (
 )
 
 settings = get_settings()
-scraper_auth = require_roles("scraper", "admin")
+scraper_auth = require_roles("scraper", "admin", "dashboard")
 scraper_rate_limit = rate_limit("scraper", settings.scraper_rate_limit_per_minute)
 
 router = APIRouter(tags=["Scraper"])
