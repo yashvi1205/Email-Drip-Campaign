@@ -87,7 +87,25 @@ If you are using n8n for email preparation, make sure the n8n webhook URL in you
 
 ---
 
-## 🛠️ 5. Troubleshooting Common Issues
+## 🧹 5. Preventing Duplicates (n8n vs Backend)
+
+If you see the same person twice on your dashboard, it's usually because n8n is talking directly to the database and bypassing the "Smart Cleaner."
+
+### **The Rule**
+- **ALWAYS** use the Backend API to save leads.
+- In n8n, use an **HTTP Request** node to call `POST http://localhost:8000/api/leads`.
+- **NEVER** use the Postgres node to `INSERT` leads directly. The Backend API has the "Cleaner" logic that prevents duplicates; the database does not.
+
+### **How to Fix Existing Duplicates**
+If you already have duplicates, run the cleanup script:
+```bash
+python scratch/db_cleanup.py
+```
+This will merge your leads and keep your dashboard clean.
+
+---
+
+## 🛠️ 6. Troubleshooting Common Issues
 
 | Issue | Solution |
 | :--- | :--- |
