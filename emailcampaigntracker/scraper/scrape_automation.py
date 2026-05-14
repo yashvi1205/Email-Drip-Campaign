@@ -705,7 +705,8 @@ def save_cookies(driver):
 BACKEND_URL = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8001").rstrip("/")
 API_URL = f"{BACKEND_URL}/api"
 
-webhook_url = None
+# ✅ Webhook Fallback (Phase 4): Use Env if not passed via CLI
+webhook_url = os.getenv("N8N_WEBHOOK_URL")
 
 for arg in sys.argv:
     if "webhook_url=" in arg:
