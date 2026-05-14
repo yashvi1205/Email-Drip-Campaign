@@ -111,6 +111,8 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend:/app
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/
     command: sh -c "npm install && npm run dev -- --host"
     depends_on:
       - api
