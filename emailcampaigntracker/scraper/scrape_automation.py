@@ -765,9 +765,14 @@ def run_scraper():
                     logger.warning("Skipping invalid URL at row %s: %s", i+1, url)
                     continue
 
+                print(f"\n🚀 [SCRAPER] Processing Profile {i+1}/{len(urls)}: {url}")
+                logger.info("Starting scrape for: %s", url)
+                
                 update_backend_status("running", f"Scraping profile {i+1}/{len(urls)}: {url}")
                 result = scrape_profile(driver, url)
+                
                 if result:
+                    print(f"✅ [SCRAPER] Successfully scraped: {url}")
                     # Send to n8n if there is ANY new result (new lead OR new activity)
                     all_results.append(result)
                     
@@ -777,6 +782,10 @@ def run_scraper():
                         logger.info("New activity for existing lead queued for webhook: %s", url)
                     
                     update_backend_status("running", f"Synced {i+1} profiles...", new_posts=len(all_results))
+                else:
+                    print(f"❌ [SCRAPER] Failed to scrape: {url}")
+                
+                print(f"⏱️ [SCRAPER] Sleeping for 10s to stay under the radar...")
                 time.sleep(10)
 
             update_backend_status("completed", f"Finished! Found {len(all_results)} profiles.", new_posts=len(all_results))
