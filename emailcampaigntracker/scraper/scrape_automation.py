@@ -1,5 +1,6 @@
 import time
 import os
+import json
 import pickle
 import sys
 import io
@@ -718,6 +719,24 @@ def run_scraper():
 
         driver = create_driver()
         try:
+            # --- JSON COOKIE BRIDGE ---
+            cookie_path = os.path.join(os.getcwd(), "cookies.json")
+            if os.path.exists(cookie_path):
+                logger.info("Found cookies.json - Injecting session...")
+                try:
+                    driver.get("https://www.linkedin.com")
+                    with open(cookie_path, 'r') as f:
+                        cookies = json.load(f)
+                    for cookie in cookies:
+                        if 'expiry' in cookie:
+                            cookie['expiry'] = int(cookie['expiry'])
+                        driver.add_cookie(cookie)
+                    driver.refresh()
+                    logger.info("JSON cookies injected successfully!")
+                except Exception as e:
+                    logger.error("Failed to inject JSON cookies: %s", e)
+            # --------------------------
+
             update_backend_status("running", "Validating LinkedIn session...")
             
             if not validate_session(driver):

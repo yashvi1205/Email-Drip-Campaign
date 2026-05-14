@@ -47,3 +47,10 @@ scraper_status.json
 # IDE
 .idea/
 .vscode/
+# Corrupted/Ghost folders
+C*
+C:*
+C?*
+C\357\200\272*
+
+cookies.json

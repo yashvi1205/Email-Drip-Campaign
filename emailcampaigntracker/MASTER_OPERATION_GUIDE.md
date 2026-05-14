@@ -4,6 +4,28 @@ This guide explains how to run, maintain, and troubleshoot the system on any com
 
 ---
 
+## 🔑 LinkedIn Authentication (The JSON Bridge)
+
+If you are running on Windows but using Docker (Linux), you must bridge the encryption gap to stay logged in.
+
+### 1. Initial Login (On Windows)
+Run the following command on your host machine:
+```bash
+python export_cookies.py
+```
+*   A browser will open.
+*   Log in to LinkedIn manually.
+*   Once you see your feed, go back to the terminal and press **Enter**.
+*   This creates `cookies.json` in your project root.
+
+### 2. Launching the System
+```bash
+docker compose up --build
+```
+The scraper will automatically detect `cookies.json`, inject your session, and start working. You won't need to do this again unless your session expires.
+
+---
+
 ## 📦 1. Daily Startup (Local Development)
 To start the entire system, open your terminal in the project folder and run:
 
