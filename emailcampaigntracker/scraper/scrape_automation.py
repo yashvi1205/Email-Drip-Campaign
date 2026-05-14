@@ -712,6 +712,11 @@ for arg in sys.argv:
     if "webhook_url=" in arg:
         webhook_url = arg.split("webhook_url=")[-1]
 
+# 🐳 SMART REDIRECTION: If in Docker and using localhost, switch to host.docker.internal
+if os.path.exists("/.dockerenv") and webhook_url and "localhost" in webhook_url:
+    logger.info("Docker environment detected: Redirecting localhost webhook to host.docker.internal")
+    webhook_url = webhook_url.replace("localhost", "host.docker.internal")
+
 def run_scraper():
     health = check_browser_health()
     logger.info("--- SCRAPER STARTUP DIAGNOSTICS ---")

@@ -93,6 +93,7 @@ services:
       CHROME_PROFILE_BASE_PATH: /app/data/browser/Default
       API_KEY: admin-key-123
       SCRAPER_API_KEY: scraper-key-789
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
     volumes:
       - .:/app
       - /c/selenium-profile:/app/data/browser
