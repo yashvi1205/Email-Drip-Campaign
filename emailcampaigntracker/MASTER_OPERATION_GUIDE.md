@@ -64,23 +64,26 @@ How to see what the system is doing:
 
 ---
 
-## ☁️ 4. Deployment & Updates (Render/GitHub)
+## 🌍 4. Public Access & Tracking (Untun + Render)
 
-### **A. Pushing Code Updates**
-When you change the code and want it on Render:
-1. Go to the root `C:\git`.
-2. Run:
+For email tracking to work while you are developing locally, Render needs to "Talk" to your local machine.
+
+### **Step A: Start the Tunnel**
+1. Open a **new** terminal (keep Docker running in the other one).
+2. Run the tunnel command:
    ```bash
-   git add .
-   git commit -m "Your update message"
-   git push origin main --force
+   untun 8000
    ```
+3. Copy the **Public URL** it gives you (e.g., `https://random-words.untun.com`).
 
-### **B. Update n8n Webhook (Untun/Tunnel)**
-If your local n8n URL changes (e.g., you restarted your tunnel):
-1. Open `.env` in the project root.
-2. Update `N8N_WEBHOOK_URL` with the new link.
-3. Restart Docker: `docker compose up --build`.
+### **Step B: Update Render**
+1. Log in to your **Render Dashboard**.
+2. Go to your **API Service** -> **Environment**.
+3. Update the `LOCAL_BACKEND_URL` variable with your new Untun link.
+4. **Save Changes**. Render will redeploy and now "knows" how to find your local machine!
+
+### **Step C: Update n8n (Optional)**
+If you are using n8n for email preparation, make sure the n8n webhook URL in your `.env` is also updated if the tunnel for n8n changed.
 
 ---
 
