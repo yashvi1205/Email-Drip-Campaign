@@ -702,7 +702,7 @@ def save_cookies(driver):
 
 
 # Networking Configuration (Phase 0)
-BACKEND_URL = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8001").rstrip("/")
+BACKEND_URL = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8000").rstrip("/")
 API_URL = f"{BACKEND_URL}/api"
 
 # ✅ Webhook Fallback (Phase 4): Use Env if not passed via CLI
