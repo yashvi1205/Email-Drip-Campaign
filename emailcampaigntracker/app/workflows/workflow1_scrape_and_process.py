@@ -107,17 +107,27 @@ def node_read_emails_from_google_sheet(gsheets_client=None) -> List[Dict[str, An
         from app.integrations.google_sheets import get_profile_urls  # noqa: F401
         # The integration already wraps gspread; here we open the sheet directly.
         import gspread
+        import os
         from app.integrations.google_sheets import client
         if not client:
             logger.warning("Google Sheets client is not initialized; returning empty list.")
             return []
-        sh = client.open_by_key("1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo")
+        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        if not sheet_id:
+            logger.error("GOOGLE_SHEET_ID env var not set — cannot read emails from sheet.")
+            return []
+        sh = client.open_by_key(sheet_id)
         ws = sh.worksheet("Profiles")
         rows = ws.get_all_records()
         return rows
 
     # If a client is supplied directly
-    sh = gsheets_client.open_by_key("1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo")
+    import os
+    sheet_id = os.getenv("GOOGLE_SHEET_ID")
+    if not sheet_id:
+        logger.error("GOOGLE_SHEET_ID env var not set — cannot read emails from sheet.")
+        return []
+    sh = gsheets_client.open_by_key(sheet_id)
     ws = sh.worksheet("Profiles")
     return ws.get_all_records()
 

@@ -245,9 +245,10 @@ def sync_leads_status(leads_data):
 
         headers = [h.strip().lower() for h in all_rows[0]]
 
+        # NOTE: 'profile url' and 'email' are intentionally excluded —
+        # these are user-controlled inputs in the sheet. The sync only
+        # updates tracking/status columns that the system owns.
         tracking_fields = {
-            "profile url": "linkedin_url",
-            "email": "email",
             "status": "status",
             "open count": "open_count",
             "last opened": "last_opened",
@@ -272,7 +273,13 @@ def sync_leads_status(leads_data):
                 headers.append(h_text)
                 col_indices[field_key] = new_col
 
-        url_col = col_indices.get("linkedin_url", 1)
+        # Always read Profile URL from column 1 (col A) — it's the sheet's key column
+        url_col = 1
+        for i, h in enumerate(headers):
+            if "profile url" in h or "linkedin" in h:
+                url_col = i + 1
+                break
+
         status_map = {normalize_url(l.get("linkedin_url", "")): l for l in leads_data}
         urls = profile_sheet.col_values(url_col)
 
@@ -285,8 +292,6 @@ def sync_leads_status(leads_data):
                 lead = status_map[clean_url]
 
                 for field_key, col_idx in col_indices.items():
-                    if field_key == "linkedin_url":
-                        continue
 
                     val = lead.get(field_key)
                     if val is not None:
