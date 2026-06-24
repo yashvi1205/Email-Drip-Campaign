@@ -109,7 +109,7 @@ app.include_router(
 
 # Scraper endpoints: rate limiting + API key protection (Phase 0)
 scraper_rate_limit = rate_limit("scraper", settings.scraper_rate_limit_per_minute)
-scraper_auth = require_roles("scraper", "admin")
+scraper_auth = require_roles("scraper", "admin", "dashboard")
 
 # Dashboard endpoints: API key protection (Phase 0)
 dashboard_auth = require_roles("dashboard", "admin")
