@@ -72,7 +72,16 @@ def node_split_into_individual_profiles(webhook_payload: Dict[str, Any]) -> List
     Receives the webhook POST payload from the scraper callback and returns
     the flat list of individual profile dicts.
     """
-    data = webhook_payload.get("body", {}).get("data", [])
+    if not webhook_payload:
+        data = []
+    elif "body" in webhook_payload and isinstance(webhook_payload["body"], dict):
+        data = webhook_payload["body"].get("data", [])
+    else:
+        data = webhook_payload.get("data", [])
+    
+    if not data and isinstance(webhook_payload, list):
+        data = webhook_payload
+
     if not isinstance(data, list):
         data = [data]
     logger.info("Split %d profiles from webhook payload.", len(data))
