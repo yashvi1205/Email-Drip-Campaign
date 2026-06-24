@@ -73,6 +73,15 @@ def _build_gmail_service(credentials_json: Optional[str] = None):
         raise EnvironmentError(
             "Set GMAIL_OAUTH_CREDENTIALS_PATH to a valid OAuth2 token JSON file."
         )
+    
+    # Fallback to local files if path doesn't exist (e.g., Windows path inside Linux container)
+    if not os.path.exists(creds_path):
+        basename = os.path.basename(creds_path)
+        for fallback in [basename, os.path.join("/app", basename), os.path.join(".", basename)]:
+            if os.path.exists(fallback):
+                creds_path = fallback
+                break
+
     creds = Credentials.from_authorized_user_file(creds_path)
     service = build("gmail", "v1", credentials=creds)
     return service
