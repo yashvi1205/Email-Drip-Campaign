@@ -37,13 +37,19 @@ from database.db import SessionLocal
 from database.models import Event
 from app.integrations.google_sheets import get_profile_urls
 
+# DB imports are critical — always use real functions, fail loudly if missing
 try:
     from database.save_data import save_lead, save_event, get_or_create_sequence
+except ImportError as _e:
+    logger.critical("CRITICAL: Could not import database.save_data: %s", _e)
+    def save_lead(**kwargs): return None  # None signals 'skip events' safely
+    def save_event(*args, **kwargs): pass
+    def get_or_create_sequence(*args, **kwargs): return None
+
+# Google Sheets enhanced data is optional — degrade gracefully
+try:
     from app.integrations.google_sheets import save_enhanced_data
-except ImportError:
-    def save_lead(**kwargs): return 1
-    def save_event(**kwargs): pass
-    def get_or_create_sequence(*args, **kwargs): pass
+except (ImportError, Exception):
     def save_enhanced_data(**kwargs): pass
 
 # Networking Configuration (Phase 0)
@@ -721,7 +727,7 @@ BACKEND_URL = os.getenv("BACKEND_INTERNAL_URL", "http://localhost:8000").rstrip(
 API_URL = f"{BACKEND_URL}/api"
 
 # ✅ Webhook Fallback (Phase 4): Use Env if not passed via CLI
-webhook_url = os.getenv("N8N_WEBHOOK_URL")
+webhook_url = os.getenv("SCRAPER_WEBHOOK_URL") or os.getenv("N8N_WEBHOOK_URL")
 
 for arg in sys.argv:
     if "webhook_url=" in arg:

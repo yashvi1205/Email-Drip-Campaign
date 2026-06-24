@@ -76,7 +76,7 @@ def _build_gmail_service(credentials_json: Optional[str] = None):
     
     # Fallback to local files if path doesn't exist (e.g., Windows path inside Linux container)
     if not os.path.exists(creds_path):
-        basename = os.path.basename(creds_path)
+        basename = os.path.basename(creds_path.replace("\\", "/"))
         for fallback in [basename, os.path.join("/app", basename), os.path.join(".", basename)]:
             if os.path.exists(fallback):
                 creds_path = fallback

@@ -107,11 +107,9 @@ def node_read_emails_from_google_sheet(gsheets_client=None) -> List[Dict[str, An
         from app.integrations.google_sheets import get_profile_urls  # noqa: F401
         # The integration already wraps gspread; here we open the sheet directly.
         import gspread
-        from app.integrations.google_sheets import _get_client  # type: ignore[attr-defined]
-        try:
-            client = _get_client()
-        except Exception:
-            logger.warning("Could not build Google Sheets client; returning empty list.")
+        from app.integrations.google_sheets import client
+        if not client:
+            logger.warning("Google Sheets client is not initialized; returning empty list.")
             return []
         sh = client.open_by_key("1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo")
         ws = sh.worksheet("Profiles")
@@ -216,15 +214,16 @@ def node_deduplicate_against_db(
     n8n node: "Deduplicate Against DB"
     Type: Code (JavaScript → Python)
 
-    Rules (exact mirror of n8n JS logic):
+    Rules:
     - Skip profiles with no valid email.
-    - If NOT in DB → mark is_new_lead=True and include.
-    - If IN DB and is_new_lead is explicitly False → include (existing lead update path).
-    - If IN DB and is_new_lead is True or not set → skip (already processed).
+    - If NOT emailed yet (either not in DB or in DB but status is 'active') → mark is_new_lead=True and include.
+    - If emailed (status is SENT, OPENED, etc.) and is_new_lead is explicitly False → include (existing lead update path).
+    - If emailed and is_new_lead is True or not set → skip (already processed).
     """
-    existing_urls = {
+    emailed_urls = {
         (lead.get("linkedin_url") or "").lower()
         for lead in existing_leads
+        if (lead.get("status") or "").upper() not in {"ACTIVE", "UNCONTACTED"}
     }
 
     results: List[Dict[str, Any]] = []
@@ -237,12 +236,12 @@ def node_deduplicate_against_db(
         if not email or "@" not in email or "restricted" in email:
             continue
 
-        already_in_db = url in existing_urls
+        already_emailed = url in emailed_urls
 
-        if not already_in_db:
+        if not already_emailed:
             p["is_new_lead"] = True
             results.append(p)
-        elif already_in_db and p.get("is_new_lead") is False:
+        elif already_emailed and p.get("is_new_lead") is False:
             results.append(p)
 
     logger.info("Dedup: %d profiles ready for processing.", len(results))

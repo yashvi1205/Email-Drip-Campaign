@@ -67,17 +67,28 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
         logger.info("Scraper job %s transition: running (attempt %s)", job.id, job.attempts)
 
         args = [sys.executable, "-u", SCRAPER_SCRIPT]
-        if job.webhook_url:
-            args.append(f"webhook_url={job.webhook_url}")
+        # Resolve webhook URL: prefer job's stored URL, then env var
+        effective_webhook_url = job.webhook_url or os.getenv("SCRAPER_WEBHOOK_URL") or settings.n8n_webhook_url
+        if effective_webhook_url:
+            args.append(f"webhook_url={effective_webhook_url}")
+            logger.info("Scraper job %s: webhook_url=%s", scraper_job_id, effective_webhook_url)
+        else:
+            logger.warning("Scraper job %s: No webhook_url configured — Workflow 1+2 will NOT auto-fire!", scraper_job_id)
+
+        # Build subprocess environment with all needed variables
+        scraper_env = {
+            **os.environ,
+            "BACKEND_INTERNAL_URL": settings.backend_internal_url,
+            "PYTHONNOUSERSITE": "1",
+        }
+        if effective_webhook_url:
+            scraper_env["SCRAPER_WEBHOOK_URL"] = effective_webhook_url
 
         # 2. INTERACTIVE MODE (Phase 3)
         # If not headless, we allow direct terminal access so user can log in manually
         if not settings.headless:
             logger.info("Starting scraper in INTERACTIVE mode (Headless=False)")
-            proc = subprocess.Popen(
-                args,
-                env={**os.environ, "BACKEND_INTERNAL_URL": settings.backend_internal_url}
-            )
+            proc = subprocess.Popen(args, env=scraper_env)
             # No thread needed for queue in interactive mode
             stdout_buf = ["Interactive session - logs in terminal"]
             q = None 
@@ -89,7 +100,7 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
                 text=True,
                 encoding="utf-8",
                 bufsize=1,
-                env={**os.environ, "BACKEND_INTERNAL_URL": settings.backend_internal_url}
+                env=scraper_env,
             )
 
             from queue import Queue, Empty
@@ -170,6 +181,18 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
             })
             session.commit()
             logger.info("Scraper job %s transition: succeeded", scraper_job_id)
+
+            # 🔔 SAFETY NET: Trigger the Workflow 1+2 webhook from the worker
+            # This fires even if the scraper subprocess didn't trigger it itself
+            # (e.g. no new leads, or webhook URL was missing from subprocess env)
+            if effective_webhook_url:
+                import requests as _req
+                try:
+                    logger.info("Scraper job %s: Firing workflow webhook (safety net): %s", scraper_job_id, effective_webhook_url)
+                    _req.post(effective_webhook_url, json={"source": "scraper_worker", "job_id": scraper_job_id}, timeout=15)
+                    logger.info("Scraper job %s: Webhook fired successfully", scraper_job_id)
+                except Exception as _whe:
+                    logger.warning("Scraper job %s: Webhook fire failed (non-fatal): %s", scraper_job_id, _whe)
             return
 
         # 3. FAILURE HANDLING

@@ -111,7 +111,7 @@ def enqueue_scraper_job(webhook_url: Optional[str], source: str) -> Tuple[dict, 
         job = ScraperJob(
             status="queued",
             source=source,
-            webhook_url=webhook_url,
+            webhook_url=webhook_url or os.getenv("SCRAPER_WEBHOOK_URL") or settings.n8n_webhook_url,
             attempts=0,
             max_attempts=settings.scraper_job_max_attempts,
             cancelled=False,

@@ -67,8 +67,20 @@ if client:
             sheet = spreadsheet.worksheet("Profiles")
         except Exception:
             sheet = spreadsheet.sheet1
+    except gspread.exceptions.SpreadsheetNotFound:
+        client_email = info.get("client_email", "your service account email")
+        logger.error(
+            "\n" + "="*80 +
+            f"\nCONFIG ERROR: Google Spreadsheet NOT FOUND (ID: {sheet_id})"
+            f"\nTo fix this:"
+            f"\n1. Verify the GOOGLE_SHEET_ID in your .env file is correct."
+            f"\n2. Open your Google Sheet in the browser."
+            f"\n3. Click 'Share' and add this Service Account email as Editor:"
+            f"\n   -> {client_email}" +
+            "\n" + "="*80
+        )
     except Exception:
-        logger.exception("Failed to open spreadsheet.")
+        logger.exception("Failed to open spreadsheet due to an unexpected error.")
     try:
         enhanced_sheet = client.open("LinkedIn_Enhanced_Data").sheet1
     except Exception:
@@ -76,13 +88,14 @@ if client:
 
 
 def normalize_url(url):
+    import re
     if not url:
         return ""
     url = url.strip().lower()
     # Strip protocol and www for matching purposes
     url = url.replace("https://", "").replace("http://", "").replace("www.", "")
-    # Ensure consistent domain
-    url = url.replace("nl.linkedin.com", "linkedin.com")
+    # Normalize ALL country-specific LinkedIn subdomains (nl., de., fr., es., etc.) to linkedin.com
+    url = re.sub(r"[a-z]{2}\.linkedin\.com", "linkedin.com", url)
     return url.rstrip("/")
 
 

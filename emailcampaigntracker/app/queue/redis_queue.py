@@ -1,12 +1,8 @@
 from __future__ import annotations
-
 from functools import lru_cache
-
 from redis import Redis
 from rq import Queue
-
 from app.core.settings import get_settings
-
 
 @lru_cache(maxsize=1)
 def get_redis_connection() -> Redis:
