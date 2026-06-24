@@ -339,9 +339,17 @@ def node_prepare_email_with_tracking(
     body = parsed["body"]
     tracking_id = _generate_tracking_id("trk")
 
+    from app.core.settings import get_settings
+    try:
+        settings = get_settings()
+        backend_url = settings.local_backend_url or settings.backend_internal_url or BACKEND_URL
+    except Exception:
+        backend_url = BACKEND_URL
+
     email_body_html = _build_email_html(
         body=body,
         tracking_id=tracking_id,
+        backend_url=backend_url,
         cta_label="Book a quick call",
     )
 
@@ -542,7 +550,15 @@ def node_call_backend_sent_endpoint(data: Dict[str, Any]) -> None:
     """
     tracking_id = data.get("tracking_id")
     step = data.get("step_number", 1)
-    url = f"{LOCAL_BACKEND_URL}/api/tracking/sent/{tracking_id}?step={step}"
+    
+    from app.core.settings import get_settings
+    try:
+        settings = get_settings()
+        backend_url = settings.backend_internal_url or LOCAL_BACKEND_URL
+    except Exception:
+        backend_url = LOCAL_BACKEND_URL
+        
+    url = f"{backend_url}/api/tracking/sent/{tracking_id}?step={step}"
     try:
         resp = requests.post(url, timeout=10)
         resp.raise_for_status()
