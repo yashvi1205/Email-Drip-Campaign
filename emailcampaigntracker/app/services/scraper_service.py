@@ -32,11 +32,13 @@ def trigger_scrape(webhook_url: Optional[str] = None, source: str = "unknown") -
     logger.info("scraper_triggered source=%s webhook=%s", source, bool(webhook_url))
     result, job_id = enqueue_scraper_job(webhook_url=webhook_url, source=source)
     if result.get("status") == "started" and job_id is not None:
-        SCRAPER_STATUS["status"] = "running"
-        SCRAPER_STATUS["message"] = f"Scraper started by {source}"
-        SCRAPER_STATUS["timestamp"] = datetime.utcnow().timestamp()
-        SCRAPER_STATUS["new_posts_found"] = 0
-        SCRAPER_STATUS["job_id"] = job_id
+        update_status({
+            "status": "running",
+            "message": f"Scraper started by {source}",
+            "new_posts_found": 0,
+            "job_id": job_id,
+            "error": None
+        })
     return result
 
 
