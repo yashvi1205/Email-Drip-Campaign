@@ -14,6 +14,7 @@ from app.api.routes.leads import router as leads_router
 from app.api.routes.profiles import router as profiles_router
 from app.api.routes.scraper import router as scraper_router
 from app.api.routes.tracking import router as tracking_router
+from app.api.routes.webhook import router as webhook_router
 from app.core.logging import setup_logging, get_logger
 from app.core.auth import require_roles
 from app.core.rate_limit import rate_limit
@@ -72,11 +73,23 @@ async def startup_event():
     logger.info("Database Host: %s", urlparse(settings.database_url).hostname)
     logger.info("Redis Status: %s", "Enabled" if settings.redis_url else "Disabled")
     logger.info("CORS Origins: %s", ", ".join(settings.cors_allow_origins))
-    
-    # Internal callback validation
     logger.info("Internal Backend URL: %s", settings.backend_internal_url)
-    if settings.n8n_webhook_url:
-        logger.info("n8n Webhook Target: %s", settings.n8n_webhook_url)
+
+    # ── Workflow 3: Follow-up scheduler (every 5 days at 09:00) ──────────────
+    try:
+        from app.workflows.runner import start_followup_scheduler
+        start_followup_scheduler()
+        logger.info("Workflow 3 follow-up scheduler started.")
+    except Exception as exc:
+        logger.warning("Workflow 3 scheduler could not start: %s", exc)
+
+    # ── Workflow 4: Gmail reply detection thread (every 60 s) ────────────────
+    try:
+        from app.workflows.runner import start_reply_detection_thread
+        start_reply_detection_thread()
+        logger.info("Workflow 4 Gmail reply detection thread started.")
+    except Exception as exc:
+        logger.warning("Workflow 4 reply detection could not start: %s", exc)
 
 setup_prometheus(app)
 if settings.otel_enabled and settings.otel_exporter_otlp_endpoint:
@@ -115,6 +128,9 @@ app.include_router(
     scraper_router,
     dependencies=[Depends(scraper_rate_limit), Depends(scraper_auth)]
 )
+
+# Workflow webhook — no auth needed (scraper posts here after finishing)
+app.include_router(webhook_router)
 
 
 

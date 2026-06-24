@@ -8,6 +8,7 @@ gspread
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+google-api-python-client
 requests
 deep-translator
 httpx
@@ -24,3 +25,4 @@ prometheus-fastapi-instrumentator
 bcrypt
 python-json-logger
 email-validator
+apscheduler
