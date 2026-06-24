@@ -210,11 +210,13 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
 
 
 from rq.worker import SimpleWorker
+import uuid
 
 def main() -> None:
     redis_conn = get_redis_connection()
     queue = get_scraper_queue()
-    worker = SimpleWorker([queue], connection=redis_conn, name=f"scraper-worker-{os.getpid()}")
+    unique_suffix = uuid.uuid4().hex[:6]
+    worker = SimpleWorker([queue], connection=redis_conn, name=f"scraper-worker-{os.getpid()}-{unique_suffix}")
     # Force a very high timeout for the worker itself on Windows
     worker.work(logging_level="INFO")
 
