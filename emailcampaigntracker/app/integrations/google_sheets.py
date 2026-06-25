@@ -6,6 +6,7 @@ import threading
 import logging
 from dotenv import load_dotenv
 
+from app.core.utils import normalize_linkedin_url
 # Load environment variables from .env file (local/dev convenience)
 load_dotenv()
 
@@ -119,15 +120,7 @@ if client:
 
 
 def normalize_url(url):
-    import re
-    if not url:
-        return ""
-    url = url.strip().lower()
-    # Strip protocol and www for matching purposes
-    url = url.replace("https://", "").replace("http://", "").replace("www.", "")
-    # Normalize ALL country-specific LinkedIn subdomains (nl., de., fr., es., etc.) to linkedin.com
-    url = re.sub(r"[a-z]{2}\.linkedin\.com", "linkedin.com", url)
-    return url.rstrip("/")
+    return normalize_linkedin_url(url)
 
 
 def save_to_sheet(

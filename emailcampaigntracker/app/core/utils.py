@@ -9,8 +9,7 @@ def normalize_linkedin_url(url):
     url = url.replace("https://", "").replace("http://", "")
     
     # Standardize all subdomains (nl., in., www., etc) to just 'linkedin.com'
-    url = re.sub(r'^[a-z]{2}\.linkedin\.com', 'linkedin.com', url)
-    url = url.replace("www.linkedin.com", "linkedin.com")
+    url = re.sub(r'^[a-z0-9]+\.linkedin\.com', 'linkedin.com', url)
     
     # Remove trailing slash and parameters
     return url.split('?')[0].rstrip('/')

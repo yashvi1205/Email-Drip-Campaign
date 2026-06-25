@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from database.models import EmailSequence, Event, Lead
 
 from app.core.tracking_security import validate_tracking_signature
+from app.core.utils import normalize_linkedin_url as normalize_url
 from database.db import get_db
 
 logger = logging.getLogger("tracking")
@@ -50,15 +51,7 @@ def _is_bot_request(request: Request) -> bool:
     return any(bot in ua for bot in BOT_USER_AGENTS)
 
 
-def normalize_url(url):
-    if not url:
-        return ""
-    url = url.strip().lower()
-    # Strip protocol and www for matching purposes
-    url = url.replace("https://", "").replace("http://", "").replace("www.", "")
-    # Ensure consistent domain
-    url = url.replace("nl.linkedin.com", "linkedin.com")
-    return url.rstrip("/")
+
 
 
 def sync_sheet_status_async(sync_data):
