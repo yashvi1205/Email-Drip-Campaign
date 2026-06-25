@@ -50,10 +50,8 @@ scraper_status.json
 # IDE
 .idea/
 .vscode/
-# Corrupted/Ghost folders
-C*
-C:*
-C?*
-C\357\200\272*
+# Corrupted/Ghost folders (Avoid using broad wildcards like C* which ignore all files starting with C/c)
+/C:/
+/C\357\200\272/
 
 cookies.json
