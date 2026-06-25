@@ -26,11 +26,14 @@ PIXEL_GIF = (
 
 # User-agent substrings that indicate automated/bot requests (not real humans)
 # These are filtered out to prevent false-positive open/click events.
+# NOTE: googleimageproxy is intentionally NOT listed here.
+#   Gmail always fetches tracking pixels through its image proxy (googleimageproxy).
+#   If we filter it out we will NEVER record an open for Gmail users.
+#   The idempotency check (10-second window) is enough to prevent rapid duplicates.
 BOT_USER_AGENTS = [
     "python-httpx",       # Our own Render→local forwarding client
     "python-requests",    # Any internal requests library call
-    "googleimageproxy",   # Gmail image proxy
-    "googlebot",          # Google crawler
+    "googlebot",          # Google search crawler (different from Gmail proxy)
     "facebookexternalhit",# Facebook link scanner
     "twitterbot",         # Twitter link scanner
     "linkedinbot",        # LinkedIn link scanner
