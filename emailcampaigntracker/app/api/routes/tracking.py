@@ -6,7 +6,7 @@ import os
 import threading
 
 import httpx
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -198,6 +198,7 @@ def log_event(
 async def track_open(
     tracking_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     exp: int | None = Query(default=None),
     sig: str | None = Query(default=None),
     db: Session = Depends(get_db),
@@ -205,47 +206,42 @@ async def track_open(
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
 
     # --- Bot/Scanner Filter ---
-    # Skip logging if this is an automated request (our own forwarder, Gmail proxy, scanners)
-    # This prevents false-positive "opened" statuses.
     if _is_bot_request(request):
         ua = request.headers.get("user-agent", "Unknown")
-        logger.debug("[OPEN] Skipping bot/scanner request. UA=%s tracking_id=%s", ua, tracking_id)
-        # Still return the pixel so the email renders correctly
+        logger.info("[OPEN] Filtered bot/scanner. UA=%s tracking_id=%s", ua, tracking_id)
         return Response(content=PIXEL_GIF, media_type="image/gif", headers={
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
         })
 
-    logger.info("[OPEN] Human open detected. tracking_id=%s", tracking_id)
+    logger.info("[OPEN] Human open detected. tracking_id=%s UA=%s", tracking_id,
+                request.headers.get("user-agent", "unknown"))
     log_event(db, tracking_id, "open", request)
 
     # --- Render → Local Forwarding ---
-    # Only forward if running on Render (RENDER env var set) AND a local backend URL is configured.
-    # This syncs the event back to the local dev database.
-    local_url = os.getenv("LOCAL_BACKEND_URL")
+    # Forward the open event to the local backend via the untun tunnel.
+    # Uses BackgroundTasks so the forward runs after the response is sent
+    # (reliable, unlike asyncio.create_task which can be dropped).
+    local_url = os.getenv("LOCAL_BACKEND_URL", "").rstrip("/")
     if os.getenv("RENDER") and local_url:
-        async def forward():
+        def _forward_open():
             try:
-                async with httpx.AsyncClient() as client:
-                    # Use /open/ path — the local backend will also run the bot filter
-                    # so forwarding from Render (with httpx UA) will be skipped locally,
-                    # preventing a double-count. Instead use a special internal path.
-                    await client.get(
-                        f"{local_url}/api/tracking/open/{tracking_id}",
-                        timeout=2.0,
-                        headers={"X-Forwarded-From-Render": "1"},
-                    )
-            except Exception:
-                logger.debug("Forwarding open event to local failed", exc_info=True)
-        asyncio.create_task(forward())
+                resp = httpx.get(
+                    f"{local_url}/api/tracking/open/{tracking_id}",
+                    timeout=15.0,  # untun tunnels need more time than 2s
+                    headers={"X-Forwarded-From-Render": "1"},
+                )
+                logger.info("[OPEN] Forwarded to local. status=%s tracking_id=%s", resp.status_code, tracking_id)
+            except Exception as exc:
+                logger.warning("[OPEN] Forward to local FAILED: %s tracking_id=%s LOCAL_BACKEND_URL=%s",
+                               exc, tracking_id, local_url)
+        background_tasks.add_task(_forward_open)
 
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0",
-        "ngrok-skip-browser-warning": "1",
         "X-Content-Type-Options": "nosniff",
-        "Content-Disposition": "inline; filename=logo.png",
     }
     return Response(content=PIXEL_GIF, media_type="image/gif", headers=headers)
 
@@ -254,6 +250,7 @@ async def track_open(
 async def track_click(
     tracking_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     url: str = Query(min_length=1),
     exp: int | None = Query(default=None),
     sig: str | None = Query(default=None),
@@ -262,30 +259,29 @@ async def track_click(
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
 
     # --- Bot/Scanner Filter ---
-    # Skip click logging if this is a self-forwarding / automated request.
-    # Real clicks always come from a browser (not python-httpx/curl).
     if _is_bot_request(request):
         ua = request.headers.get("user-agent", "Unknown")
-        logger.debug("[CLICK] Skipping bot/scanner request. UA=%s tracking_id=%s", ua, tracking_id)
+        logger.info("[CLICK] Filtered bot/scanner. UA=%s tracking_id=%s", ua, tracking_id)
         return RedirectResponse(url=url)
 
     logger.info("[CLICK] Human click detected. tracking_id=%s url=%s", tracking_id, url)
     log_event(db, tracking_id, "click", request, {"target_url": url})
 
     # --- Render → Local Forwarding ---
-    local_url = os.getenv("LOCAL_BACKEND_URL")
+    local_url = os.getenv("LOCAL_BACKEND_URL", "").rstrip("/")
     if os.getenv("RENDER") and local_url:
-        async def forward():
+        def _forward_click():
             try:
-                async with httpx.AsyncClient() as client:
-                    await client.get(
-                        f"{local_url}/api/tracking/click/{tracking_id}?url={url}",
-                        timeout=2.0,
-                        headers={"X-Forwarded-From-Render": "1"},
-                    )
-            except Exception:
-                logger.debug("Forwarding click event to local failed", exc_info=True)
-        asyncio.create_task(forward())
+                resp = httpx.get(
+                    f"{local_url}/api/tracking/click/{tracking_id}?url={url}",
+                    timeout=15.0,
+                    headers={"X-Forwarded-From-Render": "1"},
+                )
+                logger.info("[CLICK] Forwarded to local. status=%s tracking_id=%s", resp.status_code, tracking_id)
+            except Exception as exc:
+                logger.warning("[CLICK] Forward to local FAILED: %s tracking_id=%s LOCAL_BACKEND_URL=%s",
+                               exc, tracking_id, local_url)
+        background_tasks.add_task(_forward_click)
 
     return RedirectResponse(url=url)
 
