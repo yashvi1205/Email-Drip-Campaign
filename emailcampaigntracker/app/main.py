@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy import text
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.config import router as config_router
@@ -32,6 +33,7 @@ from app.middleware.request_context import (
     RequestLoggingMiddleware,
 )
 from fastapi import HTTPException
+from database.db import engine
 
 # Load environment variables (local/dev convenience). Secrets still come from environment variables.
 load_dotenv()
@@ -75,6 +77,7 @@ async def startup_event():
     logger.info("Redis Status: %s", "Enabled" if settings.redis_url else "Disabled")
     logger.info("CORS Origins: %s", ", ".join(settings.cors_allow_origins))
     logger.info("Internal Backend URL: %s", settings.backend_internal_url)
+    _ensure_email_sequence_tracking_columns()
 
     # ── Workflow 3: Follow-up scheduler (every 5 days at 09:00) ──────────────
     try:
@@ -91,6 +94,24 @@ async def startup_event():
         logger.info("Workflow 4 Gmail reply detection thread started.")
     except Exception as exc:
         logger.warning("Workflow 4 reply detection could not start: %s", exc)
+
+
+def _ensure_email_sequence_tracking_columns() -> None:
+    # Keep startup schema-compatible for environments where migrations were skipped.
+    statements = (
+        "ALTER TABLE email_sequences ADD COLUMN IF NOT EXISTS open_count INTEGER DEFAULT 0",
+        "ALTER TABLE email_sequences ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0",
+        "ALTER TABLE email_sequences ADD COLUMN IF NOT EXISTS last_opened TIMESTAMP",
+        "ALTER TABLE email_sequences ADD COLUMN IF NOT EXISTS last_clicked TIMESTAMP",
+        "ALTER TABLE email_sequences ADD COLUMN IF NOT EXISTS last_replied TIMESTAMP",
+    )
+    try:
+        with engine.begin() as connection:
+            for statement in statements:
+                connection.execute(text(statement))
+        logger.info("Tracking columns check complete for email_sequences.")
+    except Exception as exc:
+        logger.warning("Tracking columns check failed: %s", exc)
 
 setup_prometheus(app)
 if settings.otel_enabled and settings.otel_exporter_otlp_endpoint:
@@ -133,10 +154,3 @@ app.include_router(
 
 # Workflow webhook — no auth needed (scraper posts here after finishing)
 app.include_router(webhook_router)
-
-
-
-
-
-
-
