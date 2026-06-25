@@ -1,3 +1,12 @@
+import os
+import sys
+from dotenv import load_dotenv
+
+# Add parent directory to path so we can import app modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+load_dotenv()
+
 import requests
 from database.db import SessionLocal
 from database.models import Lead, Event

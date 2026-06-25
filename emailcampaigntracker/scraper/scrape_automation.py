@@ -636,7 +636,21 @@ def scrape_profile(driver, profile_url):
 
         activity_list.append(f"{pref}: {translated_text[:50]} ({act.get('post_time','')})")
     
-    # 🔁 DEDUPLICATION LOGIC
+    # 🔁 DEDUPLICATION LOGIC & OUTREACH STATUS CHECK
+    db = SessionLocal()
+    lead_status = "active"
+    try:
+        from database.models import Lead
+        lead_obj = db.query(Lead).filter(Lead.id == lead_id).first()
+        if lead_obj:
+            lead_status = (lead_obj.status or "active").lower()
+    except Exception as e:
+        logger.warning("Could not query lead status: %s", e)
+    finally:
+        db.close()
+
+    needs_outreach = is_new_lead or lead_status in ["active", "uncontacted"]
+
     if latest_item:
         current_content = latest_item.get("text", "")
         current_hash = get_content_hash(current_content)
@@ -652,9 +666,10 @@ def scrape_profile(driver, profile_url):
             if last_event and last_event.additional_data and "content_hash" in last_event.additional_data:
                 last_hash = last_event.additional_data["content_hash"]
 
-            if current_hash != last_hash:
-                logger.info("New activity detected for %s", details.get("full_name"))
+            has_new_activity = current_hash != last_hash
 
+            if has_new_activity:
+                logger.info("New activity detected for %s", details.get("full_name"))
                 try:
                     save_event(lead_id, "interaction_summary", {
                         "content_hash": current_hash,
@@ -681,6 +696,9 @@ def scrape_profile(driver, profile_url):
                     recent_activity="\n".join(activity_list)
                 )
 
+            if has_new_activity or needs_outreach:
+                if not has_new_activity:
+                    logger.info("No new activity, but pending lead needs outreach: %s", details.get("full_name"))
                 return {
                     "name": details.get("full_name"),
                     "headline": details.get("headline"),
@@ -694,7 +712,6 @@ def scrape_profile(driver, profile_url):
                     "interaction_type": latest_item.get("interaction_type"),
                     "latest_content": current_content
                 }
-
             else:
                 logger.info("Duplicate: no new activity for %s", details.get("full_name"))
                 try:
@@ -706,10 +723,27 @@ def scrape_profile(driver, profile_url):
             db.close()
 
     else:
+        # No activity at all
         try:
             save_event(lead_id, "profile_scraped", {"status": "no_activity_found"})
         except Exception as e:
             logger.warning("Could not save profile_scraped event: %s", e)
+
+        if needs_outreach:
+            logger.info("No activity found, but pending lead needs outreach: %s", details.get("full_name"))
+            return {
+                "name": details.get("full_name"),
+                "headline": details.get("headline"),
+                "company": details.get("company"),
+                "role": details.get("role"),
+                "about": details.get("about"),
+                "work_description": details.get("work_description"),
+                "email": details.get("email"),
+                "url": profile_url,
+                "is_new_lead": is_new_lead,
+                "interaction_type": "None",
+                "latest_content": ""
+            }
         return None
 
 

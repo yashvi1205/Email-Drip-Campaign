@@ -289,7 +289,9 @@ def _call_gemini(prompt: str, api_key: str) -> Dict[str, Any]:
     """
     Direct REST call to the Gemini generateContent API.
     Mirrors what the n8n googleGemini node does internally.
+    Includes retry logic with backoff for transient errors (e.g. 503).
     """
+    import time
     # Ensure model name has the required 'models/' prefix for the REST API
     model = GEMINI_MODEL
     if not model.startswith("models/"):
@@ -301,14 +303,39 @@ def _call_gemini(prompt: str, api_key: str) -> Dict[str, Any]:
             {"parts": [{"text": prompt}]}
         ]
     }
-    resp = requests.post(url, json=payload, timeout=60)
-    resp.raise_for_status()
-    data = resp.json()
-    # Normalise to what n8n returns: {content: {parts: [...]}}
-    candidates = data.get("candidates", [])
-    if candidates:
-        content = candidates[0].get("content", {})
-        return {"content": content}
+    
+    max_retries = 3
+    backoff = 2
+    
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(url, json=payload, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            # Normalise to what n8n returns: {content: {parts: [...]}}
+            candidates = data.get("candidates", [])
+            if candidates:
+                content = candidates[0].get("content", {})
+                return {"content": content}
+            return {"content": {"parts": []}}
+        except requests.exceptions.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else 500
+            if status_code in [429, 500, 502, 503, 504] and attempt < max_retries - 1:
+                sleep_time = backoff ** (attempt + 1)
+                logger.warning("Gemini API returned transient status %s. Retrying in %d seconds (attempt %d/%d)...", 
+                               status_code, sleep_time, attempt + 1, max_retries)
+                time.sleep(sleep_time)
+            else:
+                raise
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            if attempt < max_retries - 1:
+                sleep_time = backoff ** (attempt + 1)
+                logger.warning("Gemini API request failed due to connection/timeout: %s. Retrying in %d seconds (attempt %d/%d)...", 
+                               exc, sleep_time, attempt + 1, max_retries)
+                time.sleep(sleep_time)
+            else:
+                raise
+                
     return {"content": {"parts": []}}
 
 

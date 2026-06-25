@@ -23,6 +23,32 @@ PIXEL_GIF = (
     b"\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
 )
 
+# User-agent substrings that indicate automated/bot requests (not real humans)
+# These are filtered out to prevent false-positive open/click events.
+BOT_USER_AGENTS = [
+    "python-httpx",       # Our own Render→local forwarding client
+    "python-requests",    # Any internal requests library call
+    "googleimageproxy",   # Gmail image proxy
+    "googlebot",          # Google crawler
+    "facebookexternalhit",# Facebook link scanner
+    "twitterbot",         # Twitter link scanner
+    "linkedinbot",        # LinkedIn link scanner
+    "slackbot",           # Slack unfurl scanner
+    "msnbot",             # Bing bot
+    "spider",             # Generic crawlers
+    "curl/",              # curl commands (smoke tests)
+]
+
+def _is_bot_request(request: Request) -> bool:
+    """Return True if the request looks like a bot/scanner, not a real human."""
+    if not request:
+        return False
+    # If the request is forwarded from our own Render server, it's a real event, not a bot
+    if request.headers.get("x-forwarded-from-render") == "1":
+        return False
+    ua = request.headers.get("user-agent", "").lower()
+    return any(bot in ua for bot in BOT_USER_AGENTS)
+
 
 def normalize_url(url):
     if not url:
@@ -180,22 +206,41 @@ async def track_open(
     sig: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    print(f"\n[DEBUG] OPEN REQUEST RECEIVED! ID={tracking_id}")
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
-    # if exp is not None and sig is not None:
-    #     validate_tracking_signature(tracking_id, exp, sig)
 
-    # Log all opens, including those through proxies, to ensure reliability
+    # --- Bot/Scanner Filter ---
+    # Skip logging if this is an automated request (our own forwarder, Gmail proxy, scanners)
+    # This prevents false-positive "opened" statuses.
+    if _is_bot_request(request):
+        ua = request.headers.get("user-agent", "Unknown")
+        logger.debug("[OPEN] Skipping bot/scanner request. UA=%s tracking_id=%s", ua, tracking_id)
+        # Still return the pixel so the email renders correctly
+        return Response(content=PIXEL_GIF, media_type="image/gif", headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+        })
+
+    logger.info("[OPEN] Human open detected. tracking_id=%s", tracking_id)
     log_event(db, tracking_id, "open", request)
 
+    # --- Render → Local Forwarding ---
+    # Only forward if running on Render (RENDER env var set) AND a local backend URL is configured.
+    # This syncs the event back to the local dev database.
     local_url = os.getenv("LOCAL_BACKEND_URL")
     if os.getenv("RENDER") and local_url:
         async def forward():
             try:
                 async with httpx.AsyncClient() as client:
-                    await client.get(f"{local_url}/api/tracking/open/{tracking_id}", timeout=1.0)
+                    # Use /open/ path — the local backend will also run the bot filter
+                    # so forwarding from Render (with httpx UA) will be skipped locally,
+                    # preventing a double-count. Instead use a special internal path.
+                    await client.get(
+                        f"{local_url}/api/tracking/open/{tracking_id}",
+                        timeout=2.0,
+                        headers={"X-Forwarded-From-Render": "1"},
+                    )
             except Exception:
-                logger.debug("Forwarding open event failed", exc_info=True)
+                logger.debug("Forwarding open event to local failed", exc_info=True)
         asyncio.create_task(forward())
 
     headers = {
@@ -218,21 +263,32 @@ async def track_click(
     sig: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    print(f"\n[DEBUG] CLICK DETECTED! ID={tracking_id} URL={url}")
     tracking_id = tracking_id.replace(".png", "").replace(".gif", "").replace("logo_", "")
-    # if exp is not None and sig is not None:
-    #     validate_tracking_signature(tracking_id, exp, sig)
+
+    # --- Bot/Scanner Filter ---
+    # Skip click logging if this is a self-forwarding / automated request.
+    # Real clicks always come from a browser (not python-httpx/curl).
+    if _is_bot_request(request):
+        ua = request.headers.get("user-agent", "Unknown")
+        logger.debug("[CLICK] Skipping bot/scanner request. UA=%s tracking_id=%s", ua, tracking_id)
+        return RedirectResponse(url=url)
+
+    logger.info("[CLICK] Human click detected. tracking_id=%s url=%s", tracking_id, url)
     log_event(db, tracking_id, "click", request, {"target_url": url})
-    
-    # FORWARDING: Only forward if we are on Render
+
+    # --- Render → Local Forwarding ---
     local_url = os.getenv("LOCAL_BACKEND_URL")
     if os.getenv("RENDER") and local_url:
         async def forward():
             try:
                 async with httpx.AsyncClient() as client:
-                    await client.get(f"{local_url}/api/tracking/click/{tracking_id}?url={url}", timeout=1.0)
+                    await client.get(
+                        f"{local_url}/api/tracking/click/{tracking_id}?url={url}",
+                        timeout=2.0,
+                        headers={"X-Forwarded-From-Render": "1"},
+                    )
             except Exception:
-                logger.debug("Forwarding click event failed", exc_info=True)
+                logger.debug("Forwarding click event to local failed", exc_info=True)
         asyncio.create_task(forward())
 
     return RedirectResponse(url=url)
