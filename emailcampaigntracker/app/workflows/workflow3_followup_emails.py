@@ -216,12 +216,13 @@ def node_prepare_followup_with_tracking(
 
     tracking_id = _generate_tracking_id("trk_fu")
 
+    import os
     from app.core.settings import get_settings
     try:
         settings = get_settings()
-        backend_url = settings.local_backend_url or settings.backend_internal_url or BACKEND_URL
+        backend_url = os.getenv("TRACKING_BASE_URL") or settings.local_backend_url or BACKEND_URL
     except Exception:
-        backend_url = BACKEND_URL
+        backend_url = os.getenv("TRACKING_BASE_URL") or BACKEND_URL
 
     email_body_html = _build_email_html(
         body=parsed["body"],

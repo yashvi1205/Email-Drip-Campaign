@@ -113,7 +113,13 @@ def node_http_request_reply(tracking_id: str) -> None:
 
     Notifies the backend that this tracking_id received a reply.
     """
-    url = f"{LOCAL_BACKEND_URL}/api/tracking/reply/{tracking_id}"
+    from app.core.settings import get_settings
+    try:
+        settings = get_settings()
+        backend_url = settings.backend_internal_url or LOCAL_BACKEND_URL
+    except Exception:
+        backend_url = LOCAL_BACKEND_URL
+    url = f"{backend_url}/api/tracking/reply/{tracking_id}"
     try:
         resp = requests.post(url, timeout=10)
         resp.raise_for_status()
