@@ -467,7 +467,14 @@ def scrape_profile_details(driver, profile_url):
     # 3. ZONE C: IDENTITY & SYNTHESIS
     logger.info("Capturing Final Identity sections...")
     if not ("linkedin.com/in/" in driver.current_url and "/overlay/" not in driver.current_url):
-        driver.get(profile_url)
+        # Retry driver.get up to 3 times — LinkedIn sometimes stalls even with eager strategy
+        for _nav_attempt in range(3):
+            try:
+                driver.get(profile_url)
+                break
+            except Exception as _nav_err:
+                logger.warning("[SCRAPER] driver.get stalled (attempt %d/3): %s", _nav_attempt + 1, _nav_err)
+                time.sleep(5 * (_nav_attempt + 1))
         time.sleep(12)
 
     # About (Scroll-and-Capture v14)
@@ -794,6 +801,8 @@ def run_scraper():
             raise RuntimeError(f"Lock active for {settings.linkedin_profile_name}")
 
         driver = create_driver()
+        # Set a generous page-load timeout; 'eager' strategy makes this a safety net.
+        driver.set_page_load_timeout(180)
         try:
             # --- JSON COOKIE BRIDGE ---
             cookie_path = os.path.join(os.getcwd(), "cookies.json")

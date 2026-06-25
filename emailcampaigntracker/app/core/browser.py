@@ -82,6 +82,11 @@ def get_browser_options() -> Options:
     # Anti-detection: Real user agent (optional but safer)
     options.add_argument("--lang=en-US")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+    # 'eager' = return as soon as DOMContentLoaded fires, don't wait for all
+    # images / analytics / ad scripts to finish. This prevents LinkedIn's heavy
+    # third-party scripts from causing the 120s Selenium read timeout.
+    options.page_load_strategy = "eager"
     
     return options
 
