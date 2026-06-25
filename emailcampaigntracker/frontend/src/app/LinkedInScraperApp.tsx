@@ -37,7 +37,8 @@ export default function LinkedInScraperApp() {
 
   const { toasts, addToast } = useToasts();
 
-  const [scraping, setScraping] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<string | number | null>(null);
+  const scraping = activeJobId !== null;
   const [filter, setFilter] = useState('all');
 
   const dashboardQuery = useQuery<DashboardData>({
@@ -57,8 +58,9 @@ export default function LinkedInScraperApp() {
 
   useScraperStatusPolling({
     enabled: scraping,
+    activeJobId,
     addToast,
-    setScraping,
+    onFinished: () => setActiveJobId(null),
   });
 
   void motion;
@@ -91,10 +93,17 @@ export default function LinkedInScraperApp() {
 
   const triggerScrapeNow = async () => {
     if (scraping) return;
-    setScraping(true);
+    setActiveJobId('pending');
     addToast('Starting LinkedIn Scraper...', 'info');
     try {
-      await triggerScrape();
+      const res = await triggerScrape();
+      const data = (res as any).data || res;
+      const jobId = data?.job_id;
+      if (jobId) {
+        setActiveJobId(jobId);
+      } else {
+        setActiveJobId('active');
+      }
       addToast('Scraper is now running in the background', 'success');
     } catch (error) {
       const apiError = error as any;
@@ -105,7 +114,7 @@ export default function LinkedInScraperApp() {
           : 'Failed to start scraper',
         'error'
       );
-      setScraping(false);
+      setActiveJobId(null);
     }
   };
 

@@ -72,33 +72,33 @@ services:
     networks:
       - emailcampaign_network
 
-  # Scraper Worker
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-    container_name: emailcampaign_worker
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://postgres:121205@host.docker.internal:5432/drip_campaign
-      REDIS_URL: redis://redis:6379/0
-      APP_ENV: development
-      HEADLESS: "true"
-      CHROME_BIN: /usr/bin/chromium
-      BACKEND_INTERNAL_URL: http://192.168.20.128:8000
-      CHROME_PROFILE_BASE_PATH: /app/data/browser/Default
-      API_KEY: admin-key-123
-      SCRAPER_API_KEY: scraper-key-789
-      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
-    volumes:
-      - .:/app
-      - /c/selenium-profile:/app/data/browser
-    networks:
-      - emailcampaign_network
+  # Scraper Worker (Commented out because we run the scraper worker locally on Windows to support Chrome with cookies)
+  # worker:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.worker
+  #   container_name: emailcampaign_worker
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     DATABASE_URL: postgresql://postgres:121205@host.docker.internal:5432/drip_campaign
+  #     REDIS_URL: redis://redis:6379/0
+  #     APP_ENV: development
+  #     HEADLESS: "true"
+  #     CHROME_BIN: /usr/bin/chromium
+  #     BACKEND_INTERNAL_URL: http://192.168.20.128:8000
+  #     CHROME_PROFILE_BASE_PATH: /app/data/browser/Default
+  #     API_KEY: admin-key-123
+  #     SCRAPER_API_KEY: scraper-key-789
+  #     N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL}
+  #   volumes:
+  #     - .:/app
+  #     - /c/selenium-profile:/app/data/browser
+  #   networks:
+  #     - emailcampaign_network
 
   # Frontend (optional, for full-stack testing)
   frontend:

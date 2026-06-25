@@ -50,8 +50,10 @@ def update_status(data: dict) -> dict:
     except Exception:
         persisted = {}
 
+    import time
+
     persisted.update(data)
-    persisted["timestamp"] = datetime.utcnow().timestamp()
+    persisted["timestamp"] = time.time()
 
     # Keep the in-memory dict in sync for backward compatibility.
     SCRAPER_STATUS = persisted  # type: ignore[assignment]

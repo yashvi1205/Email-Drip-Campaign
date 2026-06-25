@@ -4,8 +4,9 @@ import { fetchScraperStatus } from '@services/api';
 
 interface UseScraperStatusPollingProps {
   enabled: boolean;
+  activeJobId: string | number | null;
   addToast: (message: string, type: 'info' | 'success' | 'error') => void;
-  setScraping: (value: boolean) => void;
+  onFinished: () => void;
 }
 
 interface ScraperStatusData {
@@ -13,12 +14,14 @@ interface ScraperStatusData {
   timestamp?: number | string;
   new_posts_found?: number;
   error?: string;
+  job_id?: number;
 }
 
 export function useScraperStatusPolling({
   enabled,
+  activeJobId,
   addToast,
-  setScraping,
+  onFinished,
 }: UseScraperStatusPollingProps) {
   const queryClient = useQueryClient();
 
@@ -39,13 +42,20 @@ export function useScraperStatusPolling({
 
     if (!statusData || !statusData.status) return;
 
+    // Guard: ignore status reports that belong to old jobs
+    if (activeJobId && activeJobId !== 'pending' && activeJobId !== 'active') {
+      if (statusData.job_id && statusData.job_id < (activeJobId as number)) {
+        return;
+      }
+    }
+
     const { status, timestamp, new_posts_found, error } = statusData;
     const now = Date.now() / 1000;
     const tsNum = typeof timestamp === 'number' ? timestamp : Number(timestamp || 0);
     const isStale = status === 'running' && tsNum && now - tsNum > 45;
 
     if (status === 'completed' || isStale || status === 'error') {
-      queueMicrotask(() => setScraping(false));
+      queueMicrotask(() => onFinished());
 
       if (status === 'completed') {
         if (new_posts_found === 0) {
@@ -64,7 +74,7 @@ export function useScraperStatusPolling({
 
       queryClient.invalidateQueries({ queryKey: ['dashboardData'] });
     }
-  }, [enabled, scraperStatusQuery.data, addToast, setScraping, queryClient]);
+  }, [enabled, activeJobId, scraperStatusQuery.data, addToast, onFinished, queryClient]);
 
   return scraperStatusQuery;
 }
