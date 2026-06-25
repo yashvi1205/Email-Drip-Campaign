@@ -6,7 +6,7 @@ import {
   Send,
   Users,
 } from 'lucide-react';
-import { DripStats } from '@types/index';
+import { DripStats } from '@apptypes/index';
 
 type FilterType = 'all' | 'scraped' | 'opened' | 'clicked' | 'replied';
 

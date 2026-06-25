@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { Profile, DripStats } from '@types/index';
+import { Profile, DripStats } from '@apptypes/index';
 
 const MonitorPage = lazy(
   () => import('../../features/socialMonitor/MonitorPage')

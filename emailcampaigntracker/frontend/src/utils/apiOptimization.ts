@@ -1,9 +1,6 @@
-"""API request/response optimization utilities
 
-Reduces payload sizes and optimizes API communication.
-"""
 
-import { Profile, DripStats } from '@types/index';
+import { Profile, DripStats } from '@apptypes/index';
 
 /**
  * Deduplicate array items by property

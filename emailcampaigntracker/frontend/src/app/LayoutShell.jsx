@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -14,9 +14,25 @@ import {
   Clock,
   MessageSquare,
 } from 'lucide-react';
+import { API_BASE_URL } from '../services/api/apiConfig';
 
 export default function LayoutShell({ children, profiles, view, loading, lastUpdated, onRefresh, onRunScraper, scraping }) {
   const navigate = useNavigate();
+  const [sheetUrl, setSheetUrl] = useState(null);
+
+  useEffect(() => {
+    // Fetch the current sheet URL from the backend — never hardcode a sheet ID.
+    const base = API_BASE_URL.replace(/\/api\/$/, '').replace(/\/api$/, '');
+    fetch(`${base}/api/config/sheet-url`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.sheet_url) setSheetUrl(data.sheet_url);
+      })
+      .catch(() => {
+        // Silently ignore — button will be hidden if URL is unavailable
+      });
+  }, []);
+
   return (
     <div className="app-container">
       {/* Toast Notifications are rendered by parent */}
@@ -51,25 +67,27 @@ export default function LayoutShell({ children, profiles, view, loading, lastUpd
             ))}
           </div>
 
-          {/* keep the same external link */}
-          <div style={{ marginBottom: '2rem' }}>
-            <a
-              href="https://docs.google.com/spreadsheets/d/1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo/edit?usp=sharing"
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                color: '#b0b0b0',
-                cursor: 'pointer',
-                textDecoration: 'none',
-              }}
-            >
-              <Database size={20} />
-              <span>Open Google Sheet</span>
-            </a>
-          </div>
+          {/* Dynamic Google Sheet link — always opens the sheet from .env / Render env */}
+          {sheetUrl && (
+            <div style={{ marginBottom: '2rem' }}>
+              <a
+                href={sheetUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  color: '#b0b0b0',
+                  cursor: 'pointer',
+                  textDecoration: 'none',
+                }}
+              >
+                <Database size={20} />
+                <span>Open Google Sheet</span>
+              </a>
+            </div>
+          )}
 
           <div
             className={`nav-item ${view === 'monitor' ? 'active' : ''}`}
@@ -129,4 +147,3 @@ export default function LayoutShell({ children, profiles, view, loading, lastUpd
     </div>
   );
 }
-

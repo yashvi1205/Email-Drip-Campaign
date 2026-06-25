@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchScraperStatus } from '@services/api';
 
-interface UseScraperStatusPollingProps {
+export interface UseScraperStatusPollingProps {
   enabled: boolean;
   activeJobId: string | number | null;
   addToast: (message: string, type: 'info' | 'success' | 'error') => void;

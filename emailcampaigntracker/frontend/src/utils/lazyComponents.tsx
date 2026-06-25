@@ -1,7 +1,8 @@
-"""Lazy loading utilities for React components
-
-Provides code splitting for better initial load performance.
-"""
+/**
+ * Lazy loading utilities for React components
+ * 
+ * Provides code splitting for better initial load performance.
+ */
 
 import { lazy, LazyExoticComponent, ReactNode, Suspense } from 'react';
 
@@ -38,11 +39,11 @@ export function createLazyComponent(
  */
 export const lazyPages = {
   MonitorPage: () =>
-    import('../../features/socialMonitor/MonitorPage').then((m) => ({
+    import('../features/socialMonitor/MonitorPage').then((m) => ({
       default: m.default,
     })),
   DripDashboardPage: () =>
-    import('../../features/dripDashboard/DripDashboardPage').then((m) => ({
+    import('../features/dripDashboard/DripDashboardPage').then((m) => ({
       default: m.default,
     })),
 };

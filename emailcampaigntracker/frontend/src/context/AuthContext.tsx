@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, AuthContext as AuthContextType } from '@types/index';
+import { User, AuthContext as AuthContextType } from '@apptypes/index';
 import * as authApi from '@services/api/authApi';
 import { removeAuthToken, removeRefreshToken } from '@services/api/apiConfig';
 

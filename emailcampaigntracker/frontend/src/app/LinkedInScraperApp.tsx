@@ -16,7 +16,7 @@ import {
 } from '@services/api/monitorApi';
 import { triggerScrape } from '@services/api/scraperApi';
 import { useScraperStatusPolling } from '@hooks/useScraperStatusPolling';
-import { Profile, DripStats } from '@types/index';
+import { Profile, DripStats } from '@apptypes/index';
 
 interface AppPropsType {
   profiles: Profile[];

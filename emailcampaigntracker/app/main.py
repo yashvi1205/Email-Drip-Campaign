@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.config import router as config_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.diagnostics import router as diagnostics_router
 from app.api.routes.health import router as health_router
@@ -117,6 +118,7 @@ dashboard_auth = require_roles("dashboard", "admin")
 # Feature routers
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(config_router)  # public — no auth, returns sheet URL etc.
 app.include_router(diagnostics_router)
 app.include_router(profiles_router)
 app.include_router(leads_router)

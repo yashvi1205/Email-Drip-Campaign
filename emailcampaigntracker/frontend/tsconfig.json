@@ -24,7 +24,8 @@
       "@/*": ["src/*"],
       "@components/*": ["src/components/*"],
       "@services/*": ["src/services/*"],
-      "@types/*": ["src/types/*"],
+      "@apptypes/*": ["src/types/*"],
+      "@context/*": ["src/context/*"],
       "@features/*": ["src/features/*"],
       "@shared/*": ["src/shared/*"],
       "@hooks/*": ["src/hooks/*"]

@@ -1,7 +1,7 @@
 import { httpClient } from './httpClient';
-import { ScraperStatus, ApiResponse } from '@types/index';
+import { ScraperStatus, ApiResponse } from '@apptypes/index';
 
-export interface FetchOptions {
+interface FetchOptions {
   signal?: AbortSignal;
 }
 

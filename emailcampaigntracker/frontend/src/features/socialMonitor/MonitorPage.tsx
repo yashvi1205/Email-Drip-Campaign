@@ -7,7 +7,7 @@ import {
   MessageSquare,
   Users,
 } from 'lucide-react';
-import { Profile } from '@types/index';
+import { Profile } from '@apptypes/index';
 
 interface MonitorPageProps {
   profiles: Profile[];

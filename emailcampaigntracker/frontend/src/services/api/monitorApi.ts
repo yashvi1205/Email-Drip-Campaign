@@ -1,7 +1,7 @@
 import { httpClient } from './httpClient';
-import { Profile, DripStats, ApiResponse } from '@types/index';
+import { Profile, DripStats, ApiResponse } from '@apptypes/index';
 
-export interface FetchOptions {
+interface FetchOptions {
   signal?: AbortSignal;
 }
 

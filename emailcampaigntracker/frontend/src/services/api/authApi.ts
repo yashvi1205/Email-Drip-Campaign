@@ -1,5 +1,5 @@
 import { httpClient } from './httpClient';
-import { User } from '@types/index';
+import { User } from '@apptypes/index';
 import { setAuthToken, setRefreshToken } from './apiConfig';
 
 export type LoginRequest = {

@@ -96,8 +96,7 @@ def node_read_emails_from_google_sheet(gsheets_client=None) -> List[Dict[str, An
     """
     n8n node: "Read Emails from Google Sheet"
     Type: googleSheets (getAll)
-    Sheet: LinkedIn_Profile_DataScraper → sheet "Profiles"
-    Document ID: 1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo
+    Sheet: configured via GOOGLE_SHEET_ID env var → worksheet "Profiles"
 
     Returns list of row dicts from the Google Sheet.
     Pass a gspread-compatible client or leave None to use the app integration.

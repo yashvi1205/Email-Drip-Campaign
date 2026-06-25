@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity,
@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@components/Button';
 import { useAuth } from '@context/AuthContext';
-import { Profile } from '@types/index';
+import { Profile } from '@apptypes/index';
+import { API_BASE_URL } from '../services/api/apiConfig';
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -38,6 +39,20 @@ export default function LayoutShell({
 }: LayoutShellProps) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch the current sheet URL from the backend so we never hardcode a sheet ID.
+    const base = API_BASE_URL.replace(/\/api\/$/, '').replace(/\/api$/, '');
+    fetch(`${base}/api/config/sheet-url`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.sheet_url) setSheetUrl(data.sheet_url);
+      })
+      .catch(() => {
+        // Silently ignore — button will be hidden if URL is unavailable
+      });
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -86,24 +101,27 @@ export default function LayoutShell({
             ))}
           </div>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <a
-              href="https://docs.google.com/spreadsheets/d/1H68sixKlA1kiqiKc1yv4kapV2UQYEPNz9Pjj5VQwguo/edit?usp=sharing"
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                color: '#b0b0b0',
-                cursor: 'pointer',
-                textDecoration: 'none',
-              }}
-            >
-              <Database size={20} />
-              <span>Open Google Sheet</span>
-            </a>
-          </div>
+          {/* Dynamic Google Sheet link — always uses the sheet configured in .env / Render */}
+          {sheetUrl && (
+            <div style={{ marginBottom: '2rem' }}>
+              <a
+                href={sheetUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  color: '#b0b0b0',
+                  cursor: 'pointer',
+                  textDecoration: 'none',
+                }}
+              >
+                <Database size={20} />
+                <span>Open Google Sheet</span>
+              </a>
+            </div>
+          )}
 
           <div
             className={`nav-item ${view === 'monitor' ? 'active' : ''}`}
@@ -196,3 +214,4 @@ export default function LayoutShell({
     </div>
   );
 }
+

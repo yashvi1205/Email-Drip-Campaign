@@ -53,20 +53,50 @@ else:
 sheet = None
 enhanced_sheet = None
 
+def _auto_discover_spreadsheet(gspread_client):
+    """Return the first spreadsheet the service account can access.
+
+    This is the fallback used when GOOGLE_SHEET_ID is not configured.
+    It works on *any* machine / any user's Google account — whoever
+    shared a sheet with the service account will have their sheet found.
+    """
+    try:
+        files = gspread_client.list_spreadsheet_files()
+        if files:
+            first = files[0]
+            logger.info(
+                "Auto-discovered spreadsheet: '%s' (id=%s) — "
+                "set GOOGLE_SHEET_ID=%s to pin this sheet.",
+                first.get("name"), first.get("id"), first.get("id"),
+            )
+            return gspread_client.open_by_key(first["id"])
+        logger.warning(
+            "No spreadsheets found for this service account. "
+            "Share a Google Sheet with %s and set GOOGLE_SHEET_ID.",
+            info.get("client_email"),
+        )
+        return None
+    except Exception:
+        logger.exception("Auto-discovery of spreadsheet failed.")
+        return None
+
 if client:
-    sheet_id = os.getenv("GOOGLE_SHEET_ID")
+    sheet_id = os.getenv("GOOGLE_SHEET_ID", "").strip()
     try:
         if sheet_id:
             spreadsheet = client.open_by_key(sheet_id)
             logger.info("Opened spreadsheet by ID: %s", sheet_id)
         else:
-            spreadsheet = client.open("LinkedIn_Profile_DataScraper")
-            logger.info("Opened spreadsheet by name: LinkedIn_Profile_DataScraper")
-        
-        try:
-            sheet = spreadsheet.worksheet("Profiles")
-        except Exception:
-            sheet = spreadsheet.sheet1
+            logger.info(
+                "GOOGLE_SHEET_ID not set — auto-discovering first accessible sheet..."
+            )
+            spreadsheet = _auto_discover_spreadsheet(client)
+
+        if spreadsheet:
+            try:
+                sheet = spreadsheet.worksheet("Profiles")
+            except Exception:
+                sheet = spreadsheet.sheet1
     except gspread.exceptions.SpreadsheetNotFound:
         client_email = info.get("client_email", "your service account email")
         logger.error(
@@ -85,6 +115,7 @@ if client:
         enhanced_sheet = client.open("LinkedIn_Enhanced_Data").sheet1
     except Exception:
         logger.exception("Failed to open LinkedIn_Enhanced_Data sheet.")
+
 
 
 def normalize_url(url):
@@ -213,11 +244,13 @@ def save_enhanced_data(
 
 def get_profile_urls(sheet_name="Profiles"):
     try:
-        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        sheet_id = os.getenv("GOOGLE_SHEET_ID", "").strip()
         if sheet_id:
             spreadsheet = client.open_by_key(sheet_id)
         else:
-            spreadsheet = client.open("LinkedIn_Profile_DataScraper")
+            spreadsheet = _auto_discover_spreadsheet(client)
+        if not spreadsheet:
+            return []
         profile_sheet = spreadsheet.worksheet(sheet_name)
         all_urls = profile_sheet.col_values(1)
         return [url.strip() for url in all_urls if "linkedin.com/in/" in url.lower()]
@@ -229,11 +262,14 @@ def get_profile_urls(sheet_name="Profiles"):
 def sync_leads_status(leads_data):
     """Updates the status and tracking columns in the Google Sheet for all listed leads."""
     try:
-        sheet_id = os.getenv("GOOGLE_SHEET_ID")
+        sheet_id = os.getenv("GOOGLE_SHEET_ID", "").strip()
         if sheet_id:
             spreadsheet = client.open_by_key(sheet_id)
         else:
-            spreadsheet = client.open("LinkedIn_Profile_DataScraper")
+            spreadsheet = _auto_discover_spreadsheet(client)
+        if not spreadsheet:
+            logger.warning("sync_leads_status: no spreadsheet found, skipping.")
+            return False
         try:
             profile_sheet = spreadsheet.worksheet("Profiles")
         except Exception:
