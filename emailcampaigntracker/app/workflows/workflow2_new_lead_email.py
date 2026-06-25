@@ -367,19 +367,10 @@ def node_prepare_email_with_tracking(
     tracking_id = _generate_tracking_id("trk")
 
     from app.core.settings import get_settings
-    try:
-        settings = get_settings()
-        # Priority:
-        # 1. TRACKING_BASE_URL  — explicit override (e.g. ngrok public URL)
-        # 2. BACKEND_INTERNAL_URL — set in .env / docker-compose (e.g. http://192.168.x.x:8000)
-        # 3. Hard-coded Render URL — last resort for production-only deploys
-        backend_url = (
-            os.getenv("TRACKING_BASE_URL")
-            or settings.backend_internal_url
-            or BACKEND_URL
-        )
-    except Exception:
-        backend_url = os.getenv("TRACKING_BASE_URL") or os.getenv("BACKEND_INTERNAL_URL") or BACKEND_URL
+    # TRACKING_BASE_URL = Render public URL — where email clients send pixel/click hits
+    # This must be publicly reachable, NOT localhost.
+    # Fall back to the hardcoded Render URL if env var not set.
+    backend_url = os.getenv("TRACKING_BASE_URL") or BACKEND_URL
 
     email_body_html = _build_email_html(
         body=body,
