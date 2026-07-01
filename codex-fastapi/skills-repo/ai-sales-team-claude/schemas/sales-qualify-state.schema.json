@@ -1,0 +1,256 @@
+{
+  "$defs": {
+    "QualifyArtifacts": {
+      "additionalProperties": false,
+      "properties": {
+        "lead_qualification": {
+          "const": "LEAD-QUALIFICATION.md",
+          "title": "Lead Qualification",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lead_qualification"
+      ],
+      "title": "QualifyArtifacts",
+      "type": "object"
+    },
+    "QualifyScores": {
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "maximum": 25,
+          "minimum": 0,
+          "title": "Authority",
+          "type": "integer"
+        },
+        "bant_total": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Bant Total",
+          "type": "integer"
+        },
+        "budget": {
+          "maximum": 25,
+          "minimum": 0,
+          "title": "Budget",
+          "type": "integer"
+        },
+        "meddic_fit": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Meddic Fit",
+          "type": "integer"
+        },
+        "need": {
+          "maximum": 25,
+          "minimum": 0,
+          "title": "Need",
+          "type": "integer"
+        },
+        "opportunity_quality_score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Opportunity Quality Score",
+          "type": "integer"
+        },
+        "timeline": {
+          "maximum": 25,
+          "minimum": 0,
+          "title": "Timeline",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "budget",
+        "authority",
+        "need",
+        "timeline",
+        "bant_total",
+        "meddic_fit",
+        "opportunity_quality_score"
+      ],
+      "title": "QualifyScores",
+      "type": "object"
+    },
+    "QualifySignals": {
+      "additionalProperties": true,
+      "properties": {
+        "authority_signal": {
+          "enum": [
+            "strong",
+            "moderate",
+            "weak",
+            "unknown",
+            "weak to moderate",
+            "moderate to strong"
+          ],
+          "title": "Authority Signal",
+          "type": "string"
+        },
+        "budget_signal": {
+          "enum": [
+            "strong",
+            "moderate",
+            "weak",
+            "unknown",
+            "weak to moderate",
+            "moderate to strong"
+          ],
+          "title": "Budget Signal",
+          "type": "string"
+        },
+        "company_type": {
+          "title": "Company Type",
+          "type": "string"
+        },
+        "need_signal": {
+          "enum": [
+            "strong",
+            "moderate",
+            "weak",
+            "unknown",
+            "weak to moderate",
+            "moderate to strong"
+          ],
+          "title": "Need Signal",
+          "type": "string"
+        },
+        "size": {
+          "title": "Size",
+          "type": "string"
+        },
+        "timeline_signal": {
+          "enum": [
+            "strong",
+            "moderate",
+            "weak",
+            "unknown",
+            "weak to moderate",
+            "moderate to strong"
+          ],
+          "title": "Timeline Signal",
+          "type": "string"
+        }
+      },
+      "required": [
+        "company_type",
+        "size",
+        "budget_signal",
+        "authority_signal",
+        "need_signal",
+        "timeline_signal"
+      ],
+      "title": "QualifySignals",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Stable state contract for /sales qualify automation output.",
+  "properties": {
+    "approval_required": {
+      "const": "qualify_review",
+      "title": "Approval Required",
+      "type": "string"
+    },
+    "artifacts": {
+      "$ref": "#/$defs/QualifyArtifacts"
+    },
+    "blocked_reason": {
+      "minLength": 1,
+      "title": "Blocked Reason",
+      "type": "string"
+    },
+    "company": {
+      "minLength": 1,
+      "title": "Company",
+      "type": "string"
+    },
+    "date": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "title": "Date",
+      "type": "string"
+    },
+    "last_updated": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "title": "Last Updated",
+      "type": "string"
+    },
+    "lead_grade": {
+      "enum": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "title": "Lead Grade",
+      "type": "string"
+    },
+    "next_action": {
+      "minLength": 1,
+      "title": "Next Action",
+      "type": "string"
+    },
+    "qualification_gate_basis": {
+      "const": "bant_total",
+      "title": "Qualification Gate Basis",
+      "type": "string"
+    },
+    "qualification_gate_score": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Qualification Gate Score",
+      "type": "integer"
+    },
+    "scores": {
+      "$ref": "#/$defs/QualifyScores"
+    },
+    "send_ready": {
+      "const": false,
+      "title": "Send Ready",
+      "type": "boolean"
+    },
+    "signals": {
+      "$ref": "#/$defs/QualifySignals"
+    },
+    "sources": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "stage": {
+      "enum": [
+        "qualified_pending_review",
+        "pending_qualify_review_low_score"
+      ],
+      "title": "Stage",
+      "type": "string"
+    },
+    "url": {
+      "minLength": 1,
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "company",
+    "url",
+    "date",
+    "stage",
+    "lead_grade",
+    "qualification_gate_score",
+    "qualification_gate_basis",
+    "scores",
+    "approval_required",
+    "artifacts",
+    "send_ready",
+    "blocked_reason",
+    "next_action",
+    "signals",
+    "last_updated"
+  ],
+  "title": "SalesQualifyState",
+  "type": "object"
+}

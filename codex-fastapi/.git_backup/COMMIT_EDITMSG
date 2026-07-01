@@ -1,0 +1,1 @@
+feat(executor): enhance file handling to differentiate text and binary files; add include_stdout option
