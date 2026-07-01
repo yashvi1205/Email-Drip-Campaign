@@ -73,6 +73,36 @@ def sync_sheet_status_async(sync_data):
         logger.exception("Sheet sync failed.")
 
 
+def classify_reply_sentiment(reply_text: str, gemini_key: str = None) -> str:
+    """Classifies if the reply is a rejection ('opt_out') or positive ('interested')."""
+    if not reply_text:
+        return "interested"
+    text_lower = reply_text.lower()
+    rejection_keywords = [
+        "unsubscribe", "remove me", "not interested", "no interest", 
+        "stop emailing", "don't contact", "dont contact", "please stop",
+        "wrong person", "wrong department", "not looking for"
+    ]
+    if any(kw in text_lower for kw in rejection_keywords):
+        return "opt_out"
+    if gemini_key:
+        try:
+            from app.core.settings import get_settings
+            from app.workflows.workflow2_new_lead_email import GEMINI_MODEL
+            import requests
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={gemini_key}"
+            prompt = f"Classify this email reply as 'opt_out' (rejection/unsubscribe/stop contacting) or 'interested' (positive/neutral/meeting request):\n\"{reply_text}\"\nRespond with ONLY 'opt_out' or 'interested'."
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            resp = requests.post(url, json=payload, timeout=8)
+            if resp.status_code == 200:
+                ans = resp.json().get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip().lower()
+                if "opt_out" in ans:
+                    return "opt_out"
+        except Exception:
+            pass
+    return "interested"
+
+
 def log_event(
     db: Session,
     tracking_id: str,
@@ -119,6 +149,7 @@ def log_event(
                 return True
 
         # State Transitions
+        sentiment = "interested"
         if event_type == "open":
             seq.open_count = (seq.open_count or 0) + 1
             seq.last_opened = now
@@ -130,6 +161,9 @@ def log_event(
         elif event_type == "reply":
             seq.replied = True
             seq.last_replied = now
+            reply_text = (additional_metadata or {}).get("reply_text", "")
+            gemini_key = os.getenv("GEMINI_API_KEY")
+            sentiment = classify_reply_sentiment(reply_text, gemini_key)
 
         # Insert into events table
         db.add(
@@ -142,7 +176,7 @@ def log_event(
         )
 
         # Status Derivation (Source of Truth: sequence actions)
-        status_weights = {"SENT": 1, "OPENED": 2, "CLICKED": 3, "REPLIED": 4}
+        status_weights = {"SENT": 1, "OPENED": 2, "CLICKED": 3, "REPLIED": 4, "Rejected at Email by Client": 5}
         events = [
             (seq.sent_at, "SENT"),
             (seq.last_opened, "OPENED"),
@@ -157,6 +191,9 @@ def log_event(
             if ts and status_weights[status] > current_max_weight:
                 current_max_weight = status_weights[status]
                 final_status = status
+
+        if event_type == "reply" and sentiment == "opt_out":
+            final_status = "Rejected at Email by Client"
 
         lead = db.query(Lead).filter(Lead.id == lead_id).first()
         status_changed = False
@@ -292,7 +329,13 @@ async def track_reply(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    log_event(db, tracking_id, "reply", request)
+    reply_text = ""
+    try:
+        body = await request.json()
+        reply_text = body.get("text", "")
+    except Exception:
+        pass
+    log_event(db, tracking_id, "reply", request, additional_metadata={"reply_text": reply_text})
     return {"status": "success", "message": "Reply tracked"}
 
 

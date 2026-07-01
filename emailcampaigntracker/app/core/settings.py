@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Optional
 from urllib.parse import urlparse
-from dotenv import load_dotenv
-
-# Load .env file at the earliest possible moment
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 
 def _require_env(name: str) -> str:

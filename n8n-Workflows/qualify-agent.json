@@ -1,0 +1,1493 @@
+{
+  "name": "qualify-agent",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        320
+      ],
+      "id": "0bc48bc9-2302-4096-bc6e-d459fb036c62",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -256,
+        208
+      ],
+      "id": "41b43539-7456-4b57-96aa-2b12c62f34b3",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "a0956bde-8cf1-49b7-b667-60e3fe7f1732",
+      "typeVersion": 1.1,
+      "name": "Start",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -912,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.101.206:8000/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}{{ $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company }}"
+            },
+            {
+              "name": "session_id",
+              "value": "={{ $('Loop Over Items').item.json.Company.toLowerCase().replace(/\\s+/g, '_') }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        224
+      ],
+      "id": "126943dd-42c0-4c8a-a6cc-c3af9daad70c",
+      "name": "Qualify Agent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ac17f93c-e791-4b67-a8ae-72b7655b674a",
+              "leftValue": "={{\n  (() => {\n    const findValue = (obj, matcher) => {\n      if (!obj || typeof obj !== 'object') return undefined;\n\n      for (const [key, value] of Object.entries(obj)) {\n        if (matcher(key) && typeof value !== 'object') {\n          return value;\n        }\n\n        const nested = findValue(value, matcher);\n        if (nested !== undefined) return nested;\n      }\n\n      return undefined;\n    };\n\n    const state = $json.state ?? {};\n\n    return (\n      findValue(state, key => key.toLowerCase().includes('bant')) ??\n      findValue(state, key => key.toLowerCase().includes('score'))\n    );\n  })()\n}}",
+              "rightValue": 40,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        224
+      ],
+      "id": "bb4833e4-6431-4b44-aca5-ff929ef0cc69",
+      "name": "Score > 40"
+    },
+    {
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1csXblumP6QxkvAjrpiDpYyhSLTym4JVD",
+          "mode": "list",
+          "cachedResultName": "QualifyResults",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1csXblumP6QxkvAjrpiDpYyhSLTym4JVD"
+        },
+        "markdownInput": "={{ $('Qualify Agent').item.json.files[0].content }}",
+        "documentTitle": "={{ $('Loop Over Items').item.json.Company }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-md-to-docs.markdownToGoogleDocs",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        128
+      ],
+      "id": "ee64983f-a17a-48ba-a26f-a36e16a06ee2",
+      "name": "Markdown to Google Docs",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        208
+      ],
+      "id": "ae7c768e-2313-475d-842a-8c9445bebfbc",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDocsOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{\n  \"name = '\" +\n  String($json.Company).replace(/\\\\/g, \"\\\\\\\\\").replace(/'/g, \"\\\\'\") +\n  \"' and '1csXblumP6QxkvAjrpiDpYyhSLTym4JVD' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false\"\n}}"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name,webViewLink,parents,modifiedTime)"
+            },
+            {
+              "name": "pageSize",
+              "value": "1"
+            },
+            {
+              "name": "spaces",
+              "value": "drive"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        224
+      ],
+      "id": "a121628a-7a5e-4ab3-8dab-3294e56525a5",
+      "name": "Check Existing Files",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
+          "mode": "list",
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company": "={{ $('Loop Over Items').item.json.Company }}",
+            "Workflow Path": "Qualify",
+            "Qualify Score (0-100)": "={{\n  (() => {\n    const findValue = (obj, matcher) => {\n      if (!obj || typeof obj !== 'object') return undefined;\n\n      for (const [key, value] of Object.entries(obj)) {\n        if (matcher(key) && typeof value !== 'object') {\n          return value;\n        }\n\n        const nested = findValue(value, matcher);\n        if (nested !== undefined) return nested;\n      }\n\n      return undefined;\n    };\n\n    const state = $('Score > 40').item.json.state ?? {};\n\n    return (\n      findValue(state, key => key.toLowerCase().includes('bant')) ??\n      findValue(state, key => key.toLowerCase().includes('score'))\n    );\n  })()\n}}",
+            "Qualify Doc Link": "={{ $json.documentUrl }}",
+            "Last Updated": "={{ $now }}",
+            "Automation Status": "Pending Qualify Review"
+          },
+          "matchingColumns": [
+            "Company"
+          ],
+          "schema": [
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Status",
+              "displayName": "Raw Data Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Name",
+              "displayName": "Raw Data Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Zip Code",
+              "displayName": "Zip Code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Opt Out",
+              "displayName": "Email Opt Out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Salutation",
+              "displayName": "Salutation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Secondary Email",
+              "displayName": "Secondary Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) LinkedIn URL",
+              "displayName": "(I) LinkedIn URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) LinkedIn",
+              "displayName": "(C) LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Phone",
+              "displayName": "(C) Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Email",
+              "displayName": "(C) Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Other Social Channel URLs",
+              "displayName": "(I) Other Social Channel URLs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Notes",
+              "displayName": "(I) Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Background & Notes",
+              "displayName": "Background & Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Sub-Status",
+              "displayName": "Raw Data Sub-Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Business Model",
+              "displayName": "Business Model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Country",
+              "displayName": "(I) Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Point of Contacts",
+              "displayName": "Point of Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Row ID",
+              "displayName": "Row ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Include in Qualify Batch",
+              "displayName": "Include in Qualify Batch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Workflow Path",
+              "displayName": "Workflow Path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Qualify Score (0-100)",
+              "displayName": "Qualify Score (0-100)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pass Score Gate (>=40)",
+              "displayName": "Pass Score Gate (>=40)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Doc Link",
+              "displayName": "Qualify Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Qualify Approval",
+              "displayName": "Qualify Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Automation Status",
+              "displayName": "Automation Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Outreach Research",
+              "displayName": "Outreach Research",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Draft Doc Link",
+              "displayName": "Email Draft Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Approval",
+              "displayName": "Email Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Outreach (WF B)",
+              "displayName": "Ready for Outreach (WF B)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Send (WF C)",
+              "displayName": "Ready for Send (WF C)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Batch ID",
+              "displayName": "Qualify Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outreach Batch ID",
+              "displayName": "Outreach Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Batch ID",
+              "displayName": "Send Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Skip / Reject Reason",
+              "displayName": "Skip / Reject Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Sent Date",
+              "displayName": "Sent Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "CRM Logged",
+              "displayName": "CRM Logged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1568,
+        304
+      ],
+      "id": "8031ba19-364b-47d2-9852-eec339b47278",
+      "name": "Update Docs Link",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rZ0tts2pYWj9oacg",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "038235b4-8bf6-4c31-83f5-06d53097ec7f",
+      "name": "Notify User",
+      "webhookId": "ec8eea70-f0a5-45fe-9e8f-ae3e48bbc36e",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "crSCmYGnNuZ51g7R",
+          "mode": "list",
+          "cachedResultName": "prompts",
+          "cachedResultUrl": "/projects/GIWzjavqhuVKJY2h/datatables/crSCmYGnNuZ51g7R"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "1"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        224
+      ],
+      "id": "d6d4781d-5ba9-49bf-9ceb-441b05bf76ed",
+      "name": "Get Prompt"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e13f84f3-0601-49c4-883b-b4a809c12471",
+              "leftValue": "={{ $json.files }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        224
+      ],
+      "id": "46b1fe4d-7870-4716-a6a7-99ca61fc62c9",
+      "name": "Not Processed"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "80fa063a-e90e-4f89-a58e-122cae4afd58",
+              "name": "state",
+              "value": "={{ $json.files[1].content.parseJson() }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        224
+      ],
+      "id": "fe48fccc-3a09-4cce-bf7e-a1c58b6600af",
+      "name": "Get state json"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        208
+      ],
+      "id": "35d2a7e1-6b2f-407e-b6f4-2a19efdc0ab0",
+      "name": "Limit"
+    }
+  ],
+  "pinData": {
+    "Start": [
+      {
+        "json": {
+          "data": [
+            {
+              "row_number": 20,
+              "Company": "Vivisolar",
+              "First Name": "Simone",
+              "Last Name": "Murtas",
+              "Title": "Co-fondatore",
+              "Email": "gestione@vivisolar.it",
+              "Website": "www.vivisolar.it",
+              "Raw Data Status": "Prospect",
+              "Raw Data Name": "Simone Murtas",
+              "City": "",
+              "State": "",
+              "Zip Code": "",
+              "Country": "Italy",
+              "Description": "",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "https://www.linkedin.com/in/simone-murtas-7b950b26b/?originalSubdomain=it",
+              "(C) LinkedIn": "https://www.linkedin.com/company/vivisolar/about/",
+              "(C) Phone": "+39 331 805 1021",
+              "(C) Email": "",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "",
+              "Background & Notes": "",
+              "Raw Data Sub-Status": "Prospect - Needs Analysis",
+              "Business Model": "B2B",
+              "(I) Country": "Italy",
+              "Point of Contacts": "Darshan Shah;Riddhi Shah",
+              "Row ID": 19,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": 60,
+              "Pass Score Gate (>=40)": "Yes",
+              "Qualify Doc Link": "https://docs.google.com/document/d/1s7QX6hVJr6uS9G_ixe8q0v2K4-EiWfa0kpi7IY9iBaY/edit",
+              "Qualify Approval": "",
+              "Automation Status": "Pending Qualify Review",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "2026-06-10T19:41:08.326+05:30",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "vivisolar"
+            },
+            {
+              "row_number": 9,
+              "Company": "Black hores",
+              "First Name": "ibrahim",
+              "Last Name": "Osman",
+              "Title": "",
+              "Email": "blackhorsesudan@gmail.com",
+              "Website": "",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "ibrahim Osman",
+              "City": "",
+              "State": "",
+              "Zip Code": "",
+              "Country": "Sudan",
+              "Description": "financial and inventory module\n======\ncurrent platform\njoudix.com\nblackhorsesudan@gmail.com\npassword: 123456\ngo to business login",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "",
+              "(C) LinkedIn": "",
+              "(C) Phone": "+249-123838340",
+              "(C) Email": "",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "Tracking Info :\n================\nDate : 17 Feb 2025\nTime : 06:45:38 PM\nBrowser : Chrome\nBrowser Version : 133.0.0.0\nPlatform : Windows 10\nReferrer : https://www.weblineindia.com/contact-us.html\nAgent Info : Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36\nIP Address : 3.172.14.116\nLocation : https://tools.keycdn.com/geo?host=3.172.14.116\n================\n\r\n\r\nBrowsing History\r\n================\r\nLanding Page Referrer: \"https://www.google.com/\"\r\n\r\nBrowsing History: \r\nhttps://www.weblineindia.com/blog/top-25-it-companies-in-india/ \r\nhttps://www.weblineindia.com/contact-us.html \r\n================",
+              "Background & Notes": "He's from Sudan, He wanted to develop new modules in existing system. And those features and tasks were complex but he was not having much budget, still we tried to clarify exact scope, targeted work to provide accurate estimate and price. But he never came back with updates for us. Seems like he was not comfortable with our discounted rates and engagement model proposed for such engagement.",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "B2B",
+              "(I) Country": "Egypt",
+              "Point of Contacts": "Dipak Marwadi;Riddhi Shah",
+              "Row ID": 8,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "black_hores"
+            },
+            {
+              "row_number": 11,
+              "Company": "Parfumsplus France",
+              "First Name": "Hugo",
+              "Last Name": "VAILLANT",
+              "Title": "",
+              "Email": "hva@parfumsplus.com",
+              "Website": "https://parfumsplus.com/",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "Hugo VAILLANT",
+              "City": "",
+              "State": "",
+              "Zip Code": "",
+              "Country": "France",
+              "Description": "",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "https://www.linkedin.com/in/hugo-vaillant-5399451b9/?originalSubdomain=fr",
+              "(C) LinkedIn": "https://www.linkedin.com/company/parfums-plus-france/",
+              "(C) Phone": "",
+              "(C) Email": "hva@parfumsplus.com",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "",
+              "Background & Notes": "He shared requirement and we also asked some questions. We had one round of email clarification. Later he asked for meeting and we mentioned that we don't have french speaking person but we can manage it using some tool/chat or he can arrange person from his side. \n\nAfter that he never replied back with further follow-up on emails and calls.",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "B2B",
+              "(I) Country": "France",
+              "Point of Contacts": "Dipak Marwadi;Riddhi Shah",
+              "Row ID": 10,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "parfumsplus_france"
+            },
+            {
+              "row_number": 18,
+              "Company": "kreavaerket.dk",
+              "First Name": "Frederik",
+              "Last Name": "Lindhard",
+              "Title": "Founder & CEO",
+              "Email": "frederik@kreavaerket.dk",
+              "Website": "kreavaerket.dk",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "Frederik Lindhard",
+              "City": "",
+              "State": "",
+              "Zip Code": "",
+              "Country": "Denmark",
+              "Description": "",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "https://www.linkedin.com/in/frederik-schultz-lindhard/",
+              "(C) LinkedIn": "",
+              "(C) Phone": "",
+              "(C) Email": "",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "",
+              "Background & Notes": "",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "B2B",
+              "(I) Country": "Denmark",
+              "Point of Contacts": "Darshan Shah;Riddhi Shah",
+              "Row ID": 17,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "kreavaerket.dk"
+            },
+            {
+              "row_number": 24,
+              "Company": "ANDRITZ AG",
+              "First Name": "Armand",
+              "Last Name": "Hauss",
+              "Title": "Coordinator of Procurement & Logistics",
+              "Email": "a.hauss@ag-andritz.com",
+              "Website": "http://www.andritz.com/",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "Armand Hauss",
+              "City": "",
+              "State": "",
+              "Zip Code": "",
+              "Country": "Austria",
+              "Description": "",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "",
+              "(C) LinkedIn": "",
+              "(C) Phone": "+43-508-0555-204",
+              "(C) Email": "",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "",
+              "Background & Notes": "",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "B2B",
+              "(I) Country": "Austria",
+              "Point of Contacts": "Darshan Shah",
+              "Row ID": 23,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "andritz_ag"
+            },
+            {
+              "row_number": 25,
+              "Company": "NoshBox Inc.",
+              "First Name": "NoshBox",
+              "Last Name": "-",
+              "Title": "",
+              "Email": "noshboxapp@gmail.com",
+              "Website": "https://www.noshboxapp.com/",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "NoshBox -",
+              "City": "Champaign",
+              "State": "Illinois",
+              "Zip Code": "",
+              "Country": "United States",
+              "Description": "Development and Testing for backend operations, routes and frontend screens for a cross platform mobile app. Use of React Native for frontend, Node Js and Supabase Functions for backend, Supabase and for DB and Auth. Github for version control. UI for app will be provided, converting high fidelity figma screens into an app is required. Stripe integration for payments.",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "",
+              "(C) LinkedIn": "",
+              "(C) Phone": "+1 646 492 9656",
+              "(C) Email": "",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "Tracking Info :\n================\nDate : 23 Jul 2025\nTime : 06:50:35 PM\nBrowser : Chrome\nBrowser Version : 137.0.0.0\nPlatform : Mac OS X\nReferrer : https://www.weblineindia.com/contact-us.html\nAgent Info : Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36\nIP Address : 18.68.10.42\nLocation : https://tools.keycdn.com/geo?host=18.68.10.42\n================\n\r\n\r\nBrowsing History\r\n================\r\nLanding Page Referrer: \"https://www.google.com/\"\r\n\r\nBrowsing History: \r\nhttps://www.weblineindia.com/hire-mobile-app-developers.html \r\nhttps://www.weblineindia.com/contact-us.html \r\n================",
+              "Background & Notes": "",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "B2B",
+              "(I) Country": "India",
+              "Point of Contacts": "Darshan Shah",
+              "Row ID": 24,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "noshbox_inc."
+            },
+            {
+              "row_number": 28,
+              "Company": "Le Detector",
+              "First Name": "Adam",
+              "Last Name": "Latreche",
+              "Title": "",
+              "Email": "adam095.latreche@gmail.com",
+              "Website": "http://ledetecteur.com/",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "Adam Latreche",
+              "City": "",
+              "State": "",
+              "Zip Code": "",
+              "Country": "France",
+              "Description": "Hello, I am contacting you for the creation of an e-commerce site via Shopify in France. I would like to know your rates and services please.",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "",
+              "(C) LinkedIn": "",
+              "(C) Phone": "+33 6 51 48 20 29",
+              "(C) Email": "contact@ledetecteur.com",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "Tracking Info :\n================\nDate : 25 Aug 2025\nTime : 10:12:56 PM\nBrowser : Safari\nBrowser Version : 604.1\nPlatform : iOS\nReferrer : https://www.weblineindia.com/contact-us.html\nAgent Info : Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1\nIP Address : 18.68.23.8\nLocation : https://tools.keycdn.com/geo?host=18.68.23.8\n================\n\r\n\r\nBrowsing History\r\n================\r\nLanding Page Referrer: \"https://www.google.com/\"\r\n\r\nBrowsing History: \r\nhttps://www.weblineindia.com/fr/ \r\nhttps://www.weblineindia.com/contact-us.html \r\n================",
+              "Background & Notes": "",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "",
+              "(I) Country": "France",
+              "Point of Contacts": "Darshan Shah",
+              "Row ID": 27,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "le_detector"
+            },
+            {
+              "row_number": 32,
+              "Company": "Ideacrate Edutainment Company LLC",
+              "First Name": "Sudhakar",
+              "Last Name": "Joshi",
+              "Title": "",
+              "Email": "sudhakar.joshi@ideacrate.net",
+              "Website": "https://ideacrate.net/",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "Sudhakar Joshi",
+              "City": "Dubai",
+              "State": "",
+              "Zip Code": "",
+              "Country": "United Arab Emirates",
+              "Description": "Full stack developer for middleware and inter ware",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "",
+              "(I) LinkedIn URL": "",
+              "(C) LinkedIn": "https://linkedin.com/company/ideacrateuae",
+              "(C) Phone": "+97123051500",
+              "(C) Email": "info@ideacrate.net",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "Tracking Info :\n================\nDate : 12 Sep 2025\nTime : 10:13:33 AM\nBrowser : Chrome\nBrowser Version : 120.0.0.0\nPlatform : Windows 10\nReferrer : https://www.weblineindia.com/contact-us.html\nAgent Info : Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\nIP Address : 15.158.33.50\nLocation : https://tools.keycdn.com/geo?host=15.158.33.50\n================\n\r\n\r\nBrowsing History\r\n================\r\nLanding Page Referrer: \"https://www.google.com/\"\r\n\r\nBrowsing History: \r\nhttps://www.weblineindia.com/mobile-app-development.html \r\nhttps://www.weblineindia.com/contact-us.html \r\n================",
+              "Background & Notes": "Client is in Suspect stage as there is no response to emails. Tried calling on company no but no one picking-up.",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "",
+              "(I) Country": "United Arab Emirates",
+              "Point of Contacts": "Darshan Shah",
+              "Row ID": 31,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "ideacrate_edutainment_company_llc"
+            },
+            {
+              "row_number": 47,
+              "Company": "Intelligence Plus",
+              "First Name": "Hamanah",
+              "Last Name": "Diallo",
+              "Title": "",
+              "Email": "bhamanah03@gmail.com",
+              "Website": "https://www.intelligenceplus.in/",
+              "Raw Data Status": "Suspect",
+              "Raw Data Name": "Hamanah Diallo",
+              "City": "Conakry",
+              "State": "",
+              "Zip Code": "",
+              "Country": "Guinea",
+              "Description": "Developpement et hebergement de Logiciel specialisé en marque blanche.",
+              "Email Opt Out": "false",
+              "Salutation": "Mr.",
+              "Secondary Email": "madioufr2002@gmail.com",
+              "(I) LinkedIn URL": "",
+              "(C) LinkedIn": "",
+              "(C) Phone": "",
+              "(C) Email": "",
+              "(I) Other Social Channel URLs": "",
+              "(I) Notes": "Tracking Info :\n================\nDate : 24 Nov 2025\nTime : 02:40:32 AM\nBrowser : Chrome\nBrowser Version : 142.0.0.0\nPlatform : Android\nReferrer : https://www.weblineindia.com/contact-us.html\nAgent Info : Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36\nIP Address : 15.158.17.9\nLocation : https://tools.keycdn.com/geo?host=15.158.17.9\n================\n\r\n\r\nBrowsing History\r\n================\r\nLanding Page Referrer: \"https://www.google.com/\"\r\n\r\nBrowsing History: \r\nhttps://www.weblineindia.com/fr/blog/top-25-it-companies-in-india/ \r\nhttps://www.weblineindia.com/contact-us.html \r\n================",
+              "Background & Notes": "",
+              "Raw Data Sub-Status": "Suspect (In progress)",
+              "Business Model": "",
+              "(I) Country": "Canada",
+              "Point of Contacts": "Shyam Bhadja;Tirth Thakkar",
+              "Row ID": 46,
+              "Include in Qualify Batch": "Yes",
+              "Workflow Path": "Qualify",
+              "Qualify Score (0-100)": "",
+              "Pass Score Gate (>=40)": "No",
+              "Qualify Doc Link": "",
+              "Qualify Approval": "",
+              "Automation Status": "",
+              "Email Draft Doc Link": "",
+              "Email Approval": "",
+              "Ready for Outreach (WF B)": "No",
+              "Ready for Send (WF C)": "No",
+              "Qualify Batch ID": "",
+              "Outreach Batch ID": "",
+              "Send Batch ID": "",
+              "Skip / Reject Reason": "",
+              "Last Updated": "",
+              "Sent Date": "",
+              "CRM Logged": "",
+              "CompanyClean": "intelligence_plus"
+            }
+          ]
+        }
+      }
+    ],
+    "Qualify Agent": [
+      {
+        "json": {
+          "output": "Completed the qualification for Vivisolar.\n\nFiles created:\n- [LEAD-QUALIFICATION.md](/workspace/session-vivisolar/LEAD-QUALIFICATION.md)\n- [sales-state.json](/workspace/session-vivisolar/sales-state.json)\n\nResult:\n- Opportunity Quality Score: `77/100`\n- Lead Grade: `A - Sales Qualified Lead`\n- BANT: `67/100`\n- MEDDIC Completeness: `100%`\n\nPrimary sources used:\n- https://www.vivisolar.it/\n- https://www.vivisolar.it/chi-siamo\n- https://www.vivisolar.it/lavora-con-noi\n- https://www.vivisolar.it/blog\n- https://it.linkedin.com/company/vivisolar\n- https://it.linkedin.com/in/simone-murtas-7b950b26b\n- https://it.linkedin.com/in/eleonora-sanna-2015a614b\n\nIf you want, I can next draft the outreach sequence or a meeting prep brief for Vivisolar.\ndiff --git a/LEAD-QUALIFICATION.md b/LEAD-QUALIFICATION.md\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..5f04955a709cbbd76f06f96dd6e8bbe6ba2e0068\n--- /dev/null\n+++ b/LEAD-QUALIFICATION.md\n@@ -0,0 +1,235 @@\n+# Lead Qualification: Vivisolar\n+**URL:** https://www.vivisolar.it/\n+**Date:** 2026-06-17\n+**Opportunity Quality Score: 77/100**\n+**Lead Grade: A - Sales Qualified Lead**\n+**BANT Score: 67/100 | MEDDIC Completeness: 100%**\n+\n+---\n+\n+## Qualification Snapshot\n+\n+| Metric | Value |\n+|--------|-------|\n+| **Company** | Vivisolar |\n+| **Industry** | Renewables & Environment / Solar installation |\n+| **Employees** | 11-50 |\n+| **BANT Score** | 67/100 |\n+| **MEDDIC Completeness** | 100% |\n+| **Opportunity Quality Score** | 77/100 |\n+| **Lead Grade** | A - Sales Qualified Lead |\n+| **Urgency Level** | Medium-High |\n+| **Recommended Action** | Direct founder-level outreach focused on reducing quote-to-install friction and admin burden. |\n+\n+---\n+\n+## BANT Scorecard\n+\n+| Dimension | Score | Key Evidence | Confidence |\n+|-----------|-------|-------------|------------|\n+| **Budget** | 13/25 | LinkedIn shows 11-50 employees and the company presents itself as an established regional operator with 1000+ installations and a price range of `€€`. | Medium |\n+| **Authority** | 18/25 | Public LinkedIn profiles identify Simone Murtas and Eleonora Sanna as co-founders; the company is small enough that buying authority is likely concentrated at founder level. | High |\n+| **Need** | 22/25 | The site explicitly says Vivisolar exists to eliminate unclear quotes, bureaucracy, and installers disappearing after payment; recent blog content focuses on storage, EV charging, and blackout resilience. | High |\n+| **Timeline** | 14/25 | The careers page is actively recruiting installatori and consulenti energetici, and the blog has fresh June 2026 content, both of which point to active execution and ongoing growth. | Medium |\n+| **TOTAL** | **67/100** | | |\n+\n+### Budget Analysis\n+Vivisolar does not publish a corporate funding history or procurement budget, so there is no explicit budget confirmation.\n+\n+That said, the company shows several capacity signals:\n+\n+* LinkedIn lists the company at [11-50 employees](https://it.linkedin.com/company/vivisolar).\n+* The site claims [1000+ installations in Sardinia](https://www.vivisolar.it/).\n+* The business advertises a `€€` price range in its schema markup and positions itself as a full-service solar contractor.\n+* The careers page is still recruiting for both [installatori and consulenti energetici](https://www.vivisolar.it/lavora-con-noi), which usually implies active operating spend.\n+\n+Net: budget looks present but not abundant. I would treat this as a company that can buy, but may still require a clear ROI case and a practical package.\n+\n+### Authority Analysis\n+Authority is comparatively clear for a public prospect of this size.\n+\n+Public LinkedIn profiles identify:\n+\n+* [Simone Murtas, co-founder at Vivisolar](https://it.linkedin.com/in/simone-murtas-7b950b26b)\n+* [Eleonora Sanna, co-founder at Vivisolar](https://it.linkedin.com/in/eleonora-sanna-2015a614b)\n+\n+The company is small enough that founder-level approval is the most likely route for a software or services purchase. The site also emphasizes that customers speak with a nearby team, not a call center, which reinforces the founder-led, hands-on operating style.\n+\n+Buying authority is likely concentrated with the founders, with a second layer of input from whoever owns operations, sales, or customer success.\n+\n+### Need Analysis\n+Need is the strongest part of the profile.\n+\n+Vivisolar’s own messaging is unusually explicit about the pain it is trying to solve:\n+\n+* “preventivi poco chiari”\n+* “pratiche burocratiche”\n+* “installatori che spariscono dopo il saldo”\n+* a promise of a local partner that “risponde”\n+\n+The site also says it manages project, permitting, installation, collaudo, incentives, and monitoring in-house. That is a classic sign of a business where internal coordination, scheduling, handoffs, and post-install support matter.\n+\n+Recent content on the blog also points to active customer concerns around:\n+\n+* battery storage and evening self-consumption\n+* EV home charging\n+* blackout resilience\n+* incentives and savings\n+\n+There is real operational pain here, and the company is already selling to that pain.\n+\n+### Timeline Analysis\n+The timeline signal is moderate to strong, not immediate.\n+\n+Reasons:\n+\n+* The [careers page](https://www.vivisolar.it/lavora-con-noi) is actively open for applications, which suggests the business is in growth mode.\n+* The [blog](https://www.vivisolar.it/blog) has fresh June 2026 posts, so content operations and sales motion are current.\n+* The site repeatedly emphasizes speed, rapid inspections, and few-day installs, which implies an execution-oriented culture.\n+\n+There is no public RFP, funding round, acquisition, or crisis event, so I would not call this an urgent “buy this week” prospect. But it is a live operating business with active growth signals.\n+\n+---\n+\n+## MEDDIC Assessment\n+\n+| Element | Finding | Evidence | Confidence |\n+|---------|---------|----------|------------|\n+| **Metrics** | Installation throughput, lead-to-quote conversion, install cycle time, customer satisfaction, post-install support load | The site emphasizes 1000+ installations, fast installs, and lifetime monitoring/support. | High |\n+| **Economic Buyer** | Simone Murtas and/or Eleonora Sanna, co-founders | Public LinkedIn profiles identify both as co-founders at Vivisolar. | High |\n+| **Decision Criteria** | Transparency, turnkey execution, speed, quality, financing, local support, and post-install service | The site repeatedly highlights “numeri chiari,” turnkey service, internal teams, financing, and lifetime assistance. | High |\n+| **Decision Process** | Founder-led, informal SMB buying process, likely with direct evaluation rather than a formal procurement committee | Small company size and founder-led structure from LinkedIn; no public procurement process visible. | Medium |\n+| **Identify Pain** | Quote clarity, bureaucracy, handoff reliability, install coordination, and post-sale support | Explicitly stated on the About page and reinforced by customer reviews. | High |\n+| **Champion** | Simone Murtas or another founder/operations lead; small-company champion and buyer may be the same person | Founder-led business with public co-founders and a hands-on operating model. | Medium |\n+\n+### Metrics Deep Dive\n+Vivisolar appears to care about operational metrics more than vanity metrics.\n+\n+Likely priority metrics:\n+\n+* lead volume and quote conversion\n+* speed from survey to install\n+* permit/practice completion time\n+* customer satisfaction and review quality\n+* post-install support burden\n+\n+Their messaging around savings, payback, and monitoring also suggests they care about helping customers visualize ROI, so tools that improve quoting speed or clarity should map well.\n+\n+### Economic Buyer Profile\n+The most likely economic buyers are the co-founders.\n+\n+For a company this size, founder approval is usually enough for meaningful software, marketing, or ops purchases unless the spend is unusually large. The public evidence does not suggest a deep enterprise hierarchy.\n+\n+Likely buyers:\n+\n+* Simone Murtas, co-founder\n+* Eleonora Sanna, co-founder\n+\n+If a non-founder is involved, it is probably an operations or commercial lead rather than procurement.\n+\n+### Decision Criteria Assessment\n+Vivisolar appears to buy on practical execution criteria:\n+\n+* clear commercial terms\n+* fast implementation\n+* reduced bureaucracy\n+* local responsiveness\n+* quality and reliability\n+* ability to support customers after the sale\n+\n+Those criteria are consistent across the homepage, About page, careers page, and customer reviews.\n+\n+### Decision Process Map\n+Estimated process:\n+\n+1. Initial founder or manager review\n+2. Internal fit check against current operating pain\n+3. Lightweight demo or conversation\n+4. Quick decision if value is clear\n+5. Implementation with a strong preference for local, hands-on support\n+\n+This does not look like a formal procurement environment.\n+\n+### Pain Point Analysis\n+Detected pain points:\n+\n+* Unclear quotes and weak commercial transparency\n+* Bureaucratic overhead around permits and incentives\n+* Risk of vendor unreliability after payment\n+* Operational pressure to install quickly and support customers well\n+* Need to explain savings, storage, and EV charging clearly to homeowners\n+\n+Severity is high because these are core to the company’s value proposition, not edge cases.\n+\n+### Champion Strategy\n+Best candidate champions are the founders themselves, especially if the solution directly reduces operational friction.\n+\n+Approach:\n+\n+* lead with saved time, fewer handoffs, and better customer experience\n+* show exactly how the tool reduces quote/admin/support load\n+* keep the first conversation short and practical\n+* avoid generic “digital transformation” language\n+\n+---\n+\n+## Buying Signals Detected\n+\n+1. **11-50 employee operating base** - LinkedIn company profile shows a small but established team. (Source: https://it.linkedin.com/company/vivisolar, Strength: Moderate)\n+2. **Founder-led structure** - Public LinkedIn profiles identify Simone Murtas and Eleonora Sanna as co-founders. (Source: https://it.linkedin.com/in/simone-murtas-7b950b26b, https://it.linkedin.com/in/eleonora-sanna-2015a614b, Strength: Strong)\n+3. **1000+ installations** - The company says it has completed more than 1000 installations in Sardinia. (Source: https://www.vivisolar.it/, Strength: Strong)\n+4. **Active hiring** - Current open roles for installatori and consulenti energetici on the careers page. (Source: https://www.vivisolar.it/lavora-con-noi, Strength: Strong)\n+5. **Recent content activity** - June 2026 blog posts about storage and EV charging indicate current demand generation and market focus. (Source: https://www.vivisolar.it/blog, Strength: Moderate)\n+6. **Explicit operational pain** - The About page calls out unclear quotes, bureaucracy, and disappearing installers as the problem Vivisolar was built to solve. (Source: https://www.vivisolar.it/chi-siamo, Strength: Strong)\n+\n+## Red Flags\n+\n+1. **Regional concentration** - The business is positioned around Sardinia only, which narrows addressable scope and may limit budget. (Source: https://www.vivisolar.it/chi-siamo, Severity: Medium)\n+   *Mitigation:* Keep the proposal tightly tied to local execution and show near-term ROI.\n+2. **Small-team budget constraints** - 11-50 employees suggests spend may be scrutinized even if the company is healthy. (Source: https://it.linkedin.com/company/vivisolar, Severity: Medium)\n+   *Mitigation:* Offer a simple implementation path and avoid enterprise-style complexity.\n+3. **No public procurement process** - There is no visible formal vendor review or procurement workflow. (Source: https://www.vivisolar.it/, Severity: Low)\n+   *Mitigation:* Make the evaluation frictionless and founder-friendly.\n+4. **No public funding signal** - I found no recent financing or expansion news, so budget is inferred rather than confirmed. (Source: public web search, Severity: Low)\n+   *Mitigation:* Lead with ROI and operational savings rather than broad expansion assumptions.\n+\n+---\n+\n+## Opportunity Quality Score: 77/100\n+\n+| Component | Score | Weight | Weighted |\n+|-----------|-------|--------|----------|\n+| BANT Score | 67/100 | 50% | 33.5 |\n+| MEDDIC Completeness | 100/100 | 30% | 30 |\n+| Urgency Modifier | 65/100 | 20% | 13 |\n+| **TOTAL** | | **100%** | **77/100** |\n+\n+---\n+\n+## Recommended Approach\n+\n+**Lead Grade:** A - Sales Qualified Lead\n+\n+**Strategy:** Vivisolar is a good fit for a direct, founder-level motion. The public signal set is strong enough to justify immediate outreach, but the sale should be framed around practical operating leverage rather than abstract software value. The best angle is to reduce the friction they already talk about publicly: clearer quotes, less admin work, faster handoffs, and stronger post-install customer communication.\n+\n+Start with Simone Murtas and Eleonora Sanna. Keep the first message concrete: reference their turnkey model, their in-house process, and the fact that they are actively hiring. Then position the conversation around helping them scale without adding coordination overhead. If your product touches sales ops, customer workflows, scheduling, or post-sale support, this is a live prospect with a credible near-term need.\n+\n+## Next Steps\n+\n+1. Send a founder-targeted intro that references their turnkey model and current hiring.\n+2. Map which internal process is most painful: quoting, scheduling, permitting, or post-install support.\n+3. Estimate deal value around a small-team deployment, not an enterprise rollout.\n+4. Prepare a short ROI example tied to saved admin time and fewer handoff errors.\n+5. Re-check for any new hiring, press, or leadership signals before outreach.\n+\n+---\n+\n+## Sources\n+\n+* https://www.vivisolar.it/\n+* https://www.vivisolar.it/chi-siamo\n+* https://www.vivisolar.it/lavora-con-noi\n+* https://www.vivisolar.it/blog\n+* https://it.linkedin.com/company/vivisolar\n+* https://it.linkedin.com/in/simone-murtas-7b950b26b\n+* https://it.linkedin.com/in/eleonora-sanna-2015a614b\ndiff --git a/sales-state.json b/sales-state.json\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..09abf50e531b98ca3cff4d00d24d250a388e0c94\n--- /dev/null\n+++ b/sales-state.json\n@@ -0,0 +1,26 @@\n+{\n+  \"company\": \"Vivisolar\",\n+  \"url\": \"https://www.vivisolar.it/\",\n+  \"date\": \"2026-06-17\",\n+  \"stage\": \"qualified\",\n+  \"lead_grade\": \"A\",\n+  \"bant_score\": 67,\n+  \"meddic_completeness\": 100,\n+  \"opportunity_quality_score\": 77,\n+  \"urgency_level\": \"Medium-High\",\n+  \"send_ready\": false,\n+  \"artifact_paths\": [\n+    \"/workspace/session-vivisolar/LEAD-QUALIFICATION.md\"\n+  ],\n+  \"blockers\": [],\n+  \"next_action\": \"Founder-level outreach focused on reducing quote-to-install friction and admin burden.\",\n+  \"source_urls\": [\n+    \"https://www.vivisolar.it/\",\n+    \"https://www.vivisolar.it/chi-siamo\",\n+    \"https://www.vivisolar.it/lavora-con-noi\",\n+    \"https://www.vivisolar.it/blog\",\n+    \"https://it.linkedin.com/company/vivisolar\",\n+    \"https://it.linkedin.com/in/simone-murtas-7b950b26b\",\n+    \"https://it.linkedin.com/in/eleonora-sanna-2015a614b\"\n+  ]\n+}",
+          "workspace": "session-vivisolar",
+          "files": [
+            {
+              "name": "LEAD-QUALIFICATION.md",
+              "content": "# Lead Qualification: Vivisolar\n**URL:** https://www.vivisolar.it/\n**Date:** 2026-06-17\n**Opportunity Quality Score: 77/100**\n**Lead Grade: A - Sales Qualified Lead**\n**BANT Score: 67/100 | MEDDIC Completeness: 100%**\n\n---\n\n## Qualification Snapshot\n\n| Metric | Value |\n|--------|-------|\n| **Company** | Vivisolar |\n| **Industry** | Renewables & Environment / Solar installation |\n| **Employees** | 11-50 |\n| **BANT Score** | 67/100 |\n| **MEDDIC Completeness** | 100% |\n| **Opportunity Quality Score** | 77/100 |\n| **Lead Grade** | A - Sales Qualified Lead |\n| **Urgency Level** | Medium-High |\n| **Recommended Action** | Direct founder-level outreach focused on reducing quote-to-install friction and admin burden. |\n\n---\n\n## BANT Scorecard\n\n| Dimension | Score | Key Evidence | Confidence |\n|-----------|-------|-------------|------------|\n| **Budget** | 13/25 | LinkedIn shows 11-50 employees and the company presents itself as an established regional operator with 1000+ installations and a price range of `€€`. | Medium |\n| **Authority** | 18/25 | Public LinkedIn profiles identify Simone Murtas and Eleonora Sanna as co-founders; the company is small enough that buying authority is likely concentrated at founder level. | High |\n| **Need** | 22/25 | The site explicitly says Vivisolar exists to eliminate unclear quotes, bureaucracy, and installers disappearing after payment; recent blog content focuses on storage, EV charging, and blackout resilience. | High |\n| **Timeline** | 14/25 | The careers page is actively recruiting installatori and consulenti energetici, and the blog has fresh June 2026 content, both of which point to active execution and ongoing growth. | Medium |\n| **TOTAL** | **67/100** | | |\n\n### Budget Analysis\nVivisolar does not publish a corporate funding history or procurement budget, so there is no explicit budget confirmation.\n\nThat said, the company shows several capacity signals:\n\n* LinkedIn lists the company at [11-50 employees](https://it.linkedin.com/company/vivisolar).\n* The site claims [1000+ installations in Sardinia](https://www.vivisolar.it/).\n* The business advertises a `€€` price range in its schema markup and positions itself as a full-service solar contractor.\n* The careers page is still recruiting for both [installatori and consulenti energetici](https://www.vivisolar.it/lavora-con-noi), which usually implies active operating spend.\n\nNet: budget looks present but not abundant. I would treat this as a company that can buy, but may still require a clear ROI case and a practical package.\n\n### Authority Analysis\nAuthority is comparatively clear for a public prospect of this size.\n\nPublic LinkedIn profiles identify:\n\n* [Simone Murtas, co-founder at Vivisolar](https://it.linkedin.com/in/simone-murtas-7b950b26b)\n* [Eleonora Sanna, co-founder at Vivisolar](https://it.linkedin.com/in/eleonora-sanna-2015a614b)\n\nThe company is small enough that founder-level approval is the most likely route for a software or services purchase. The site also emphasizes that customers speak with a nearby team, not a call center, which reinforces the founder-led, hands-on operating style.\n\nBuying authority is likely concentrated with the founders, with a second layer of input from whoever owns operations, sales, or customer success.\n\n### Need Analysis\nNeed is the strongest part of the profile.\n\nVivisolar’s own messaging is unusually explicit about the pain it is trying to solve:\n\n* “preventivi poco chiari”\n* “pratiche burocratiche”\n* “installatori che spariscono dopo il saldo”\n* a promise of a local partner that “risponde”\n\nThe site also says it manages project, permitting, installation, collaudo, incentives, and monitoring in-house. That is a classic sign of a business where internal coordination, scheduling, handoffs, and post-install support matter.\n\nRecent content on the blog also points to active customer concerns around:\n\n* battery storage and evening self-consumption\n* EV home charging\n* blackout resilience\n* incentives and savings\n\nThere is real operational pain here, and the company is already selling to that pain.\n\n### Timeline Analysis\nThe timeline signal is moderate to strong, not immediate.\n\nReasons:\n\n* The [careers page](https://www.vivisolar.it/lavora-con-noi) is actively open for applications, which suggests the business is in growth mode.\n* The [blog](https://www.vivisolar.it/blog) has fresh June 2026 posts, so content operations and sales motion are current.\n* The site repeatedly emphasizes speed, rapid inspections, and few-day installs, which implies an execution-oriented culture.\n\nThere is no public RFP, funding round, acquisition, or crisis event, so I would not call this an urgent “buy this week” prospect. But it is a live operating business with active growth signals.\n\n---\n\n## MEDDIC Assessment\n\n| Element | Finding | Evidence | Confidence |\n|---------|---------|----------|------------|\n| **Metrics** | Installation throughput, lead-to-quote conversion, install cycle time, customer satisfaction, post-install support load | The site emphasizes 1000+ installations, fast installs, and lifetime monitoring/support. | High |\n| **Economic Buyer** | Simone Murtas and/or Eleonora Sanna, co-founders | Public LinkedIn profiles identify both as co-founders at Vivisolar. | High |\n| **Decision Criteria** | Transparency, turnkey execution, speed, quality, financing, local support, and post-install service | The site repeatedly highlights “numeri chiari,” turnkey service, internal teams, financing, and lifetime assistance. | High |\n| **Decision Process** | Founder-led, informal SMB buying process, likely with direct evaluation rather than a formal procurement committee | Small company size and founder-led structure from LinkedIn; no public procurement process visible. | Medium |\n| **Identify Pain** | Quote clarity, bureaucracy, handoff reliability, install coordination, and post-sale support | Explicitly stated on the About page and reinforced by customer reviews. | High |\n| **Champion** | Simone Murtas or another founder/operations lead; small-company champion and buyer may be the same person | Founder-led business with public co-founders and a hands-on operating model. | Medium |\n\n### Metrics Deep Dive\nVivisolar appears to care about operational metrics more than vanity metrics.\n\nLikely priority metrics:\n\n* lead volume and quote conversion\n* speed from survey to install\n* permit/practice completion time\n* customer satisfaction and review quality\n* post-install support burden\n\nTheir messaging around savings, payback, and monitoring also suggests they care about helping customers visualize ROI, so tools that improve quoting speed or clarity should map well.\n\n### Economic Buyer Profile\nThe most likely economic buyers are the co-founders.\n\nFor a company this size, founder approval is usually enough for meaningful software, marketing, or ops purchases unless the spend is unusually large. The public evidence does not suggest a deep enterprise hierarchy.\n\nLikely buyers:\n\n* Simone Murtas, co-founder\n* Eleonora Sanna, co-founder\n\nIf a non-founder is involved, it is probably an operations or commercial lead rather than procurement.\n\n### Decision Criteria Assessment\nVivisolar appears to buy on practical execution criteria:\n\n* clear commercial terms\n* fast implementation\n* reduced bureaucracy\n* local responsiveness\n* quality and reliability\n* ability to support customers after the sale\n\nThose criteria are consistent across the homepage, About page, careers page, and customer reviews.\n\n### Decision Process Map\nEstimated process:\n\n1. Initial founder or manager review\n2. Internal fit check against current operating pain\n3. Lightweight demo or conversation\n4. Quick decision if value is clear\n5. Implementation with a strong preference for local, hands-on support\n\nThis does not look like a formal procurement environment.\n\n### Pain Point Analysis\nDetected pain points:\n\n* Unclear quotes and weak commercial transparency\n* Bureaucratic overhead around permits and incentives\n* Risk of vendor unreliability after payment\n* Operational pressure to install quickly and support customers well\n* Need to explain savings, storage, and EV charging clearly to homeowners\n\nSeverity is high because these are core to the company’s value proposition, not edge cases.\n\n### Champion Strategy\nBest candidate champions are the founders themselves, especially if the solution directly reduces operational friction.\n\nApproach:\n\n* lead with saved time, fewer handoffs, and better customer experience\n* show exactly how the tool reduces quote/admin/support load\n* keep the first conversation short and practical\n* avoid generic “digital transformation” language\n\n---\n\n## Buying Signals Detected\n\n1. **11-50 employee operating base** - LinkedIn company profile shows a small but established team. (Source: https://it.linkedin.com/company/vivisolar, Strength: Moderate)\n2. **Founder-led structure** - Public LinkedIn profiles identify Simone Murtas and Eleonora Sanna as co-founders. (Source: https://it.linkedin.com/in/simone-murtas-7b950b26b, https://it.linkedin.com/in/eleonora-sanna-2015a614b, Strength: Strong)\n3. **1000+ installations** - The company says it has completed more than 1000 installations in Sardinia. (Source: https://www.vivisolar.it/, Strength: Strong)\n4. **Active hiring** - Current open roles for installatori and consulenti energetici on the careers page. (Source: https://www.vivisolar.it/lavora-con-noi, Strength: Strong)\n5. **Recent content activity** - June 2026 blog posts about storage and EV charging indicate current demand generation and market focus. (Source: https://www.vivisolar.it/blog, Strength: Moderate)\n6. **Explicit operational pain** - The About page calls out unclear quotes, bureaucracy, and disappearing installers as the problem Vivisolar was built to solve. (Source: https://www.vivisolar.it/chi-siamo, Strength: Strong)\n\n## Red Flags\n\n1. **Regional concentration** - The business is positioned around Sardinia only, which narrows addressable scope and may limit budget. (Source: https://www.vivisolar.it/chi-siamo, Severity: Medium)\n   *Mitigation:* Keep the proposal tightly tied to local execution and show near-term ROI.\n2. **Small-team budget constraints** - 11-50 employees suggests spend may be scrutinized even if the company is healthy. (Source: https://it.linkedin.com/company/vivisolar, Severity: Medium)\n   *Mitigation:* Offer a simple implementation path and avoid enterprise-style complexity.\n3. **No public procurement process** - There is no visible formal vendor review or procurement workflow. (Source: https://www.vivisolar.it/, Severity: Low)\n   *Mitigation:* Make the evaluation frictionless and founder-friendly.\n4. **No public funding signal** - I found no recent financing or expansion news, so budget is inferred rather than confirmed. (Source: public web search, Severity: Low)\n   *Mitigation:* Lead with ROI and operational savings rather than broad expansion assumptions.\n\n---\n\n## Opportunity Quality Score: 77/100\n\n| Component | Score | Weight | Weighted |\n|-----------|-------|--------|----------|\n| BANT Score | 67/100 | 50% | 33.5 |\n| MEDDIC Completeness | 100/100 | 30% | 30 |\n| Urgency Modifier | 65/100 | 20% | 13 |\n| **TOTAL** | | **100%** | **77/100** |\n\n---\n\n## Recommended Approach\n\n**Lead Grade:** A - Sales Qualified Lead\n\n**Strategy:** Vivisolar is a good fit for a direct, founder-level motion. The public signal set is strong enough to justify immediate outreach, but the sale should be framed around practical operating leverage rather than abstract software value. The best angle is to reduce the friction they already talk about publicly: clearer quotes, less admin work, faster handoffs, and stronger post-install customer communication.\n\nStart with Simone Murtas and Eleonora Sanna. Keep the first message concrete: reference their turnkey model, their in-house process, and the fact that they are actively hiring. Then position the conversation around helping them scale without adding coordination overhead. If your product touches sales ops, customer workflows, scheduling, or post-sale support, this is a live prospect with a credible near-term need.\n\n## Next Steps\n\n1. Send a founder-targeted intro that references their turnkey model and current hiring.\n2. Map which internal process is most painful: quoting, scheduling, permitting, or post-install support.\n3. Estimate deal value around a small-team deployment, not an enterprise rollout.\n4. Prepare a short ROI example tied to saved admin time and fewer handoff errors.\n5. Re-check for any new hiring, press, or leadership signals before outreach.\n\n---\n\n## Sources\n\n* https://www.vivisolar.it/\n* https://www.vivisolar.it/chi-siamo\n* https://www.vivisolar.it/lavora-con-noi\n* https://www.vivisolar.it/blog\n* https://it.linkedin.com/company/vivisolar\n* https://it.linkedin.com/in/simone-murtas-7b950b26b\n* https://it.linkedin.com/in/eleonora-sanna-2015a614b\n",
+              "encoding": "utf-8"
+            },
+            {
+              "name": "sales-state.json",
+              "content": "{\n  \"company\": \"Vivisolar\",\n  \"url\": \"https://www.vivisolar.it/\",\n  \"date\": \"2026-06-17\",\n  \"stage\": \"qualified\",\n  \"lead_grade\": \"A\",\n  \"bant_score\": 67,\n  \"meddic_completeness\": 100,\n  \"opportunity_quality_score\": 77,\n  \"urgency_level\": \"Medium-High\",\n  \"send_ready\": false,\n  \"artifact_paths\": [\n    \"/workspace/session-vivisolar/LEAD-QUALIFICATION.md\"\n  ],\n  \"blockers\": [],\n  \"next_action\": \"Founder-level outreach focused on reducing quote-to-install friction and admin burden.\",\n  \"source_urls\": [\n    \"https://www.vivisolar.it/\",\n    \"https://www.vivisolar.it/chi-siamo\",\n    \"https://www.vivisolar.it/lavora-con-noi\",\n    \"https://www.vivisolar.it/blog\",\n    \"https://it.linkedin.com/company/vivisolar\",\n    \"https://it.linkedin.com/in/simone-murtas-7b950b26b\",\n    \"https://it.linkedin.com/in/eleonora-sanna-2015a614b\"\n  ]\n}\n",
+              "encoding": "utf-8"
+            }
+          ]
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Notify User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Existing Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualify Agent": {
+      "main": [
+        [
+          {
+            "node": "Get state json",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score > 40": {
+      "main": [
+        [
+          {
+            "node": "Markdown to Google Docs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown to Google Docs": {
+      "main": [
+        [
+          {
+            "node": "Update Docs Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing Files": {
+      "main": [
+        [
+          {
+            "node": "Not Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Docs Link": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Prompt": {
+      "main": [
+        [
+          {
+            "node": "Qualify Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Processed": {
+      "main": [
+        [
+          {
+            "node": "Get Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get state json": {
+      "main": [
+        [
+          {
+            "node": "Score > 40",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "21c43e0d-2d22-4a37-8b5e-d0c865b01c5b",
+  "meta": {
+    "instanceId": "3f7b9b33d6b00eff559902e2d968e9d9cd1fce1f82fb67208f360a738416dd47"
+  },
+  "nodeGroups": [],
+  "id": "E6Ykxy0jrYzgqmK1",
+  "tags": [
+    {
+      "name": "AI Agent",
+      "id": "8W6OG59XSOYEG14t",
+      "updatedAt": "2026-06-30T11:03:58.238Z",
+      "createdAt": "2026-06-30T11:03:58.238Z"
+    },
+    {
+      "name": "sales",
+      "id": "UjxjMhGtncTtsQxr",
+      "updatedAt": "2026-06-30T11:03:58.284Z",
+      "createdAt": "2026-06-30T11:03:58.284Z"
+    }
+  ]
+}

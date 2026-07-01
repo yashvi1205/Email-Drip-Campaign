@@ -1,0 +1,742 @@
+{
+  "name": "Outreach Emails",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "260ccb8f-0cc7-4c57-aeb8-add26a62ba18",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.101.206:8000/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"prompt\": \"{{ $json.prompt + $('When Executed by Another Workflow').item.json.Website.trim() || $('When Executed by Another Workflow').item.json.Company }}\",\n  \"session_id\": {{ $('When Executed by Another Workflow').item.json.Company.toLowerCase().replace(/\\s+/g, '_').toJsonString() }},\n  \"include_stdout\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        0
+      ],
+      "id": "a7fa9c8f-08c6-4b2b-97cc-bac49764cd37",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "crSCmYGnNuZ51g7R",
+          "mode": "list",
+          "cachedResultName": "prompts",
+          "cachedResultUrl": "/projects/GIWzjavqhuVKJY2h/datatables/crSCmYGnNuZ51g7R"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "5"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "a6fc8232-48cf-435d-ad99-bf1273f43f17",
+      "name": "Get row(s)"
+    },
+    {
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1sw7Du_RbMTpybojt6V8P49at2r0KG70j",
+          "mode": "list",
+          "cachedResultName": "EmailDrafts",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1sw7Du_RbMTpybojt6V8P49at2r0KG70j"
+        },
+        "markdownInput": "={{ $json.files[4].content }}",
+        "documentTitle": "={{ $('When Executed by Another Workflow').item.json.Company }}",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-md-to-docs.markdownToGoogleDocs",
+      "typeVersion": 1,
+      "position": [
+        656,
+        0
+      ],
+      "id": "37459468-16f1-47e9-baa7-0a6e483d7b7d",
+      "name": "Markdown to Google Docs",
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
+          "mode": "list",
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company": "={{ $('When Executed by Another Workflow').item.json.Company }}",
+            "Automation Status": "Pending Email Review",
+            "Email Draft Doc Link": "={{ $json.documentUrl }}"
+          },
+          "matchingColumns": [
+            "Company"
+          ],
+          "schema": [
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Status",
+              "displayName": "Raw Data Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Name",
+              "displayName": "Raw Data Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Zip Code",
+              "displayName": "Zip Code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Opt Out",
+              "displayName": "Email Opt Out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Salutation",
+              "displayName": "Salutation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Secondary Email",
+              "displayName": "Secondary Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) LinkedIn URL",
+              "displayName": "(I) LinkedIn URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) LinkedIn",
+              "displayName": "(C) LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Phone",
+              "displayName": "(C) Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Email",
+              "displayName": "(C) Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Other Social Channel URLs",
+              "displayName": "(I) Other Social Channel URLs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Notes",
+              "displayName": "(I) Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Background & Notes",
+              "displayName": "Background & Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Sub-Status",
+              "displayName": "Raw Data Sub-Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Business Model",
+              "displayName": "Business Model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Country",
+              "displayName": "(I) Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Point of Contacts",
+              "displayName": "Point of Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Row ID",
+              "displayName": "Row ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Include in Qualify Batch",
+              "displayName": "Include in Qualify Batch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Workflow Path",
+              "displayName": "Workflow Path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Score (0-100)",
+              "displayName": "Qualify Score (0-100)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Pass Score Gate (>=40)",
+              "displayName": "Pass Score Gate (>=40)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Doc Link",
+              "displayName": "Qualify Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Approval",
+              "displayName": "Qualify Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Automation Status",
+              "displayName": "Automation Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Outreach Research",
+              "displayName": "Outreach Research",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Draft Doc Link",
+              "displayName": "Email Draft Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Approval",
+              "displayName": "Email Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Outreach (WF B)",
+              "displayName": "Ready for Outreach (WF B)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Send (WF C)",
+              "displayName": "Ready for Send (WF C)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Batch ID",
+              "displayName": "Qualify Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outreach Batch ID",
+              "displayName": "Outreach Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Batch ID",
+              "displayName": "Send Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Skip / Reject Reason",
+              "displayName": "Skip / Reject Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sent Date",
+              "displayName": "Sent Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "CRM Logged",
+              "displayName": "CRM Logged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        864,
+        0
+      ],
+      "id": "19ddb10e-3738-47f7-b770-959fcd6e201c",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "rZ0tts2pYWj9oacg",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "Company": "Vivisolar",
+          "Outreach Research": "https://docs.google.com/document/d/1MfVv2sfRFX5ngsCW7Wm5vaoYTebKOQpKD2YVmYM7r0g/edit",
+          "Automation Status": "Research Complete",
+          "Workflow Path": "Outreach Prep",
+          "Website": "www.vivisolar.it"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "HTTP Request": [
+      {
+        "json": {
+          "output": "Created the outreach package and updated the sales state.\n\nFiles:\n- [OUTREACH-SEQUENCE.md](/workspace/session-vivisolar/OUTREACH-SEQUENCE.md)\n- [sales-state.json](/workspace/session-vivisolar/sales-state.json)\n\nWhat’s in it:\n- Founder-led outreach for Simone Murtas as the primary target\n- Backup thread for Eleonora Sanna and champion thread for Anders Sander Hansen\n- 5-email sequence plus LinkedIn connection note, message, and engagement touches\n- `send_ready = false` because no verified individual email is public\n\nSources used:\n- [Vivisolar blog](https://www.vivisolar.it/blog)\n- [Vivisolar careers](https://www.vivisolar.it/lavora-con-noi)\n- [Vivisolar contact page](https://www.vivisolar.it/contatti)\n- [Vivisolar LinkedIn company page](https://it.linkedin.com/company/vivisolar)\n- [Simone Murtas LinkedIn](https://it.linkedin.com/in/simone-murtas-7b950b26b)\n- [Eleonora Sanna LinkedIn](https://it.linkedin.com/in/eleonora-sanna-2015a614b)\n- [Anders Sander Hansen LinkedIn](https://it.linkedin.com/in/anderssanderhansen)\n- [Paolo Tuveri LinkedIn](https://it.linkedin.com/in/paolo-tuveri-7199a92a8)\n\nNext steps:\n1. Verify a direct individual email if you want the email sequence to become sendable.\n2. If you want, I can also draft a separate Eleonora-first variant.\ndiff --git a/OUTREACH-SEQUENCE.md b/OUTREACH-SEQUENCE.md\nnew file mode 100644\nindex 0000000000000000000000000000000000000000..383cc46478288fa1aa5053dfabc3957fef23b1cc\n--- /dev/null\n+++ b/OUTREACH-SEQUENCE.md\n@@ -0,0 +1,173 @@\n+# Outreach Sequence: Vivisolar\n+\n+**URL:** https://www.vivisolar.it/  \n+**Date:** 2026-06-17  \n+**Primary Contact:** Simone Murtas, Co-founder  \n+**Secondary Contact:** Eleonora Sanna, Co-founder  \n+**Champion:** Anders Sander Hansen, Sales Consultant  \n+**Send Status:** `send_ready = false`  \n+\n+## Personalization Research\n+\n+**Company Triggers Found**\n+\n+1. June 2026 blog cadence around storage, EV charging, pricing, and heat pumps - hot signal because the content is current and tied to near-term demand generation.\n+2. Active hiring for installers and energy consultants - warm signal because growth usually increases handoff and coordination pressure.\n+3. Public TeamSystem CRM usage across admin and field logistics - warm signal because the company already cares about workflow discipline.\n+\n+**Personal Triggers Found**\n+\n+1. Anders Sander Hansen publicly described joining Vivisolar after being a customer and helping with inbound leads - warm signal and a useful champion thread.\n+2. Simone and Eleonora are both public founders with clear operational responsibility - warm signal because founder-led businesses respond well to practical, ROI-led outreach.\n+\n+**Industry Triggers Found**\n+\n+1. Residential solar teams are selling more storage, EV charging, and backup resilience, which increases the complexity of the quote-to-install journey.\n+2. Smaller EPC-style teams usually hit friction when demand, scheduling, and post-install support all expand at once.\n+\n+**Best Opening Angle**\n+\n+Lead with the June 2026 content push on storage and EV charging, then connect it to the operational burden of scaling quote-to-install handoffs without adding admin.\n+\n+**Secondary Angle**\n+\n+Use the active hiring signal if the first thread stalls: growing the team usually means more coordination, more quoting, and more follow-up work.\n+\n+## Contact Routing\n+\n+**Preferred target:** Simone Murtas, Co-founder\n+**Preferred target email status:** Unknown\n+**Recommended send target:** Simone Murtas on LinkedIn\n+**Reason:** He is a founder, the company is small enough for founder-led buying, and the public pain points are operational rather than purely marketing-led.\n+**Manual research needed:** Yes. Verify a direct individual email before any email send. Do not use a guessed address.\n+\n+## Framework Selection\n+\n+**Selected framework:** Trigger Event\n+\n+Why:\n+- The June 2026 blog activity is recent and specific.\n+- The hiring signal shows active execution.\n+- The public CRM/workflow story gives a clean operational bridge.\n+\n+## Omnichannel Sequence\n+\n+### Day 0 - LinkedIn Connection Request\n+\n+**Target:** Simone Murtas\n+\n+**Note option A**\n+\n+Saw your June guides on storage and EV charging, plus the hiring push. It looks like Vivisolar is scaling demand and delivery at the same time. I work on quote-to-install workflow for solar teams and thought it made sense to connect.\n+\n+**Note option B**\n+\n+Your June content on storage and EV charging stood out. Vivisolar looks busy on both growth and delivery, which usually creates workflow friction. I work on reducing that friction for solar teams and would like to connect.\n+\n+### Day 1 - Email 1: The Hook\n+\n+**Status:** blocked until a verified individual email exists\n+\n+**Subject A:** vivisolar and storage\n+**Subject B:** faster quote-to-install\n+\n+I saw your June 8 guide on storage and the June 2 piece on EV charging. That says Vivisolar is clearly pushing beyond panels, while still hiring and keeping the local in-house model.\n+\n+When a small solar team grows that fast, the hidden cost is usually quote follow-up and handoff work, not lead volume.\n+\n+We help teams keep the project moving without adding admin. Worth a quick call if I send one practical example?\n+\n+### Day 3 - Email 2: The Value Add\n+\n+**Status:** blocked until a verified individual email exists\n+\n+**Subject A:** a simple handoff check\n+**Subject B:** one workflow idea\n+\n+Quick follow-up to the June content you’re publishing.\n+\n+One pattern we see in small solar teams is that the first bottleneck is not the sale itself. It is the gap between first interest, survey, quote, and install, where details get retyped and context gets lost.\n+\n+If that gap is visible, it is usually fixable without changing the whole stack.\n+\n+Happy to share a simple handoff checklist if useful.\n+\n+### Day 5 - LinkedIn Engagement\n+\n+**Action:** Like the most recent company post or a relevant personal post, then leave a short comment.\n+\n+**Comment draft**\n+\n+The storage and EV charging content makes sense together. Once customers start asking for backup, self-consumption, and home charging in the same conversation, the coordination work gets real fast.\n+\n+### Day 7 - Email 3: The Social Proof\n+\n+**Status:** blocked until a verified individual email exists\n+\n+**Subject A:** scaling without extra admin\n+**Subject B:** what usually breaks first\n+\n+In solar teams your size, the first thing that usually breaks is internal visibility, not demand.\n+\n+When lead handling, quoting, scheduling, and post-install follow-up live in different places, someone on the team ends up stitching the story together by hand.\n+\n+That is the part we focus on: fewer handoffs, clearer status, less manual chase work.\n+\n+If that is relevant, I can show you how we map it in practice.\n+\n+### Day 10 - LinkedIn Message\n+\n+**Target:** Simone Murtas\n+\n+Hey Simone, I sent a couple of notes by email about the June storage and EV charging content and the way Vivisolar is scaling while keeping the local, in-house model. Not sure I hit the right inbox. If useful, I can share a simple way to keep quote-to-install handoffs visible without adding admin. Worth a quick chat?\n+\n+### Day 14 - Email 4: The Different Angle\n+\n+**Status:** blocked until a verified individual email exists\n+\n+**Subject A:** hiring adds coordination\n+**Subject B:** a growth bottleneck\n+\n+The hiring signal on your site stood out.\n+\n+More installers and energy consultants usually helps growth, but it also creates more internal coordination. That is where small teams start losing time: status checks, follow-ups, and keeping customer expectations aligned.\n+\n+We help reduce that coordination load so the team can stay focused on delivery.\n+\n+Open to a short call?\n+\n+### Day 18 - LinkedIn Value Share\n+\n+**Action:** Share a relevant insight or article and tag only if genuinely useful.\n+\n+**Share draft**\n+\n+Vivisolar’s June content on storage and EV charging is a good reminder that solar sales are no longer just about panels. The more the conversation expands into backup, self-consumption, and home charging, the more important it is to keep quoting and install handoffs clean.\n+\n+### Day 21 - Email 5: The Breakup\n+\n+**Status:** blocked until a verified individual email exists\n+\n+**Subject A:** should I close the loop\n+**Subject B:** not the right time\n+\n+Looks like the timing may not be right, which is fine.\n+\n+If the main issue ever becomes quote-to-install friction, I’d be glad to share the workflow approach we use with small field teams.\n+\n+If it helps later, I’m easy to reach on LinkedIn.\n+\n+## Recommended Send Plan\n+\n+1. Start with Simone on LinkedIn.\n+2. Add Eleonora only if Simone does not engage after the first two touchpoints.\n+3. Use Anders as the practical champion if you want a lower-friction internal thread.\n+4. Do not send email until a verified individual address is confirmed.\n+\n+## Notes\n+\n+- Keep the tone practical and operational, not abstract.\n+- Avoid pitching TeamSystem as \"bad\"; they already publicly use it.\n+- Keep referencing current June 2026 content, because it is the strongest freshness signal.\n+- If a verified email appears later, the email sequence above is ready to use after human approval.\n+\ndiff --git a/sales-state.json b/sales-state.json\nindex 27a4ab16db60d976a71a3817bbe0ce1faee12d23..0fe1f26189823eab8ed1fe40a3a472935e41c349\n--- a/sales-state.json\n+++ b/sales-state.json\n@@ -2,7 +2,7 @@\n   \"company\": \"Vivisolar\",\n   \"url\": \"https://www.vivisolar.it/\",\n   \"date\": \"2026-06-17\",\n-  \"stage\": \"competitive_intel_complete\",\n+  \"stage\": \"outreach_drafted\",\n   \"lead_grade\": \"A\",\n   \"bant_score\": 67,\n   \"meddic_completeness\": 100,\n@@ -14,10 +14,13 @@\n     \"/workspace/session-vivisolar/LEAD-QUALIFICATION.md\",\n     \"/workspace/session-vivisolar/DECISION-MAKERS.md\",\n     \"/workspace/session-vivisolar/COMPANY-RESEARCH.md\",\n-    \"/workspace/session-vivisolar/COMPETITIVE-INTEL.md\"\n+    \"/workspace/session-vivisolar/COMPETITIVE-INTEL.md\",\n+    \"/workspace/session-vivisolar/OUTREACH-SEQUENCE.md\"\n+  ],\n+  \"blockers\": [\n+    \"No verified individual email found for any named contact.\"\n   ],\n-  \"blockers\": [],\n-  \"next_action\": \"Run /sales outreach using the founder-led, ops-efficiency angle; LinkedIn is still the best channel because no verified individual email is public.\",\n+  \"next_action\": \"Use the LinkedIn-first sequence in OUTREACH-SEQUENCE.md and verify a direct email before any email send.\",\n   \"contact_access_score\": 50,\n   \"buying_committee_size\": 4,\n   \"primary_contacts\": [\n@@ -47,6 +50,9 @@\n     \"https://www.teamsystem.com/assistenza/\",\n     \"https://www.teamsystem.com/\",\n     \"https://www.teamsystem.com/media/files/1509_TS_CASE%20HISTORY_Vivisolar.pdf\",\n-    \"https://www.facebook.com/vivisolar.fotovoltaico/\"\n+    \"https://www.facebook.com/vivisolar.fotovoltaico/\",\n+    \"https://www.vivisolar.it/blog\",\n+    \"https://www.vivisolar.it/lavora-con-noi\",\n+    \"https://www.vivisolar.it/contatti\"\n   ]\n }",
+          "workspace": "session-vivisolar",
+          "files": [
+            {
+              "name": "COMPANY-RESEARCH.md",
+              "content": "# Company Research: Vivisolar S.r.l.\n**URL:** https://www.vivisolar.it/\n**Date:** 2026-06-17\n**Company Type:** Private local solar EPC / installer\n**Industry:** Renewables and Environment / Residential Solar\n**Company Fit Score: 75/100**\n\n---\n\n## Executive Summary\n\nVivisolar is a Sardinia-focused solar installation and energy services company. Its public positioning is clear: turnkey residential solar, battery storage, heat pumps, and EV charging, with a strong emphasis on transparency, local service, and end-to-end handling of project work, permits, financing, installation, and monitoring. The company presents itself as a hands-on regional operator rather than a lead-gen marketplace or a national brand.\n\nThe company looks operationally mature for its size. Public sources show 11-50 employees, over 1,000 installations in Sardinia, 162 verified customer reviews at a 5.0 rating, and a reference project with Poste Italiane covering 65+ post offices on the island. It was founded in May 2021 and already uses a cloud CRM across administrative and field-logistics workflows, which is a strong signal that the business values process control and is comfortable with software that improves execution.\n\nFor sales purposes, Vivisolar looks like a good fit if your offer reduces coordination overhead, improves quoting or customer communication, or streamlines back-office and field operations. The main caution is budget sensitivity typical of a 11-50 person regional operator, so the strongest motion will be practical, ROI-led, and founder-friendly.\n\n---\n\n## Company Snapshot\n\n| Field | Value |\n|-------|-------|\n| **Company Name** | Vivisolar S.r.l. |\n| **Founded** | 2021 (operating since May 2021, per TeamSystem case study) |\n| **Founders** | Simone Murtas, Eleonora Sanna |\n| **Headquarters** | Villacidro, Sud Sardegna, Italy; legal office in Cagliari |\n| **Employees** | 11-50 (source: [LinkedIn company page](https://it.linkedin.com/company/vivisolar)) |\n| **Stage** | Growth |\n| **Total Funding** | Not publicly disclosed |\n| **Latest Round** | Not publicly disclosed |\n| **Revenue Estimate** | EUR 3M-7M annual revenue (confidence: Low) |\n| **Key Investors** | None publicly disclosed |\n| **Tech Stack** | React, Material UI, Emotion, Google Tag Manager, Google Ads, Meta/Facebook Pixel, Firebase, TeamSystem CRM Cloud |\n\n---\n\n## 1. Company Overview\n\nVivisolar is a Sardinia-based solar energy contractor focused on families and homes, with a broader capability set that also includes battery storage, heat pumps, and EV charging. The homepage describes the company as installing photovoltaic systems and storage for households in Sardinia, and the site language repeatedly emphasizes a local, turnkey, no-surprises service model. Sources: [homepage](https://www.vivisolar.it/), [about page](https://www.vivisolar.it/chi-siamo).\n\nThe company is legally present in Italy and discloses:\n- VAT ID: `04030190922`\n- Operating location: Zona Industriale Strada C1, 09039 Villacidro (SU)\n- Legal office: Via Sigmund Freud 4, 09126 Cagliari (CA)\n\nThe about page positions Vivisolar as \"specialists in solar energy in Sardinia\" and frames the mission as making solar simple for every family on the island. The public narrative is centered on removing friction from the buying process: unclear quotes, bureaucracy, and post-sale unreliability. Source: [about page](https://www.vivisolar.it/chi-siamo).\n\nEmployee count is public on LinkedIn at 11-50, which is consistent with a small but established regional services company. Source: [LinkedIn company page](https://it.linkedin.com/company/vivisolar).\n\nPublic team signals extend beyond the founders. The decision-maker map in this workspace identifies Anders Sander Hansen as a sales consultant and Paolo Tuveri as a social media marketing manager, which reinforces that Vivisolar has a small but real operational team rather than just a two-person front end. Source: [DECISION-MAKERS.md](/workspace/session-vivisolar/DECISION-MAKERS.md).\n\n---\n\n## 2. Business Model & Revenue\n\nVivisolar appears to monetize through direct project sales and installation services rather than recurring SaaS or marketplace economics. The product mix shown on the site includes:\n- Photovoltaic systems\n- Battery storage\n- Heat pumps and air conditioning\n- EV charging / wallboxes\n\nThe revenue model is a quote-based turnkey contractor model. The site does not publish a standard pricing sheet, but it does publish calculator outputs, financing language, and a `priceRange` of `€€` in structured data. That suggests mid-market residential project pricing with financing support rather than low-ticket commodity installs. Sources: [homepage](https://www.vivisolar.it/), [about page](https://www.vivisolar.it/chi-siamo).\n\nCustomer proof is unusually strong for a company this size:\n- Over 1,000 installations in Sardinia\n- 162 verified reviews with a 5.0 rating\n- 65+ Post Office locations in Sardinia equipped with Vivisolar solar installations\n\nSource: [homepage](https://www.vivisolar.it/), [reviews page](https://www.vivisolar.it/recensioni).\n\n### Pricing / Commercial Signals\n\n| Signal | Finding |\n|--------|---------|\n| Public price list | Not available |\n| Price range | `€€` in structured data |\n| Sales motion | Consultation-first, quote-based |\n| Financing | Prominently advertised as \"finanziamenti agevolati\" / no upfront path |\n| Sales promise | \"Numeri chiari\" and ROI-focused consultation |\n\nRevenue estimate methodology:\n- The business is services-heavy, not software-heavy.\n- With 11-50 employees, 1,000+ installations, and a quote-based project model, a low-confidence EUR 3M-7M annual revenue range is reasonable.\n- This is an inference, not a disclosed figure.\n\n---\n\n## 3. Product & Technology\n\nVivisolar's core offer is a turnkey energy-services stack for residential customers, with adjacent capabilities for small commercial and public-sector work. The site highlights project design, permits, installation, collaudo, monitoring, and post-install assistance. Sources: [homepage](https://www.vivisolar.it/), [about page](https://www.vivisolar.it/chi-siamo).\n\n### Product Portfolio\n\n| Product | Notes |\n|---------|-------|\n| Photovoltaic systems | Core offering |\n| Battery storage | Major upsell and retention lever |\n| Heat pumps / climate control | Cross-sell into home electrification |\n| EV charging | Adjacent home energy product |\n| Monitoring / support | Post-install lifecycle service |\n\n### Technology Stack\n\nThe website source shows a modern React application using:\n- React\n- Material UI\n- Emotion\n- Module-bundled front-end assets\n- Google Tag Manager / Google Ads\n- Meta / Facebook Pixel\n- Firebase scripts\n\nThis is visible in the HTML source of the homepage and about page. The site is not a static brochure site; it is a modern single-page application with interactive calculators and structured data. Sources: [homepage source](https://www.vivisolar.it/), [about page source](https://www.vivisolar.it/chi-siamo).\n\n### Internal Operations Tech\n\nVivisolar has publicly shared a TeamSystem case study showing that it uses TeamSystem CRM in Cloud across administrative work and cantieri logistics. The case study says all employees have CRM accounts, workflows are used to standardize behavior, reporting is used to monitor sales, and the company uses the API and database connections. Source: [TeamSystem case study](https://www.teamsystem.com/aziende/storie-di-successo/vivisolar-crm-aziendale-teamsystem/), [PDF case history](https://www.teamsystem.com/media/files/1509_TS_CASE%20HISTORY_Vivisolar.pdf).\n\nThat is a meaningful signal: Vivisolar is already operating with process discipline and is likely to care about tools that integrate cleanly and reduce operational errors.\n\n---\n\n## 4. Leadership & Team\n\nPublic leadership signals are founder-led and small-company oriented.\n\n### Key People\n\n| Person | Role | Evidence |\n|--------|------|----------|\n| Simone Murtas | Co-founder and administrator | TeamSystem case study and LinkedIn profile |\n| Eleonora Sanna | Co-founder | LinkedIn profile |\n| Anders Sander Hansen | Sales consultant | Decision-maker map and LinkedIn profile |\n| Paolo Tuveri | Social media marketing manager | Decision-maker map and LinkedIn profile |\n\nSources:\n- [Simone Murtas LinkedIn](https://it.linkedin.com/in/simone-murtas-7b950b26b)\n- [Eleonora Sanna LinkedIn](https://it.linkedin.com/in/eleonora-sanna-2015a614b)\n- [TeamSystem case study](https://www.teamsystem.com/aziende/storie-di-successo/vivisolar-crm-aziendale-teamsystem/)\n- [DECISION-MAKERS.md](/workspace/session-vivisolar/DECISION-MAKERS.md)\n\nThe company appears founder-led, with concentrated buying authority and a hands-on operating style. The public footprint does not show a broad executive bench or a formal board structure.\n\n### Team Signals\n\n- LinkedIn company size: 11-50 employees\n- Careers page is actively recruiting installatori and consulenti energetici\n- The business emphasizes local, in-house execution rather than subcontractor-heavy delivery\n\nSource: [careers page](https://www.vivisolar.it/lavora-con-noi).\n\n---\n\n## 5. Funding & Financial Health\n\nNo public funding round, investor list, or valuation was found in this pass. That usually means one of two things:\n- The company is bootstrapped or privately financed.\n- Funding has not been publicly disclosed.\n\nThere is no signal of venture-backed growth behavior in the public sources I reviewed. Instead, the company looks like a profitable or at least cash-generative regional services business with operational reinvestment into people and systems.\n\n### Financial Health Signals\n\n| Signal | Interpretation |\n|--------|-----------------|\n| 11-50 employees | Small, likely budget-conscious, but established |\n| Active hiring | Ongoing operating spend and growth |\n| 1,000+ installations | Real revenue base and operational scale |\n| TeamSystem CRM investment | Willingness to spend on process tooling |\n| No disclosed funding | Likely bootstrapped or non-VC backed |\n\n### Round History\n\n| Round | Amount | Date | Notes |\n|-------|--------|------|-------|\n| Not publicly disclosed | - | - | No public funding data found |\n\n---\n\n## 6. Market Position\n\nVivisolar sits in the residential solar installer / EPC segment, with regional focus on Sardinia. It competes on local trust, speed, turnkey delivery, and after-sales support rather than pure price.\n\n### Competitive Positioning\n\n- Local presence in Sardinia\n- Strong proof points: 1,000+ installs, 5.0/162 verified reviews, Poste Italiane reference\n- Broad home-energy portfolio, not just panels\n- Clear promise to handle bureaucracy and support the customer after install\n\n### Competitors\n\nSpecific competitors were not named by the company. Based on category and geography, likely competitors include:\n- Other Sardinian residential solar installers\n- National turnkey solar players active in Italy\n- Local HVAC / electrical contractors expanding into solar\n\nThese competitors are inferred from market category, not directly stated by Vivisolar.\n\n### Market Advantage\n\nVivisolar's strongest advantage is trust-plus-execution:\n- local team\n- in-house delivery\n- visible customer satisfaction\n- strong public proof with an enterprise-grade reference project\n\n---\n\n## 7. Culture & Employer Brand\n\nVivisolar's culture is highly legible from the website copy:\n- transparency\n- Sardinian roots\n- quality\n- lifetime assistance\n- in-house delivery\n\nThe company explicitly says it is a local team, that customers speak with people nearby, and that it does not disappear after installation. That is a strong service culture signal. Source: [about page](https://www.vivisolar.it/chi-siamo).\n\n### Employer Brand Signals\n\n| Signal | Finding |\n|--------|---------|\n| Values | Transparency, quality, local roots, lifetime support |\n| Work model | Field and office hybrid, Sardinia-based |\n| Hiring pace | Active open roles for installers and energy consultants |\n| Benefits | Not publicly detailed |\n| Glassdoor | No reliable public Glassdoor profile found in this pass |\n\nCustomer reviews are very strong, which usually correlates with a service culture that emphasizes responsiveness and craftsmanship. Source: [reviews page](https://www.vivisolar.it/recensioni).\n\n### Culture Risk\n\nThe company likely relies heavily on operational discipline and hands-on coordination. That can create friction if internal tools are fragmented or if growth outpaces process maturity.\n\n---\n\n## 8. Recent Developments\n\n### Last 6 Months\n\n1. New blog cadence in June 2026 covering storage, EV charging, pricing, and heat-pump pairing with solar. Source: [blog](https://www.vivisolar.it/blog).\n2. Ongoing public social proof around the Poste Italiane project, with a Facebook post in the last month referencing continued installation work. Source: [Facebook page](https://www.facebook.com/vivisolar.fotovoltaico/).\n3. Continued emphasis on local growth and hiring, with open roles still posted on the careers page. Source: [careers page](https://www.vivisolar.it/lavora-con-noi).\n\n### Historical Context\n\n- TeamSystem case study says Vivisolar has been operating since May 2021.\n- The case study also says the company grew quickly after adopting CRM workflows.\n\nSources:\n- [TeamSystem article](https://www.teamsystem.com/aziende/storie-di-successo/vivisolar-crm-aziendale-teamsystem/)\n- [TeamSystem PDF](https://www.teamsystem.com/media/files/1509_TS_CASE%20HISTORY_Vivisolar.pdf)\n\n---\n\n## Company Fit Score: 75/100\n\n| Sub-Dimension | Score | Evidence |\n|--------------|-------|----------|\n| Size Fit | 14/20 | 11-50 employees, established but still small enough for founder-led decisions |\n| Industry Fit | 15/20 | Renewables / residential solar is adjacent to many operational software and services plays |\n| Growth Trajectory | 15/20 | Founded in 2021, active hiring, fresh blog content, ongoing public project updates |\n| Tech Sophistication | 14/20 | React site, modern front-end stack, TeamSystem CRM Cloud, API use |\n| Budget Signals | 17/20 | 1,000+ installs, pricing is quote-based, enterprise reference customer, active hiring |\n| **Total** | **75/100** | |\n\n---\n\n## Strengths\n1. **Strong operational pain is publicly stated** - Vivisolar says it exists to remove unclear quotes, bureaucracy, and post-sale unreliability. Source: [about page](https://www.vivisolar.it/chi-siamo). *Sales implication: lead with workflow reduction, not generic software value.*\n2. **Clear evidence of growth and demand** - Over 1,000 installations, 162 verified reviews, and active June 2026 publishing. Sources: [homepage](https://www.vivisolar.it/), [reviews page](https://www.vivisolar.it/recensioni), [blog](https://www.vivisolar.it/blog). *Sales implication: sell now while the company is visibly active and scaling.*\n3. **Founder-led buying model** - Public founder profiles and a small team suggest concentrated authority. Sources: [Simone Murtas LinkedIn](https://it.linkedin.com/in/simone-murtas-7b950b26b), [Eleonora Sanna LinkedIn](https://it.linkedin.com/in/eleonora-sanna-2015a614b). *Sales implication: target founders directly and keep the first conversation short and practical.*\n4. **Already comfortable with software operations** - TeamSystem CRM Cloud is in use across admin and field logistics. Sources: [TeamSystem article](https://www.teamsystem.com/aziende/storie-di-successo/vivisolar-crm-aziendale-teamsystem/), [PDF](https://www.teamsystem.com/media/files/1509_TS_CASE%20HISTORY_Vivisolar.pdf). *Sales implication: integration and usability will matter more than novelty.*\n5. **Enterprise credibility in a local market** - Poste Italiane reference and 65+ offices on the island. Source: [homepage](https://www.vivisolar.it/). *Sales implication: position your offer as something that supports reliable, process-heavy execution.*\n\n## Risks\n1. **Budget may be scrutinized** - 11-50 employees and no public funding data suggest a careful purchasing environment. Source: [LinkedIn company page](https://it.linkedin.com/company/vivisolar). *Mitigation: propose a small, ROI-backed starting package.*\n2. **Regional concentration limits TAM** - The business is almost entirely Sardinia-focused. Source: [about page](https://www.vivisolar.it/chi-siamo). *Mitigation: localize the value proposition and use Sardinia-specific examples.*\n3. **Decision process may be informal** - Founder-led SMBs often buy quickly but without formal procurement. This is an inference from the team structure and public footprint. Sources: [LinkedIn company page](https://it.linkedin.com/company/vivisolar), [TeamSystem article](https://www.teamsystem.com/aziende/storie-di-successo/vivisolar-crm-aziendale-teamsystem/). *Mitigation: make evaluation easy and show a fast path to impact.*\n4. **Public financial data is thin** - No funding or revenue disclosure was found, so budget confidence is limited. *Mitigation: anchor the pitch on measurable savings and operational lift rather than assumptions about scale.*\n\n## Key Insights for Sales\n1. **They already care about workflow discipline** - TeamSystem case study says they use workflows, reporting, and APIs across all employees. Source: [TeamSystem PDF](https://www.teamsystem.com/media/files/1509_TS_CASE%20HISTORY_Vivisolar.pdf). *Action: lead with integration, reporting, and process control.*\n2. **Their public pain language is unusually specific** - They talk about unclear quotes and bureaucracy, not abstract efficiency. Source: [about page](https://www.vivisolar.it/chi-siamo). *Action: mirror that language in outreach and tie your offer to quote/admin simplification.*\n3. **Customer trust is a core asset** - Verified reviews and Poste Italiane references indicate trust is part of the brand. Sources: [reviews page](https://www.vivisolar.it/recensioni), [homepage](https://www.vivisolar.it/). *Action: position your product as a way to protect and scale trust, not just cut cost.*\n4. **Their content focus shows where demand is headed** - June 2026 posts center on storage, EV charging, costs, and heat pumps. Source: [blog](https://www.vivisolar.it/blog). *Action: frame your conversation around supporting upsell and customer education around those topics.*\n5. **The business looks active right now** - Open roles and recent posts indicate current execution, not a dormant website. Sources: [careers page](https://www.vivisolar.it/lavora-con-noi), [blog](https://www.vivisolar.it/blog). *Action: outreach should be immediate and concrete, with a short time-to-value message.*\n\n---\n\n*Generated by AI Sales Team - `/sales research`*\n\n",
+              "encoding": "utf-8"
+            },
+            {
+              "name": "COMPETITIVE-INTEL.md",
+              "content": "# Competitive Intelligence: Vivisolar\n\nGenerated: 2026-06-17\nProspect: Vivisolar\nWebsite: https://www.vivisolar.it/\nAnalysis Focus: Sales competitive positioning\n\n---\n\n## Executive Summary\n\nVivisolar publicly uses TeamSystem CRM Cloud for customer, sales, and operational workflow management, and its site stack also shows a modern marketing/lead-gen layer built on React, Google Tag Manager, Google Ads, Meta Pixel, and Firebase. The strongest competitive angle is not to attack their current CRM outright, but to position a lighter, more solar-specific workflow layer that reduces quote-to-install friction, improves handoffs, and keeps the team out of admin overload.\n\nThis report assumes the selling motion is an ops/workflow platform that competes with general-purpose CRM and coordination tools. On that assumption, TeamSystem CRM Cloud is the primary displacement target; the rest of the stack is supporting infrastructure, not a direct competitive target.\n\n---\n\n## Current Solutions Detected\n\n| Category | Solution | Confidence | Evidence Source |\n|----------|----------|-----------|----------------|\n| CRM / Sales Ops | TeamSystem CRM Cloud | High | TeamSystem customer story and CRM pages for Vivisolar; official TeamSystem site |\n| Web App Framework | React | High | Vivisolar homepage and page source load React bundles |\n| UI Framework | Material UI | High | Vivisolar page source references `mui-*` bundles |\n| Styling | Emotion | High | Vivisolar page source includes `emotion-insertion-point` and Emotion styles |\n| Analytics / Tagging | Google Tag Manager | High | Homepage and subpage HTML include `googletagmanager.com/gtag/js` |\n| Paid Search / Ads | Google Ads | High | Homepage HTML includes conversion tag `AW-350707801` |\n| Social Tracking | Meta / Facebook Pixel | High | Homepage and subpage HTML include `connect.facebook.net` and pixel config |\n| Backend / App Services | Firebase | High | Vivisolar page source preloads Firebase bundles |\n| Lead Capture | Custom lead form / lead service | Medium | Vivisolar contact pages preload `LeadForm` and `leadService` bundles |\n\n### Notes on Detection\n\nThe web app is a single-page React implementation, so many signals are visible directly in the HTML source rather than as server-rendered content. The CRM signal is the one that matters for competitive sales: Vivisolar has a public TeamSystem customer story specifically about CRM management.\n\n---\n\n## Battle Cards\n\n### TeamSystem CRM Cloud\n\n### What the Prospect Uses Them For\n\nVivisolar appears to use TeamSystem CRM Cloud as the backbone for customer handling, sales process tracking, and internal workflow discipline. The public TeamSystem story says the CRM is used for the company's CRM function, and Vivisolar's own positioning emphasizes quote clarity, project coordination, permitting, financing, monitoring, and post-install support.\n\n### Competitor Strengths\n\n1. Broad business suite fit - TeamSystem is not just CRM; it sits inside a larger Italian business-software ecosystem, which is attractive if Vivisolar wants one vendor across adjacent needs.\n2. Native sales workflow support - TeamSystem markets CRM in Cloud as a place to manage customers, deals, and marketing in one system.\n3. Familiarity in the Italian SMB market - For a regional Italian contractor, TeamSystem has brand recognition and a local-market fit that lowers perceived risk.\n4. Quote and reporting support - TeamSystem explicitly promotes quote generation, sales tracking, and reporting, which are relevant to Vivisolar's quote-led motion.\n5. Easier internal buy-in - A general-purpose CRM is easier to explain to a small founder-led team than a niche system with a new operating model.\n\n### Competitor Weaknesses\n\n1. Generic rather than solar-native - TeamSystem CRM is positioned as a broad CRM, not as a solar EPC workflow system. That means permits, site surveys, install milestones, and after-sales service are likely adapted rather than purpose-built.\n2. Suite gravity - The value proposition is part of a wide platform. That helps bundling, but it can also mean heavier configuration, more dependencies, and more process overhead than a focused ops tool.\n3. Risk of workflow sprawl - A broad CRM often ends up being used for sales tracking while the real operational work still happens in side spreadsheets, email, or messaging tools.\n4. Harder to tailor around field execution - Vivisolar's business is not just selling leads; it is coordinating projects, crews, permits, and customer follow-up. General CRM tools often stop where field execution starts.\n5. Switching inertia - Because TeamSystem also serves adjacent business functions, a buyer may accept mediocre fit to avoid changing systems. That slows competitive displacement even when the current workflow is imperfect.\n\n### Your Advantages Over This Competitor\n\nAssumption: your solution is a focused ops/workflow layer for quote-to-install coordination, not a full accounting/ERP suite.\n\n1. Solar-specific workflow design - Proof: Vivisolar's public messaging centers on quotes, bureaucracy, scheduling, installations, monitoring, and support, which is a better fit for a vertical workflow than a generic CRM.\n2. Less admin overhead - Proof: Vivisolar says it wants transparency and fewer surprises; a narrower tool can reduce the need for custom fields, manual workarounds, and split ownership.\n3. Faster time to value - Proof: TeamSystem markets a broad CRM and surrounding ecosystem; a lighter product usually reaches useful state faster for a 11-50 person operator.\n4. Better operational visibility - Proof: Vivisolar's TeamSystem case story already shows they care about workflows, reporting, API use, and data connections, so the bar is execution visibility, not just contact storage.\n\n### Their Advantages Over You and How to Neutralize\n\n1. Broader ecosystem - Neutralization: acknowledge that TeamSystem is useful if they want an all-in-one business suite, then reframe the conversation around whether Vivisolar actually needs breadth or just better execution on the critical path.\n2. Lower perceived procurement risk - Neutralization: lead with a short pilot, clear ROI, and minimal process disruption so the move feels additive rather than like a rip-and-replace project.\n3. Existing familiarity - Neutralization: do not argue that they used the wrong tool; instead, show where their current workflow leaks time or creates handoff friction.\n\n### Switching Cost Assessment\n\n| Factor | Assessment | Details |\n|--------|-----------|---------|\n| Technical migration | Medium | Customer records, deal history, workflows, and any reporting logic would need to move or be re-created. If TeamSystem is tied into APIs or database connections, migration work is non-trivial. |\n| Financial cost | Medium | There is likely sunk cost in licenses, setup, and process adoption. The opportunity cost is more important than a known public contract cost, which is not disclosed. |\n| Organizational change | Medium | The founders and any sales/ops users would need to learn a new operating flow. The smaller team size lowers training burden, but habits are still sticky. |\n| Data portability | Moderate | Customer and deal data are usually exportable, but workflow history, custom fields, and embedded process knowledge are often lossy. |\n| Timeline estimate | 4-10 weeks | A pragmatic SMB migration with light integrations and a small team could be done in weeks, but if TeamSystem is deeply embedded in process work, allow longer. |\n\n### Switching Triggers\n\n1. Quote-to-install friction starts to slow growth - When sales volume rises but the team starts missing handoffs.\n2. The founders want more operational clarity - When they need better visibility into lead aging, install status, or post-sale support load.\n3. Customization costs start to climb - When the CRM requires too much adaptation to fit solar-specific workflows.\n4. A new process owner wants simplification - When a founder or ops lead wants fewer tools and less manual coordination.\n5. The team wants faster execution without more headcount - When scaling the business by adding people is less attractive than simplifying the process.\n\n### Landmine Questions\n\n1. \"Where does the quote live after the first call?\" - Exposes whether sales and operations are truly connected.\n2. \"How do you track a project from survey to install to post-install support?\" - Exposes whether the CRM covers execution or just pipeline.\n3. \"What still happens outside the CRM today?\" - Exposes shadow processes and spreadsheet dependency.\n4. \"Which steps are most manual when a lead becomes a real project?\" - Exposes handoff friction.\n5. \"How easy is it to see what is blocked this week?\" - Exposes operational visibility gaps.\n\n### Trap to Avoid\n\n\"NEVER say: TeamSystem is too basic.\"\n\nWHY: Vivisolar already chose it and publicly associated itself with the platform. Dismissing the tool as primitive will sound uninformed and will push the buyer into defending their current investment instead of evaluating the real workflow gap.\n\n### Competitive Positioning Statement\n\n\"While TeamSystem CRM Cloud is a credible general-purpose CRM for SMBs, a focused ops layer can reduce quote-to-install friction, keep field execution visible, and remove the manual workarounds that usually appear once a solar contractor starts scaling.\"\n\n---\n\n### Feature Comparison: Assumed Ops/Workflow Solution vs TeamSystem CRM Cloud\n\nAssumption: the selling solution is a lighter-weight ops/workflow system designed for solar EPC coordination.\n\n| Feature | Assumed Your Solution | TeamSystem CRM Cloud |\n|---------|-----------------------|----------------------|\n| Customer/deal tracking | Purpose-built for a solar quote-to-install journey | Yes, broad CRM tracking for customers and deals |\n| Quote workflow | Likely designed around solar proposals and handoff stages | Reported support for quotes and sales documents |\n| Install/project milestones | Native project milestones and execution stages | Partial or externalized; not the primary product message |\n| Permits / bureaucracy tracking | Explicit workflow support | Unverified; likely requires configuration or adjacent tools |\n| Reporting | Operational dashboards tied to delivery and bottlenecks | Sales and CRM reporting are explicitly marketed |\n| Integrations | Should be API-first and lightweight | TeamSystem has ecosystem and integration options, but breadth can add complexity |\n| Implementation time | Short, focused rollout | Medium; depends on how much of the suite is adopted |\n| Support model | High-touch, workflow-specific | Broad vendor support and partner ecosystem |\n| Fit for SMB solar EPC | High | Medium to High, but generic |\n| Lock-in risk | Lower if narrowly scoped | Higher if other TeamSystem modules become embedded |\n\n---\n\n## Win/Loss Patterns\n\n### Win Patterns\n\n1. We win when the buyer cares about the operating workflow, not just CRM records.\n2. We win when the team wants fewer manual handoffs and less spreadsheet glue.\n3. We win when implementation speed matters more than suite breadth.\n4. We win when the buyer wants a tool that matches a solar contractor's day-to-day execution.\n\n### Loss Patterns\n\n1. We lose when the buyer wants to standardize on one broad vendor for multiple back-office needs.\n2. We lose when the CRM is already \"good enough\" and the pain is not yet strong.\n3. We lose when a buyer equates familiarity with low risk and does not want a process change.\n4. We lose when procurement prefers ecosystem bundling over best-fit specialization.\n\n### Deal Qualification Signals\n\n- If the prospect says \"we need to know where every project is blocked,\" that favors you because it implies an execution problem, not a simple CRM problem.\n- If the prospect says \"we just need one system for everything,\" that favors TeamSystem because breadth and bundling matter more than workflow precision.\n- If the prospect prioritizes faster quoting plus better follow-through, this is a strong deal for you.\n- If the prospect prioritizes accounting or broader business-suite consolidation, consider deprioritizing or narrowing the scope.\n\n---\n\n## Competitive Positioning Statements\n\n| Competitor | Positioning Statement |\n|------------|----------------------|\n| TeamSystem CRM Cloud | \"While TeamSystem CRM Cloud is a solid general-purpose CRM, we help Vivisolar run the actual solar operation end-to-end, which means fewer handoffs, faster installs, and clearer visibility from quote to support.\" |\n\n---\n\n## Switching Cost Assessment\n\n| Factor | TeamSystem CRM Cloud |\n|--------|----------------------|\n| Technical migration | Medium |\n| Financial impact | Medium |\n| Organizational change | Medium |\n| Data portability | Moderate |\n| Estimated timeline | 4-10 weeks |\n\n---\n\n## Recommended Competitive Strategy\n\nLead with operational friction, not with CRM feature parity. Vivisolar already has a credible general-purpose CRM story, so a direct \"we are better than your CRM\" message will not be persuasive. The better motion is to show that the current stack is good for tracking customers, but not necessarily good for running the solar job from lead to install to after-sales support without side systems.\n\nConversation sequence:\n\n1. Confirm the workflow bottleneck - Why: you need to separate CRM pain from execution pain.\n2. Map the quote-to-install flow - Why: this is where generic CRMs usually leak time.\n3. Surface manual workarounds - Why: spreadsheets and side channels reveal the actual buying pain.\n4. Discuss visibility and reporting - Why: founders care about knowing what is blocked and what is moving.\n5. Close on implementation effort - Why: a small team will care about time to value and disruption.\n\nWhat to lead with:\n\n\"You already have a CRM. The question is whether it actually runs the business, or just records the business after the fact.\"\n\nWhat to avoid:\n\n- Avoid saying TeamSystem is bad or outdated. That is easy to disprove and will trigger defensiveness.\n- Avoid leading with generic CRM features. Vivisolar already has a CRM story, so that angle lacks contrast.\n- Avoid pushing a heavy enterprise implementation. Their size and operating model favor practical change.\n\nDisplacement timeline:\n\n- Start the conversation now, not near renewal, because the buyer is founder-led and the pain is operational rather than procurement-driven.\n- Expect a short evaluation window of 1-3 weeks if the workflow pain is real.\n- Expect 2-6 weeks for a pilot or phased rollout.\n- Expect 4-10 weeks for full transition if TeamSystem is being replaced in the core workflow.\n\n---\n\n## Detection Sources\n\n- https://www.vivisolar.it/\n- https://www.vivisolar.it/chi-siamo\n- https://www.vivisolar.it/contatti\n- https://www.vivisolar.it/come-lavoriamo\n- https://www.vivisolar.it/lavora-con-noi\n- https://www.teamsystem.com/aziende/storie-di-successo/vivisolar-crm-aziendale-teamsystem/\n- https://www.teamsystem.com/magazine/crm/cose-crm-cloud-cosa-serve/\n- https://www.teamsystem.com/magazine/crm/creare-preventivi/\n- https://www.teamsystem.com/assistenza/\n- https://www.teamsystem.com/\n- Web searches run on 2026-06-17 for Vivisolar and TeamSystem CRM Cloud, plus live HTML inspection of Vivisolar pages.\n\n",
+              "encoding": "utf-8"
+            },
+            {
+              "name": "DECISION-MAKERS.md",
+              "content": "# Decision Maker Intelligence: Vivisolar\n**URL:** https://www.vivisolar.it/\n**Date:** 2026-06-17\n**Contact Access Score: 50/100**\n**Buying Committee Size:** 3-4 people\n**Email Pattern:** Unknown; only a generic public mailbox (`info@vivisolar.it`) is visible\n\n---\n\n## Executive Summary\n\nVivisolar looks like a small founder-led buying environment with clear public evidence for the likely economic buyers: Simone Murtas and Eleonora Sanna, both shown as co-founders on LinkedIn. The company also has at least two operational contacts visible on LinkedIn, including Anders Sander Hansen on the sales side and Paolo Tuveri on the marketing side, which makes this a workable multi-thread even without a formal org chart.\n\nAccess is decent but email-led outreach is blocked for individual contacts. I found only the generic company mailbox and contact form, not a verified direct address for any person. The best path is LinkedIn-first with a founder-to-founder angle, then use the sales consultant as the practical champion who can validate the operational pain around quote flow, lead handling, and customer communication.\n\nThe strongest personalization angle is very concrete: Vivisolar publicly positions itself around fixing unclear quotes, bureaucracy, and post-payment unreliability, while also promoting active hiring and recent LinkedIn content around projects and lead generation. Use that to keep outreach operational, not abstract.\n\n---\n\n## Buying Committee Map\n\n| Name | Title | Buying Role | Personalization Anchor | Approach Strategy | Priority |\n|------|-------|-------------|----------------------|-------------------|----------|\n| Simone Murtas | Co-founder | Economic Buyer, Technical Evaluator | Public founder of a company that promises clear quotes, less bureaucracy, and fully in-house delivery | Lead with ROI and operational leverage; ask how they manage quote-to-install friction today | 1 |\n| Eleonora Sanna | Co-founder | Economic Buyer, Champion | Co-founder profile plus public company mission centered on transparency and local service | Use a parallel founder thread focused on customer experience, growth, and service quality | 2 |\n| Anders Sander Hansen | Sales Consultant | Champion, End User | Public post says he joined after being a customer and was asked to help with inbound leads | Use as the practical user/pain contact for lead handling, sales flow, and customer experience | 3 |\n| Paolo Tuveri | Social Media Marketing Manager | End User, Coach | Listed as a current Vivisolar employee on LinkedIn/company page | Use for marketing/process context and as a secondary route if founder threads stall | 4 |\n\n---\n\n## Org Chart\n\n```text\nSimone Murtas — Co-founder\n├── Anders Sander Hansen — Sales Consultant (Champion / End User)\n├── Paolo Tuveri — Social Media Marketing Manager (End User / Coach)\n└── Eleonora Sanna — Co-founder\n```\n\n---\n\n## Top 3 Priority Contacts\n\n### Priority 1: Simone Murtas — Co-founder\n\n| Field | Detail |\n|-------|--------|\n| **Name** | Simone Murtas |\n| **Title** | Co-founder |\n| **Buying Role** | Economic Buyer, Technical Evaluator |\n| **Tenure** | Not publicly confirmed in the source snippets |\n| **Previous Company** | Not found in public snippets reviewed |\n| **LinkedIn** | https://it.linkedin.com/in/simone-murtas-7b950b26b |\n| **Email Status** | Generic |\n| **Verified Email** | Not found |\n| **Email Evidence Source** | Public site lists only `info@vivisolar.it` on the contact and privacy pages |\n| **Possible Pattern** | Unknown |\n| **Fallback Channel** | LinkedIn, contact form, phone |\n\n**Personalization Anchors:**\n1. Vivisolar’s own site says the company exists to remove unclear quotes, bureaucracy, and installer unreliability.\n2. The company claims 1000+ installations in Sardinia and 65+ Poste Italiane offices, which is a strong execution story.\n3. The site emphasizes fully internal delivery, which is directly relevant to any workflow or ops-improvement conversation.\n\n**Career Background:**\nPublicly, Simone appears as a hands-on co-founder in a founder-led local operating company. The public profile and company pages position him close to execution rather than as a detached executive. That makes him the most likely person to care about operational friction and margin-preserving process improvements.\n\n**Recommended Approach:**\nUse LinkedIn first, then the company contact form if you need a parallel route. Keep the message practical: less admin, faster quoting, fewer handoffs, and cleaner customer communication. Don’t lead with product features; lead with the business problem Vivisolar already describes publicly.\n\n**Suggested Opening Message:**\nYou’ve been explicit about solving unclear quotes and bureaucracy for customers. I think there may be a simple way to reduce the time your team spends moving leads from first contact to install without adding overhead.\n\n---\n\n### Priority 2: Eleonora Sanna — Co-founder\n\n| Field | Detail |\n|-------|--------|\n| **Name** | Eleonora Sanna |\n| **Title** | Co-founder |\n| **Buying Role** | Economic Buyer, Champion |\n| **Tenure** | Not publicly confirmed in the source snippets reviewed |\n| **Previous Company** | Not found in public snippets reviewed |\n| **LinkedIn** | https://it.linkedin.com/in/eleonora-sanna-2015a614b |\n| **Email Status** | Generic |\n| **Verified Email** | Not found |\n| **Email Evidence Source** | Public site lists only `info@vivisolar.it` on the contact and privacy pages |\n| **Possible Pattern** | Unknown |\n| **Fallback Channel** | LinkedIn, contact form, phone |\n\n**Personalization Anchors:**\n1. Public LinkedIn search snippets identify her as a co-founder at Vivisolar and show a University of Cagliari background.\n2. Vivisolar’s website repeatedly frames the business around transparency, local service, and end-to-end management.\n3. The company is actively hiring and posting about current projects, which suggests ongoing growth and process pressure.\n\n**Career Background:**\nEleonora’s public footprint suggests a founder with local roots and enough operational influence to matter in a small company. In a business this size, that usually means she is close to customer experience, delivery quality, and growth decisions. She is likely to be a real buyer rather than a passive approver.\n\n**Recommended Approach:**\nUse a separate founder thread from Simone so the conversation does not look copied and pasted. Focus on customer experience, reliability, and the administrative burden of keeping installs moving. If Simone is the sharper ops buyer, Eleonora may be the one who pushes the internal conversation forward.\n\n**Suggested Opening Message:**\nVivisolar’s positioning around clarity and local support stood out to me. I’m reaching out because I think there may be a straightforward way to reduce the operational friction behind that promise.\n\n---\n\n### Priority 3: Anders Sander Hansen — Sales Consultant\n\n| Field | Detail |\n|-------|--------|\n| **Name** | Anders Sander Hansen |\n| **Title** | Sales Consultant |\n| **Buying Role** | Champion, End User |\n| **Tenure** | Public LinkedIn search snippets show he has been at Vivisolar since Mar 2024 |\n| **Previous Company** | Not found in public snippets reviewed |\n| **LinkedIn** | https://it.linkedin.com/in/anderssanderhansen |\n| **Email Status** | Generic |\n| **Verified Email** | Not found |\n| **Email Evidence Source** | Public site lists only `info@vivisolar.it` on the contact and privacy pages |\n| **Possible Pattern** | Unknown |\n| **Fallback Channel** | LinkedIn, contact form, phone |\n\n**Personalization Anchors:**\n1. Anders publicly wrote that he joined after being a Vivisolar customer and was invited to help because of inbound lead volume.\n2. His current title as Sales Consultant makes him a direct observer of lead handling and quote flow.\n3. Vivisolar’s public hiring and social content suggest active pipeline pressure, which makes a sales-side pain point credible.\n\n**Career Background:**\nAnders looks like a customer-turned-employee, which is a useful signal. That usually means he understands the buyer experience from both sides and can speak candidly about friction in the sales process. He is the best contact for the day-to-day pain behind the founder-level story.\n\n**Recommended Approach:**\nStart here if you want a less formal entry point into the company. Ask about the lead-to-quote handoff, response-time pressure, and how they keep prospects warm while coordinating technical follow-up. He is likely to be the easiest person to get a practical answer from.\n\n**Suggested Opening Message:**\nI saw your post about joining Vivisolar after being a customer and helping with inbound leads. That combination makes me think you have a good view of where the sales process feels smooth and where it gets bottlenecked.\n\n---\n\n## Multi-Threading Strategy\n\n### Verified Email Fallback\n\nI did not find a verified individual email for any named contact. The only public mailbox is the generic `info@vivisolar.it`, so direct email to a person is blocked for now.\n\nBest fallback:\n\n1. Use LinkedIn for Simone and Eleonora as the primary decision-makers.\n2. Use Anders as the practical champion who can validate the operational pain.\n3. Use `info@vivisolar.it` only as a routing fallback, not as a substitute for a named contact.\n\n### Engagement Sequence\n\n| Day | Contact | Channel | Action | Goal |\n|-----|---------|---------|--------|------|\n| 0 | Anders Sander Hansen | LinkedIn | Send connection request with custom note | Get a practical conversation started |\n| 1 | Simone Murtas | LinkedIn | Send founder-level connection request | Get on the founder radar |\n| 2 | Eleonora Sanna | LinkedIn | Send founder-level connection request | Create a second founder thread |\n| 3 | Simone Murtas | Contact form | Submit concise note referencing operational friction | Force a routing path if LinkedIn stalls |\n| 5 | Anders Sander Hansen | LinkedIn message | Share a concrete workflow angle | Validate the pain and workflow |\n| 7 | Eleonora Sanna | LinkedIn message | Share a short ROI/value angle | Broaden the internal discussion |\n| 10 | Simone Murtas | LinkedIn follow-up | Reference their public promise around transparency | Re-open the founder thread |\n| 14 | Paolo Tuveri | LinkedIn | Use as a secondary operational/marketing contact | Build a third thread if needed |\n\n### Messaging by Role\n\n| Role | Primary Message | Content to Share | CTA |\n|------|----------------|------------------|-----|\n| Economic Buyer | ROI and operational leverage | Short executive summary, time-saved estimate | 15-min strategic call |\n| Champion | Reduce daily friction | Process map or workflow example | Quick working session |\n| Technical Evaluator | Implementation simplicity | Integration notes, security overview | Technical deep dive |\n| End User | Make the job easier | Example workflow, checklist, short demo | Reply with current process |\n\n---\n\n## Contact Access Score: 50/100\n\n| Sub-Dimension | Score | Detail |\n|--------------|-------|--------|\n| Decision Makers Identified | 18/25 | Two founders named plus a sales-side champion and a marketing-side contact |\n| Contact Info Accessibility | 10/25 | LinkedIn profiles and a public phone number/contact form are available, but no verified individual email |\n| Personalization Anchor Quality | 22/25 | Strong founder-level pain points, active hiring, recent company content, and a customer-to-employee story from Anders |\n| Warm Paths Available | 0/25 | No mutual connection or explicit warm intro path found in public sources |\n| **TOTAL** | **50/100** | |\n\n---\n\n## Recommended Outreach Order\n\n1. **First contact:** Anders Sander Hansen (Champion) - easiest practical entry point and strongest operational hook.\n2. **Second contact:** Simone Murtas (Economic Buyer) - founder-level authority and likely budget owner.\n3. **Third contact:** Eleonora Sanna (Economic Buyer) - second founder thread to avoid single-thread risk.\n4. **Fourth contact:** Paolo Tuveri (End User / Coach) - secondary route if you need more internal context.\n\n---\n\n## Sources\n\n* https://www.vivisolar.it/\n* https://www.vivisolar.it/chi-siamo\n* https://www.vivisolar.it/contatti\n* https://www.vivisolar.it/lavora-con-noi\n* https://www.vivisolar.it/informativa-sulla-privacy\n* https://it.linkedin.com/company/vivisolar\n* https://it.linkedin.com/in/simone-murtas-7b950b26b\n* https://it.linkedin.com/in/eleonora-sanna-2015a614b\n* https://it.linkedin.com/in/anderssanderhansen\n* https://it.linkedin.com/in/paolo-tuveri-7199a92a8\n\n*Generated by AI Sales Team - `/sales contacts`*\n",
+              "encoding": "utf-8"
+            },
+            {
+              "name": "LEAD-QUALIFICATION.md",
+              "content": "# Lead Qualification: Vivisolar\n**URL:** https://www.vivisolar.it/\n**Date:** 2026-06-17\n**Opportunity Quality Score: 77/100**\n**Lead Grade: A - Sales Qualified Lead**\n**BANT Score: 67/100 | MEDDIC Completeness: 100%**\n\n---\n\n## Qualification Snapshot\n\n| Metric | Value |\n|--------|-------|\n| **Company** | Vivisolar |\n| **Industry** | Renewables & Environment / Solar installation |\n| **Employees** | 11-50 |\n| **BANT Score** | 67/100 |\n| **MEDDIC Completeness** | 100% |\n| **Opportunity Quality Score** | 77/100 |\n| **Lead Grade** | A - Sales Qualified Lead |\n| **Urgency Level** | Medium-High |\n| **Recommended Action** | Direct founder-level outreach focused on reducing quote-to-install friction and admin burden. |\n\n---\n\n## BANT Scorecard\n\n| Dimension | Score | Key Evidence | Confidence |\n|-----------|-------|-------------|------------|\n| **Budget** | 13/25 | LinkedIn shows 11-50 employees and the company presents itself as an established regional operator with 1000+ installations and a price range of `€€`. | Medium |\n| **Authority** | 18/25 | Public LinkedIn profiles identify Simone Murtas and Eleonora Sanna as co-founders; the company is small enough that buying authority is likely concentrated at founder level. | High |\n| **Need** | 22/25 | The site explicitly says Vivisolar exists to eliminate unclear quotes, bureaucracy, and installers disappearing after payment; recent blog content focuses on storage, EV charging, and blackout resilience. | High |\n| **Timeline** | 14/25 | The careers page is actively recruiting installatori and consulenti energetici, and the blog has fresh June 2026 content, both of which point to active execution and ongoing growth. | Medium |\n| **TOTAL** | **67/100** | | |\n\n### Budget Analysis\nVivisolar does not publish a corporate funding history or procurement budget, so there is no explicit budget confirmation.\n\nThat said, the company shows several capacity signals:\n\n* LinkedIn lists the company at [11-50 employees](https://it.linkedin.com/company/vivisolar).\n* The site claims [1000+ installations in Sardinia](https://www.vivisolar.it/).\n* The business advertises a `€€` price range in its schema markup and positions itself as a full-service solar contractor.\n* The careers page is still recruiting for both [installatori and consulenti energetici](https://www.vivisolar.it/lavora-con-noi), which usually implies active operating spend.\n\nNet: budget looks present but not abundant. I would treat this as a company that can buy, but may still require a clear ROI case and a practical package.\n\n### Authority Analysis\nAuthority is comparatively clear for a public prospect of this size.\n\nPublic LinkedIn profiles identify:\n\n* [Simone Murtas, co-founder at Vivisolar](https://it.linkedin.com/in/simone-murtas-7b950b26b)\n* [Eleonora Sanna, co-founder at Vivisolar](https://it.linkedin.com/in/eleonora-sanna-2015a614b)\n\nThe company is small enough that founder-level approval is the most likely route for a software or services purchase. The site also emphasizes that customers speak with a nearby team, not a call center, which reinforces the founder-led, hands-on operating style.\n\nBuying authority is likely concentrated with the founders, with a second layer of input from whoever owns operations, sales, or customer success.\n\n### Need Analysis\nNeed is the strongest part of the profile.\n\nVivisolar’s own messaging is unusually explicit about the pain it is trying to solve:\n\n* “preventivi poco chiari”\n* “pratiche burocratiche”\n* “installatori che spariscono dopo il saldo”\n* a promise of a local partner that “risponde”\n\nThe site also says it manages project, permitting, installation, collaudo, incentives, and monitoring in-house. That is a classic sign of a business where internal coordination, scheduling, handoffs, and post-install support matter.\n\nRecent content on the blog also points to active customer concerns around:\n\n* battery storage and evening self-consumption\n* EV home charging\n* blackout resilience\n* incentives and savings\n\nThere is real operational pain here, and the company is already selling to that pain.\n\n### Timeline Analysis\nThe timeline signal is moderate to strong, not immediate.\n\nReasons:\n\n* The [careers page](https://www.vivisolar.it/lavora-con-noi) is actively open for applications, which suggests the business is in growth mode.\n* The [blog](https://www.vivisolar.it/blog) has fresh June 2026 posts, so content operations and sales motion are current.\n* The site repeatedly emphasizes speed, rapid inspections, and few-day installs, which implies an execution-oriented culture.\n\nThere is no public RFP, funding round, acquisition, or crisis event, so I would not call this an urgent “buy this week” prospect. But it is a live operating business with active growth signals.\n\n---\n\n## MEDDIC Assessment\n\n| Element | Finding | Evidence | Confidence |\n|---------|---------|----------|------------|\n| **Metrics** | Installation throughput, lead-to-quote conversion, install cycle time, customer satisfaction, post-install support load | The site emphasizes 1000+ installations, fast installs, and lifetime monitoring/support. | High |\n| **Economic Buyer** | Simone Murtas and/or Eleonora Sanna, co-founders | Public LinkedIn profiles identify both as co-founders at Vivisolar. | High |\n| **Decision Criteria** | Transparency, turnkey execution, speed, quality, financing, local support, and post-install service | The site repeatedly highlights “numeri chiari,” turnkey service, internal teams, financing, and lifetime assistance. | High |\n| **Decision Process** | Founder-led, informal SMB buying process, likely with direct evaluation rather than a formal procurement committee | Small company size and founder-led structure from LinkedIn; no public procurement process visible. | Medium |\n| **Identify Pain** | Quote clarity, bureaucracy, handoff reliability, install coordination, and post-sale support | Explicitly stated on the About page and reinforced by customer reviews. | High |\n| **Champion** | Simone Murtas or another founder/operations lead; small-company champion and buyer may be the same person | Founder-led business with public co-founders and a hands-on operating model. | Medium |\n\n### Metrics Deep Dive\nVivisolar appears to care about operational metrics more than vanity metrics.\n\nLikely priority metrics:\n\n* lead volume and quote conversion\n* speed from survey to install\n* permit/practice completion time\n* customer satisfaction and review quality\n* post-install support burden\n\nTheir messaging around savings, payback, and monitoring also suggests they care about helping customers visualize ROI, so tools that improve quoting speed or clarity should map well.\n\n### Economic Buyer Profile\nThe most likely economic buyers are the co-founders.\n\nFor a company this size, founder approval is usually enough for meaningful software, marketing, or ops purchases unless the spend is unusually large. The public evidence does not suggest a deep enterprise hierarchy.\n\nLikely buyers:\n\n* Simone Murtas, co-founder\n* Eleonora Sanna, co-founder\n\nIf a non-founder is involved, it is probably an operations or commercial lead rather than procurement.\n\n### Decision Criteria Assessment\nVivisolar appears to buy on practical execution criteria:\n\n* clear commercial terms\n* fast implementation\n* reduced bureaucracy\n* local responsiveness\n* quality and reliability\n* ability to support customers after the sale\n\nThose criteria are consistent across the homepage, About page, careers page, and customer reviews.\n\n### Decision Process Map\nEstimated process:\n\n1. Initial founder or manager review\n2. Internal fit check against current operating pain\n3. Lightweight demo or conversation\n4. Quick decision if value is clear\n5. Implementation with a strong preference for local, hands-on support\n\nThis does not look like a formal procurement environment.\n\n### Pain Point Analysis\nDetected pain points:\n\n* Unclear quotes and weak commercial transparency\n* Bureaucratic overhead around permits and incentives\n* Risk of vendor unreliability after payment\n* Operational pressure to install quickly and support customers well\n* Need to explain savings, storage, and EV charging clearly to homeowners\n\nSeverity is high because these are core to the company’s value proposition, not edge cases.\n\n### Champion Strategy\nBest candidate champions are the founders themselves, especially if the solution directly reduces operational friction.\n\nApproach:\n\n* lead with saved time, fewer handoffs, and better customer experience\n* show exactly how the tool reduces quote/admin/support load\n* keep the first conversation short and practical\n* avoid generic “digital transformation” language\n\n---\n\n## Buying Signals Detected\n\n1. **11-50 employee operating base** - LinkedIn company profile shows a small but established team. (Source: https://it.linkedin.com/company/vivisolar, Strength: Moderate)\n2. **Founder-led structure** - Public LinkedIn profiles identify Simone Murtas and Eleonora Sanna as co-founders. (Source: https://it.linkedin.com/in/simone-murtas-7b950b26b, https://it.linkedin.com/in/eleonora-sanna-2015a614b, Strength: Strong)\n3. **1000+ installations** - The company says it has completed more than 1000 installations in Sardinia. (Source: https://www.vivisolar.it/, Strength: Strong)\n4. **Active hiring** - Current open roles for installatori and consulenti energetici on the careers page. (Source: https://www.vivisolar.it/lavora-con-noi, Strength: Strong)\n5. **Recent content activity** - June 2026 blog posts about storage and EV charging indicate current demand generation and market focus. (Source: https://www.vivisolar.it/blog, Strength: Moderate)\n6. **Explicit operational pain** - The About page calls out unclear quotes, bureaucracy, and disappearing installers as the problem Vivisolar was built to solve. (Source: https://www.vivisolar.it/chi-siamo, Strength: Strong)\n\n## Red Flags\n\n1. **Regional concentration** - The business is positioned around Sardinia only, which narrows addressable scope and may limit budget. (Source: https://www.vivisolar.it/chi-siamo, Severity: Medium)\n   *Mitigation:* Keep the proposal tightly tied to local execution and show near-term ROI.\n2. **Small-team budget constraints** - 11-50 employees suggests spend may be scrutinized even if the company is healthy. (Source: https://it.linkedin.com/company/vivisolar, Severity: Medium)\n   *Mitigation:* Offer a simple implementation path and avoid enterprise-style complexity.\n3. **No public procurement process** - There is no visible formal vendor review or procurement workflow. (Source: https://www.vivisolar.it/, Severity: Low)\n   *Mitigation:* Make the evaluation frictionless and founder-friendly.\n4. **No public funding signal** - I found no recent financing or expansion news, so budget is inferred rather than confirmed. (Source: public web search, Severity: Low)\n   *Mitigation:* Lead with ROI and operational savings rather than broad expansion assumptions.\n\n---\n\n## Opportunity Quality Score: 77/100\n\n| Component | Score | Weight | Weighted |\n|-----------|-------|--------|----------|\n| BANT Score | 67/100 | 50% | 33.5 |\n| MEDDIC Completeness | 100/100 | 30% | 30 |\n| Urgency Modifier | 65/100 | 20% | 13 |\n| **TOTAL** | | **100%** | **77/100** |\n\n---\n\n## Recommended Approach\n\n**Lead Grade:** A - Sales Qualified Lead\n\n**Strategy:** Vivisolar is a good fit for a direct, founder-level motion. The public signal set is strong enough to justify immediate outreach, but the sale should be framed around practical operating leverage rather than abstract software value. The best angle is to reduce the friction they already talk about publicly: clearer quotes, less admin work, faster handoffs, and stronger post-install customer communication.\n\nStart with Simone Murtas and Eleonora Sanna. Keep the first message concrete: reference their turnkey model, their in-house process, and the fact that they are actively hiring. Then position the conversation around helping them scale without adding coordination overhead. If your product touches sales ops, customer workflows, scheduling, or post-sale support, this is a live prospect with a credible near-term need.\n\n## Next Steps\n\n1. Send a founder-targeted intro that references their turnkey model and current hiring.\n2. Map which internal process is most painful: quoting, scheduling, permitting, or post-install support.\n3. Estimate deal value around a small-team deployment, not an enterprise rollout.\n4. Prepare a short ROI example tied to saved admin time and fewer handoff errors.\n5. Re-check for any new hiring, press, or leadership signals before outreach.\n\n---\n\n## Sources\n\n* https://www.vivisolar.it/\n* https://www.vivisolar.it/chi-siamo\n* https://www.vivisolar.it/lavora-con-noi\n* https://www.vivisolar.it/blog\n* https://it.linkedin.com/company/vivisolar\n* https://it.linkedin.com/in/simone-murtas-7b950b26b\n* https://it.linkedin.com/in/eleonora-sanna-2015a614b\n",
+              "encoding": "utf-8"
+            },
+            {
+              "name": "OUTREACH-SEQUENCE.md",
+              "content": "# Outreach Sequence: Vivisolar\n\n**URL:** https://www.vivisolar.it/  \n**Date:** 2026-06-17  \n**Primary Contact:** Simone Murtas, Co-founder  \n**Secondary Contact:** Eleonora Sanna, Co-founder  \n**Champion:** Anders Sander Hansen, Sales Consultant  \n**Send Status:** `send_ready = false`  \n\n## Personalization Research\n\n**Company Triggers Found**\n\n1. June 2026 blog cadence around storage, EV charging, pricing, and heat pumps - hot signal because the content is current and tied to near-term demand generation.\n2. Active hiring for installers and energy consultants - warm signal because growth usually increases handoff and coordination pressure.\n3. Public TeamSystem CRM usage across admin and field logistics - warm signal because the company already cares about workflow discipline.\n\n**Personal Triggers Found**\n\n1. Anders Sander Hansen publicly described joining Vivisolar after being a customer and helping with inbound leads - warm signal and a useful champion thread.\n2. Simone and Eleonora are both public founders with clear operational responsibility - warm signal because founder-led businesses respond well to practical, ROI-led outreach.\n\n**Industry Triggers Found**\n\n1. Residential solar teams are selling more storage, EV charging, and backup resilience, which increases the complexity of the quote-to-install journey.\n2. Smaller EPC-style teams usually hit friction when demand, scheduling, and post-install support all expand at once.\n\n**Best Opening Angle**\n\nLead with the June 2026 content push on storage and EV charging, then connect it to the operational burden of scaling quote-to-install handoffs without adding admin.\n\n**Secondary Angle**\n\nUse the active hiring signal if the first thread stalls: growing the team usually means more coordination, more quoting, and more follow-up work.\n\n## Contact Routing\n\n**Preferred target:** Simone Murtas, Co-founder\n**Preferred target email status:** Unknown\n**Recommended send target:** Simone Murtas on LinkedIn\n**Reason:** He is a founder, the company is small enough for founder-led buying, and the public pain points are operational rather than purely marketing-led.\n**Manual research needed:** Yes. Verify a direct individual email before any email send. Do not use a guessed address.\n\n## Framework Selection\n\n**Selected framework:** Trigger Event\n\nWhy:\n- The June 2026 blog activity is recent and specific.\n- The hiring signal shows active execution.\n- The public CRM/workflow story gives a clean operational bridge.\n\n## Omnichannel Sequence\n\n### Day 0 - LinkedIn Connection Request\n\n**Target:** Simone Murtas\n\n**Note option A**\n\nSaw your June guides on storage and EV charging, plus the hiring push. It looks like Vivisolar is scaling demand and delivery at the same time. I work on quote-to-install workflow for solar teams and thought it made sense to connect.\n\n**Note option B**\n\nYour June content on storage and EV charging stood out. Vivisolar looks busy on both growth and delivery, which usually creates workflow friction. I work on reducing that friction for solar teams and would like to connect.\n\n### Day 1 - Email 1: The Hook\n\n**Status:** blocked until a verified individual email exists\n\n**Subject A:** vivisolar and storage\n**Subject B:** faster quote-to-install\n\nI saw your June 8 guide on storage and the June 2 piece on EV charging. That says Vivisolar is clearly pushing beyond panels, while still hiring and keeping the local in-house model.\n\nWhen a small solar team grows that fast, the hidden cost is usually quote follow-up and handoff work, not lead volume.\n\nWe help teams keep the project moving without adding admin. Worth a quick call if I send one practical example?\n\n### Day 3 - Email 2: The Value Add\n\n**Status:** blocked until a verified individual email exists\n\n**Subject A:** a simple handoff check\n**Subject B:** one workflow idea\n\nQuick follow-up to the June content you’re publishing.\n\nOne pattern we see in small solar teams is that the first bottleneck is not the sale itself. It is the gap between first interest, survey, quote, and install, where details get retyped and context gets lost.\n\nIf that gap is visible, it is usually fixable without changing the whole stack.\n\nHappy to share a simple handoff checklist if useful.\n\n### Day 5 - LinkedIn Engagement\n\n**Action:** Like the most recent company post or a relevant personal post, then leave a short comment.\n\n**Comment draft**\n\nThe storage and EV charging content makes sense together. Once customers start asking for backup, self-consumption, and home charging in the same conversation, the coordination work gets real fast.\n\n### Day 7 - Email 3: The Social Proof\n\n**Status:** blocked until a verified individual email exists\n\n**Subject A:** scaling without extra admin\n**Subject B:** what usually breaks first\n\nIn solar teams your size, the first thing that usually breaks is internal visibility, not demand.\n\nWhen lead handling, quoting, scheduling, and post-install follow-up live in different places, someone on the team ends up stitching the story together by hand.\n\nThat is the part we focus on: fewer handoffs, clearer status, less manual chase work.\n\nIf that is relevant, I can show you how we map it in practice.\n\n### Day 10 - LinkedIn Message\n\n**Target:** Simone Murtas\n\nHey Simone, I sent a couple of notes by email about the June storage and EV charging content and the way Vivisolar is scaling while keeping the local, in-house model. Not sure I hit the right inbox. If useful, I can share a simple way to keep quote-to-install handoffs visible without adding admin. Worth a quick chat?\n\n### Day 14 - Email 4: The Different Angle\n\n**Status:** blocked until a verified individual email exists\n\n**Subject A:** hiring adds coordination\n**Subject B:** a growth bottleneck\n\nThe hiring signal on your site stood out.\n\nMore installers and energy consultants usually helps growth, but it also creates more internal coordination. That is where small teams start losing time: status checks, follow-ups, and keeping customer expectations aligned.\n\nWe help reduce that coordination load so the team can stay focused on delivery.\n\nOpen to a short call?\n\n### Day 18 - LinkedIn Value Share\n\n**Action:** Share a relevant insight or article and tag only if genuinely useful.\n\n**Share draft**\n\nVivisolar’s June content on storage and EV charging is a good reminder that solar sales are no longer just about panels. The more the conversation expands into backup, self-consumption, and home charging, the more important it is to keep quoting and install handoffs clean.\n\n### Day 21 - Email 5: The Breakup\n\n**Status:** blocked until a verified individual email exists\n\n**Subject A:** should I close the loop\n**Subject B:** not the right time\n\nLooks like the timing may not be right, which is fine.\n\nIf the main issue ever becomes quote-to-install friction, I’d be glad to share the workflow approach we use with small field teams.\n\nIf it helps later, I’m easy to reach on LinkedIn.\n\n## Recommended Send Plan\n\n1. Start with Simone on LinkedIn.\n2. Add Eleonora only if Simone does not engage after the first two touchpoints.\n3. Use Anders as the practical champion if you want a lower-friction internal thread.\n4. Do not send email until a verified individual address is confirmed.\n\n## Notes\n\n- Keep the tone practical and operational, not abstract.\n- Avoid pitching TeamSystem as \"bad\"; they already publicly use it.\n- Keep referencing current June 2026 content, because it is the strongest freshness signal.\n- If a verified email appears later, the email sequence above is ready to use after human approval.\n\n",
+              "encoding": "utf-8"
+            },
+            {
+              "name": "sales-state.json",
+              "content": "{\n  \"company\": \"Vivisolar\",\n  \"url\": \"https://www.vivisolar.it/\",\n  \"date\": \"2026-06-17\",\n  \"stage\": \"outreach_drafted\",\n  \"lead_grade\": \"A\",\n  \"bant_score\": 67,\n  \"meddic_completeness\": 100,\n  \"opportunity_quality_score\": 77,\n  \"company_fit_score\": 75,\n  \"urgency_level\": \"Medium-High\",\n  \"send_ready\": false,\n  \"artifact_paths\": [\n    \"/workspace/session-vivisolar/LEAD-QUALIFICATION.md\",\n    \"/workspace/session-vivisolar/DECISION-MAKERS.md\",\n    \"/workspace/session-vivisolar/COMPANY-RESEARCH.md\",\n    \"/workspace/session-vivisolar/COMPETITIVE-INTEL.md\",\n    \"/workspace/session-vivisolar/OUTREACH-SEQUENCE.md\"\n  ],\n  \"blockers\": [\n    \"No verified individual email found for any named contact.\"\n  ],\n  \"next_action\": \"Use the LinkedIn-first sequence in OUTREACH-SEQUENCE.md and verify a direct email before any email send.\",\n  \"contact_access_score\": 50,\n  \"buying_committee_size\": 4,\n  \"primary_contacts\": [\n    \"Simone Murtas\",\n    \"Eleonora Sanna\",\n    \"Anders Sander Hansen\",\n    \"Paolo Tuveri\"\n  ],\n  \"source_urls\": [\n    \"https://www.vivisolar.it/\",\n    \"https://www.vivisolar.it/chi-siamo\",\n    \"https://www.vivisolar.it/recensioni\",\n    \"https://www.vivisolar.it/contatti\",\n    \"https://www.vivisolar.it/come-lavoriamo\",\n    \"https://www.vivisolar.it/lavora-con-noi\",\n    \"https://www.vivisolar.it/informativa-sulla-privacy\",\n    \"https://www.vivisolar.it/blog\",\n    \"https://www.vivisolar.it/galleria-cantieri\",\n    \"https://it.linkedin.com/company/vivisolar\",\n    \"https://it.linkedin.com/in/simone-murtas-7b950b26b\",\n    \"https://it.linkedin.com/in/eleonora-sanna-2015a614b\",\n    \"https://it.linkedin.com/in/anderssanderhansen\",\n    \"https://it.linkedin.com/in/paolo-tuveri-7199a92a8\",\n    \"https://www.teamsystem.com/aziende/storie-di-successo/vivisolar-crm-aziendale-teamsystem/\",\n    \"https://www.teamsystem.com/magazine/crm/cose-crm-cloud-cosa-serve/\",\n    \"https://www.teamsystem.com/magazine/crm/creare-preventivi/\",\n    \"https://www.teamsystem.com/assistenza/\",\n    \"https://www.teamsystem.com/\",\n    \"https://www.teamsystem.com/media/files/1509_TS_CASE%20HISTORY_Vivisolar.pdf\",\n    \"https://www.facebook.com/vivisolar.fotovoltaico/\",\n    \"https://www.vivisolar.it/blog\",\n    \"https://www.vivisolar.it/lavora-con-noi\",\n    \"https://www.vivisolar.it/contatti\"\n  ]\n}\n",
+              "encoding": "utf-8"
+            }
+          ]
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Markdown to Google Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown to Google Docs": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ba9bb220-859c-4ffd-bed2-d3b07c44cf88",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3f7b9b33d6b00eff559902e2d968e9d9cd1fce1f82fb67208f360a738416dd47"
+  },
+  "nodeGroups": [],
+  "id": "bodVOcKoLZIaN7lJ",
+  "tags": []
+}

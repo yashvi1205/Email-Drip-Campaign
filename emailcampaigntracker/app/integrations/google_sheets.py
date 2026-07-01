@@ -4,12 +4,13 @@ from datetime import datetime
 import os
 import threading
 import logging
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from app.core.utils import normalize_linkedin_url
-# Load environment variables from .env file (local/dev convenience)
-load_dotenv()
-
 logger = logging.getLogger("google_sheets")
 
 scope = [
@@ -113,9 +114,9 @@ if client:
     except Exception:
         logger.exception("Failed to open spreadsheet due to an unexpected error.")
     try:
-        enhanced_sheet = client.open("LinkedIn_Enhanced_Data").sheet1
+        enhanced_sheet = spreadsheet.worksheet("LinkedIn_Enhanced_Data")
     except Exception:
-        logger.exception("Failed to open LinkedIn_Enhanced_Data sheet.")
+        logger.exception("Failed to open LinkedIn_Enhanced_Data worksheet inside main spreadsheet.")
 
 
 

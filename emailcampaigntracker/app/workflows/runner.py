@@ -81,6 +81,11 @@ def _build_gmail_service(credentials_json: Optional[str] = None):
             if os.path.exists(fallback):
                 creds_path = fallback
                 break
+    if not os.path.exists(creds_path):
+        raise FileNotFoundError(
+            f"Gmail OAuth credentials file not found. Checked path='{creds_path}'. "
+            "Set GMAIL_OAUTH_CREDENTIALS_PATH to a valid token JSON available in this runtime."
+        )
 
     creds = Credentials.from_authorized_user_file(creds_path)
     service = build("gmail", "v1", credentials=creds)
@@ -156,7 +161,11 @@ def run_followup_campaign() -> None:
     from app.workflows.workflow3_followup_emails import run_workflow3
 
     gemini_api_key = _get_gemini_api_key()
-    gmail_service = _build_gmail_service()
+    try:
+        gmail_service = _build_gmail_service()
+    except Exception as exc:
+        logger.error("Workflow 3 skipped: unable to initialize Gmail service: %s", exc)
+        return
     db_session = _build_db_session()
 
     try:
@@ -182,7 +191,11 @@ def start_reply_detection_thread() -> threading.Thread:
     """
     from app.workflows.workflow4_reply_detection import start_gmail_polling_loop
 
-    gmail_service = _build_gmail_service()
+    try:
+        gmail_service = _build_gmail_service()
+    except Exception as exc:
+        logger.error("Workflow 4 reply detection not started: unable to initialize Gmail service: %s", exc)
+        raise RuntimeError("Unable to start reply detection: Gmail service initialization failed.") from exc
 
     thread = threading.Thread(
         target=start_gmail_polling_loop,

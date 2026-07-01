@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merged Sales Automation Pipeline – Full Flow</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0a0f1e;
+    color: #e2e8f0;
+    padding: 40px 30px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 48px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* ── STAGE LABEL ── */
+  .stage-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 24px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .stage-a { background: rgba(52,211,153,0.12); border: 1.5px solid #34d399; color: #34d399; }
+  .stage-b { background: rgba(167,139,250,0.12); border: 1.5px solid #a78bfa; color: #a78bfa; }
+  .stage-c { background: rgba(251,191,36,0.12);  border: 1.5px solid #fbbf24; color: #fbbf24; }
+  .stage-d { background: rgba(248,113,113,0.12); border: 1.5px solid #f87171; color: #f87171; }
+
+  /* ── CARD (process box) ── */
+  .card {
+    border-radius: 14px;
+    padding: 16px 24px;
+    min-width: 500px;
+    max-width: 600px;
+    text-align: left;
+    border: 1.5px solid transparent;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 7px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-body {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.7;
+  }
+  .card-body ul { margin-left: 18px; }
+  .card-body li { margin-bottom: 2px; }
+
+  .green  { background: rgba(52,211,153,0.07);  border-color: #34d399; }
+  .purple { background: rgba(167,139,250,0.07); border-color: #a78bfa; }
+  .yellow { background: rgba(251,191,36,0.07);  border-color: #fbbf24; }
+  .red    { background: rgba(248,113,113,0.07); border-color: #f87171; }
+  .slate  { background: rgba(100,116,139,0.08); border-color: #475569; }
+
+  /* ── ARROW connector ── */
+  .arrow {
+    width: 2px;
+    min-height: 30px;
+    background: linear-gradient(to bottom, #1e293b, #60a5fa);
+    position: relative;
+    margin: 0 auto;
+  }
+  .arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 9px solid #60a5fa;
+  }
+  .arrow.green  { background: linear-gradient(to bottom, #1e293b, #34d399); }
+  .arrow.green::after  { border-top-color: #34d399; }
+  .arrow.purple { background: linear-gradient(to bottom, #1e293b, #a78bfa); }
+  .arrow.purple::after { border-top-color: #a78bfa; }
+  .arrow.yellow { background: linear-gradient(to bottom, #1e293b, #fbbf24); }
+  .arrow.yellow::after { border-top-color: #fbbf24; }
+  .arrow.red    { background: linear-gradient(to bottom, #1e293b, #f87171); }
+  .arrow.red::after    { border-top-color: #f87171; }
+
+  /* ── DECISION GATE ── */
+  .gate {
+    background: rgba(234,179,8,0.08);
+    border: 2px dashed #eab308;
+    border-radius: 14px;
+    padding: 14px 28px;
+    min-width: 500px;
+    max-width: 600px;
+    text-align: center;
+  }
+  .gate-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #eab308;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    margin-bottom: 5px;
+  }
+  .gate-body { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+
+  /* ── BRANCH SPLITS ── */
+  .branches {
+    display: flex;
+    gap: 60px;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .branch-label {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .yes-label { background: rgba(52,211,153,0.2); color: #34d399; }
+  .no-label  { background: rgba(248,113,113,0.2); color: #f87171; }
+  .small-arrow {
+    width: 2px;
+    height: 22px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .small-arrow.red    { background: linear-gradient(to bottom, #1e293b, #f87171); }
+  .small-arrow.red::after    { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid #f87171; }
+  .small-arrow.green  { background: linear-gradient(to bottom, #1e293b, #34d399); }
+  .small-arrow.green::after  { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid #34d399; }
+  .small-arrow.purple { background: linear-gradient(to bottom, #1e293b, #a78bfa); }
+  .small-arrow.purple::after { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid #a78bfa; }
+  .small-arrow.yellow { background: linear-gradient(to bottom, #1e293b, #fbbf24); }
+  .small-arrow.yellow::after { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid #fbbf24; }
+  .small-card {
+    border-radius: 10px;
+    padding: 10px 16px;
+    width: 200px;
+    text-align: center;
+    border: 1.5px solid;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .small-card.slate { border-color: #475569; color: #94a3b8; background: rgba(71,85,105,0.12); }
+  .small-card.continue { border-color: #34d399; color: #34d399; background: rgba(52,211,153,0.08); }
+  .small-card.continue-p { border-color: #a78bfa; color: #a78bfa; background: rgba(167,139,250,0.08); }
+  .small-card.edit    { border-color: #fbbf24; color: #fbbf24; background: rgba(251,191,36,0.08); }
+
+  /* ── START / END pill ── */
+  .pill {
+    padding: 12px 48px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .start { background: linear-gradient(135deg, #1d4ed8, #6d28d9); box-shadow: 0 0 30px rgba(109,40,217,0.4); }
+  .end   { background: linear-gradient(135deg, #065f46, #047857); box-shadow: 0 0 30px rgba(4,120,87,0.35); }
+
+  /* ── SECTION DIVIDER ── */
+  hr.divider {
+    width: 100%;
+    max-width: 620px;
+    border: none;
+    border-top: 1px dashed #1e293b;
+    margin: 24px 0;
+  }
+
+  /* ── STEP NUMBER BADGE ── */
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .num-green  { background:#34d399; color:#003322; }
+  .num-purple { background:#a78bfa; color:#1a0044; }
+  .num-yellow { background:#fbbf24; color:#3d2800; }
+  .num-red    { background:#f87171; color:#3d0000; }
+</style>
+</head>
+<body>
+
+<h1>Merged Sales Automation Pipeline</h1>
+<p class="subtitle">Complete system flow · Excel Queue → AI Research → Email Drafting → Gmail Send → Real-Time Tracking</p>
+
+<div class="flow">
+
+  <!-- ═══ START ═══ -->
+  <div class="pill start">▶&nbsp; System Starts</div>
+  <div class="arrow green"></div>
+
+  <!-- ════════════════════════════════════
+       STAGE A: AI QUALIFICATION
+  ════════════════════════════════════ -->
+  <span class="stage-label stage-a">⚡ Stage A &nbsp;·&nbsp; AI Qualification &amp; Scoring</span>
+
+  <div class="card green">
+    <div class="card-title">
+      <span class="step-num num-green">1</span>
+      Read Leads from Excel Queue
+    </div>
+    <div class="card-body">
+      Opens <strong>Sales_Automation_Pipeline.xlsx</strong> and scans every row.<br>
+      Picks up rows where <em>Include in Qualify Batch</em> is set to <strong>Yes</strong> and no score has been assigned yet.<br>
+      Collects: company website URL, name, and contact email for each lead.
+    </div>
+  </div>
+  <div class="arrow green"></div>
+
+  <div class="card green">
+    <div class="card-title">
+      <span class="step-num num-green">2</span>
+      Scrape the Prospect's Website
+    </div>
+    <div class="card-body">
+      Visits the company's website and fetches multiple pages in parallel:<br>
+      <ul>
+        <li><strong>Homepage</strong> – company overview &amp; messaging</li>
+        <li><strong>/about</strong> – team size, mission, leadership names</li>
+        <li><strong>/pricing</strong> – pricing model (confirms budget capacity)</li>
+        <li><strong>/careers</strong> – open roles (signals growth &amp; hiring activity)</li>
+        <li><strong>/contact</strong> – contact details &amp; regions</li>
+      </ul>
+      Also detects the tech stack they use (Stripe, HubSpot, Shopify, React…)
+    </div>
+  </div>
+  <div class="arrow green"></div>
+
+  <div class="card green">
+    <div class="card-title">
+      <span class="step-num num-green">3</span>
+      Codex AI Analyses the Scraped Data
+    </div>
+    <div class="card-body">
+      All scraped page content is sent to <strong>Google Codex AI</strong>.<br>
+      Codex identifies signals across two qualification frameworks:<br>
+      <ul>
+        <li><strong>BANT</strong> – Budget, Authority, Need, Timeline</li>
+        <li><strong>MEDDIC</strong> – Metrics, Economic Buyer, Decision Criteria, Decision Process, Identify Pain, Champion</li>
+      </ul>
+      Generates a full <em>LEAD-QUALIFICATION.md</em> report with findings.
+    </div>
+  </div>
+  <div class="arrow green"></div>
+
+  <div class="card green">
+    <div class="card-title">
+      <span class="step-num num-green">4</span>
+      Score &amp; Grade the Lead (0–100)
+    </div>
+    <div class="card-body">
+      Runs <strong>lead_scorer.py</strong> on the qualification output.<br>
+      Computes a numeric fit score from 0 to 100 and assigns a grade:<br>
+      <ul>
+        <li><strong>A (75–100)</strong> – Strong fit, high priority</li>
+        <li><strong>B (50–74)</strong> – Good fit, worth pursuing</li>
+        <li><strong>C (25–49)</strong> – Weak fit, low priority</li>
+        <li><strong>D (0–24)</strong> – Poor fit, skip</li>
+      </ul>
+      Writes back to Excel: Score · Grade · Report file link · Status → <em>Pending Qualify Review</em>
+    </div>
+  </div>
+
+  <div class="arrow"></div>
+
+  <!-- GATE 1 -->
+  <div class="gate">
+    <div class="gate-title">🛑 &nbsp;Human Review Gate 1 — Qualification Approval</div>
+    <div class="gate-body">
+      You open Excel · Read the qualification report · Check the score and grade.<br>
+      Set the <strong>Qualify Approval</strong> column to <strong>Approved</strong> or <strong>Rejected</strong>.
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- BRANCH: Qualify Decision -->
+  <div class="branches">
+    <div class="branch">
+      <div class="branch-label no-label">✗ &nbsp;Rejected</div>
+      <div class="small-arrow red"></div>
+      <div class="small-card slate">🗑️ Archive Lead<br><span style="font-weight:400;font-size:10px">Status = Disqualified</span></div>
+    </div>
+    <div class="branch">
+      <div class="branch-label yes-label">✓ &nbsp;Approved</div>
+      <div class="small-arrow green"></div>
+      <div class="small-card continue">⬇ Move to Stage B</div>
+    </div>
+  </div>
+
+  <div class="arrow purple"></div>
+  <hr class="divider">
+
+  <!-- ════════════════════════════════════
+       STAGE B: OUTREACH DRAFTING
+  ════════════════════════════════════ -->
+  <span class="stage-label stage-b">✉️ Stage B &nbsp;·&nbsp; Outreach Email Drafting</span>
+
+  <div class="card purple">
+    <div class="card-title">
+      <span class="step-num num-purple">5</span>
+      Load the Qualification Report
+    </div>
+    <div class="card-body">
+      Reads the <em>LEAD-QUALIFICATION.md</em> file generated in Stage A.<br>
+      Extracts personalization anchors:<br>
+      <ul>
+        <li>Company pains &amp; challenges</li>
+        <li>Decision-maker names and titles</li>
+        <li>Technology gaps or integrations they are missing</li>
+        <li>Budget &amp; timeline signals</li>
+      </ul>
+    </div>
+  </div>
+  <div class="arrow purple"></div>
+
+  <div class="card purple">
+    <div class="card-title">
+      <span class="step-num num-purple">6</span>
+      Codex Writes a 5-Email Outreach Sequence
+    </div>
+    <div class="card-body">
+      Passes the personalization anchors to <strong>Codex AI</strong> with a structured prompt.<br>
+      AI drafts a complete drip sequence:<br>
+      <ul>
+        <li><strong>Email 1 (Day 1)</strong> – Hook: a direct, pain-focused opening line</li>
+        <li><strong>Email 2 (Day 3)</strong> – Value: share a relevant resource or insight</li>
+        <li><strong>Email 3 (Day 7)</strong> – Proof: a real case study or result</li>
+        <li><strong>Email 4 (Day 14)</strong> – Angle: a completely different perspective</li>
+        <li><strong>Email 5 (Day 21)</strong> – Breakup: polite final check-in</li>
+      </ul>
+      Saves as <em>OUTREACH-SEQUENCE.md</em> · Updates Excel: Draft link · Status → <em>Pending Email Review</em>
+    </div>
+  </div>
+
+  <div class="arrow"></div>
+
+  <!-- GATE 2 -->
+  <div class="gate">
+    <div class="gate-title">🛑 &nbsp;Human Review Gate 2 — Email Copy Approval</div>
+    <div class="gate-body">
+      You read all 5 emails · Edit the Markdown file if anything needs changing.<br>
+      Set <strong>Email Approval</strong> column to <strong>Approved</strong> or <strong>Rejected</strong>.
+    </div>
+  </div>
+  <div class="arrow"></div>
+
+  <!-- BRANCH: Email Decision -->
+  <div class="branches">
+    <div class="branch">
+      <div class="branch-label no-label">✗ &nbsp;Rejected</div>
+      <div class="small-arrow red"></div>
+      <div class="small-card edit">✏️ Edit Email Draft<br><span style="font-weight:400;font-size:10px">Revise &amp; re-approve</span></div>
+    </div>
+    <div class="branch">
+      <div class="branch-label yes-label">✓ &nbsp;Approved</div>
+      <div class="small-arrow yellow"></div>
+      <div class="small-card continue-p" style="border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,0.08);">⬇ Move to Stage C</div>
+    </div>
+  </div>
+
+  <div class="arrow yellow"></div>
+  <hr class="divider">
+
+  <!-- ════════════════════════════════════
+       STAGE C: EMAIL DELIVERY
+  ════════════════════════════════════ -->
+  <span class="stage-label stage-c">📧 Stage C &nbsp;·&nbsp; Tracked Email Send</span>
+
+  <div class="card yellow">
+    <div class="card-title">
+      <span class="step-num num-yellow">7</span>
+      Generate Tracking ID &amp; Inject Trackers
+    </div>
+    <div class="card-body">
+      Creates a unique <strong>Tracking ID</strong> (e.g. <code>trk_1719647382_ab3c</code>) for this send.<br>
+      Injects an invisible 1×1 pixel image into the email:<br>
+      <code>https://render-server.com/api/tracking/track/trk_id</code><br>
+      Wraps every clickable link through a redirect URL:<br>
+      <code>https://render-server.com/api/tracking/click/trk_id?url=original_link</code>
+    </div>
+  </div>
+  <div class="arrow yellow"></div>
+
+  <div class="card yellow">
+    <div class="card-title">
+      <span class="step-num num-yellow">8</span>
+      Send Email 1 via Gmail API
+    </div>
+    <div class="card-body">
+      Authenticates using <strong>OAuth 2.0</strong> and calls the <strong>Gmail API</strong> to deliver the email.<br>
+      Writes to Excel: <em>Sent Date</em> timestamp · Status → <em>Sent</em><br>
+      Subsequent follow-up emails (2–5) are scheduled based on the day offsets.
+    </div>
+  </div>
+
+  <div class="arrow red"></div>
+  <hr class="divider">
+
+  <!-- ════════════════════════════════════
+       STAGE D: REAL-TIME TRACKING
+  ════════════════════════════════════ -->
+  <span class="stage-label stage-d">📡 Stage D &nbsp;·&nbsp; Real-Time Tracking &amp; Excel Sync</span>
+
+  <div class="card red">
+    <div class="card-title">
+      <span class="step-num num-red">9</span>
+      Recipient Opens the Email or Clicks a Link
+    </div>
+    <div class="card-body">
+      When the recipient's email client loads the email, it automatically loads the pixel image.<br>
+      When they click any link, they are briefly redirected through the tracking URL.
+    </div>
+  </div>
+  <div class="arrow red"></div>
+
+  <div class="card red">
+    <div class="card-title">
+      <span class="step-num num-red">10</span>
+      Request Hits the Public Render Server
+    </div>
+    <div class="card-body">
+      The pixel load or link click sends a live HTTP request to the <strong>Render.com API server</strong> (your production backend).<br>
+      Render receives the tracking ID and event type: <strong>open</strong> or <strong>click</strong>.
+    </div>
+  </div>
+  <div class="arrow red"></div>
+
+  <div class="card red">
+    <div class="card-title">
+      <span class="step-num num-red">11</span>
+      Render Forwards Event via untun Tunnel
+    </div>
+    <div class="card-body">
+      Render sends the event data to your <strong>local machine</strong> via the <strong>untun HTTPS tunnel</strong>.<br>
+      This bridges the public Render server → your private localhost server without exposing any ports publicly.
+    </div>
+  </div>
+  <div class="arrow red"></div>
+
+  <div class="card red">
+    <div class="card-title">
+      <span class="step-num num-red">12</span>
+      Bot Filter — Is This a Real Person?
+    </div>
+    <div class="card-body">
+      The local backend checks the <strong>User-Agent header</strong> of the incoming request.<br>
+      <ul>
+        <li>🚫 <strong>Blocks</strong> known scanner bots, security crawlers, and link checkers</li>
+        <li>✅ <strong>Allows</strong> <em>googleimageproxy</em> — this is how Gmail registers email opens</li>
+        <li>✅ <strong>Allows</strong> real browser User-Agents (Chrome, Firefox, Safari)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="arrow red"></div>
+
+  <div class="card red">
+    <div class="card-title">
+      <span class="step-num num-red">13</span>
+      Log Event in Local PostgreSQL Database
+    </div>
+    <div class="card-body">
+      Records a new row in the <strong>tracking_events</strong> table in your local Postgres database.<br>
+      Stores: event type · tracking ID · timestamp · IP address · User-Agent.<br>
+      Increments <em>open_count</em> / <em>click_count</em> on the <strong>email_sequences</strong> record.
+    </div>
+  </div>
+  <div class="arrow green"></div>
+
+  <div class="card green">
+    <div class="card-title">
+      <span class="step-num num-green">14</span>
+      Update Excel Open &amp; Click Counters
+    </div>
+    <div class="card-body">
+      Matches the tracked email back to the correct row in <strong>Sales_Automation_Pipeline.xlsx</strong>.<br>
+      Matching is done by normalised email address, LinkedIn URL, or company name.<br>
+      Increments the <em>open_count</em> and <em>click_count</em> cells directly in that row.<br>
+      Updates <em>Last Updated</em> timestamp column.
+    </div>
+  </div>
+
+  <div class="arrow"></div>
+
+  <!-- ═══ END ═══ -->
+  <div class="pill end">✅ &nbsp;Cycle Complete — Next Email in Sequence Scheduled</div>
+
+</div>
+
+</body>
+</html>

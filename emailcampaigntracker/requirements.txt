@@ -26,3 +26,4 @@ bcrypt
 python-json-logger
 email-validator
 apscheduler
+openpyxl

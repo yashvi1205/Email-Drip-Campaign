@@ -230,11 +230,12 @@ def extract_role_company_from_headline(headline):
 
 
 def extract_from_experience(driver):
+    role = ""
+    company = ""
     try:
         main_text = driver.find_element(By.TAG_NAME, "main").text
 
         lines = [l.strip() for l in main_text.split("\n") if l.strip()]
-
 
         # Find first valid role line
         for i in range(len(lines)):
@@ -261,6 +262,10 @@ def extract_from_experience(driver):
 
 
 def scrape_profile_details(driver, profile_url):
+    profile_url = profile_url.strip()
+    if not profile_url.startswith("http://") and not profile_url.startswith("https://"):
+        profile_url = "https://" + profile_url
+
     logger.info("Scraping detailed info for: %s", profile_url)
     details = {
         "full_name": "", "headline": "", "role": "", "company": "",
@@ -405,6 +410,24 @@ def scrape_profile_details(driver, profile_url):
 
     # 🔥 FORCE ROLE + COMPANY FROM HEADLINE (FINAL FIX)
     h = details.get("headline", "")
+    if h and (not details.get("role") or not details.get("company")):
+        parts = []
+        if " at " in h.lower():
+            parts = h.split(" at ")
+        elif " @ " in h:
+            parts = h.split(" @ ")
+        elif " | " in h:
+            parts = h.split(" | ")
+        elif " - " in h:
+            parts = h.split(" - ")
+        
+        if len(parts) >= 2:
+            r_val = parts[0].strip()
+            c_val = parts[1].strip()
+            if r_val and not details.get("role"):
+                details["role"] = r_val
+            if c_val and not details.get("company"):
+                details["company"] = c_val
 
     # 🔥 FINAL EXPERIENCE FALLBACK (STRONG FIX)
     if not details.get("role") or not details.get("company"):
