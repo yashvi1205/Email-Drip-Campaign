@@ -11,13 +11,13 @@
         0,
         0
       ],
-      "id": "260ccb8f-0cc7-4c57-aeb8-add26a62ba18",
+      "id": "046b95da-906b-4607-aa6f-c78d75fb071d",
       "name": "When Executed by Another Workflow"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://192.168.101.206:8000/execute",
+        "url": "http://localhost:8000/execute",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -31,18 +31,24 @@
         448,
         0
       ],
-      "id": "a7fa9c8f-08c6-4b2b-97cc-bac49764cd37",
-      "name": "HTTP Request"
+      "id": "445603e5-009b-42df-bf56-364773b112ff",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qrdNse5XYDCtIWMu",
+          "name": "Codex-API-Key"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "value": "crSCmYGnNuZ51g7R",
+          "value": "zG1xBeZ319BcFe7U",
           "mode": "list",
           "cachedResultName": "prompts",
-          "cachedResultUrl": "/projects/GIWzjavqhuVKJY2h/datatables/crSCmYGnNuZ51g7R"
+          "cachedResultUrl": "/projects/MGBxbNjjcY5i38sR/datatables/zG1xBeZ319BcFe7U"
         },
         "filters": {
           "conditions": [
@@ -58,7 +64,7 @@
         224,
         0
       ],
-      "id": "a6fc8232-48cf-435d-ad99-bf1273f43f17",
+      "id": "57602d41-5197-4f78-92d6-4098ff658277",
       "name": "Get row(s)"
     },
     {
@@ -85,12 +91,18 @@
         656,
         0
       ],
-      "id": "37459468-16f1-47e9-baa7-0a6e483d7b7d",
+      "id": "2bbe747b-a271-4cfd-82d8-f3f054793b66",
       "name": "Markdown to Google Docs",
-      "credentials": {}
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "MEWGIk4ZaLQ5LYyX",
+          "name": "Drip Campaign PythonTech3"
+        }
+      }
     },
     {
       "parameters": {
+        "authentication": "serviceAccount",
         "operation": "update",
         "documentId": {
           "__rl": true,
@@ -408,16 +420,6 @@
               "removed": true
             },
             {
-              "id": "Workflow Path",
-              "displayName": "Workflow Path",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
               "id": "Qualify Score (0-100)",
               "displayName": "Qualify Score (0-100)",
               "required": false,
@@ -610,12 +612,12 @@
         864,
         0
       ],
-      "id": "19ddb10e-3738-47f7-b770-959fcd6e201c",
+      "id": "9c5dca4e-7504-43b7-b9d0-8779db9b534a",
       "name": "Update row in sheet",
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "rZ0tts2pYWj9oacg",
-          "name": "Google Sheets OAuth2 API"
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
         }
       }
     }
@@ -725,18 +727,17 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": false
+    "binaryMode": "separate"
   },
-  "versionId": "ba9bb220-859c-4ffd-bed2-d3b07c44cf88",
+  "versionId": "99c68626-90f0-46cd-a482-87feb87b71aa",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "3f7b9b33d6b00eff559902e2d968e9d9cd1fce1f82fb67208f360a738416dd47"
+    "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
   },
   "nodeGroups": [],
-  "id": "bodVOcKoLZIaN7lJ",
+  "id": "20pJVA9tPf8C4DZt",
   "tags": []
 }

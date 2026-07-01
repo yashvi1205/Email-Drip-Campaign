@@ -62,6 +62,7 @@ def process_qualify_approvals():
         linkedin_url = r[header_map["(I) LinkedIn URL"]]
         email = r[header_map["Email"]]
         company_name = str(r[header_map["Company"]]).strip()
+        website_val = r[header_map["Website"]] if "Website" in header_map else ""
 
         # TEST MODE: only process the dummy Test Corp row
         test_mode = os.environ.get("TEST_MODE", "false").strip().lower() == "true"
@@ -90,7 +91,7 @@ def process_qualify_approvals():
                 ])
                 modified = True
                 run_scraper_needed = True
-                queued_profiles.append((row_num, linkedin_url))
+                queued_profiles.append((row_num, linkedin_url, company_name, website_val))
             else:
                 # No LinkedIn URL found - skip to email phase directly
                 print(f"  [Warning] Row {row_num}: No LinkedIn URL found for approved contact. Skipping to Email phase.")
@@ -119,7 +120,12 @@ def process_qualify_approvals():
         print("\n[Scheduler] Enriching Pipeline rows from scraped LinkedIn profiles...")
         modified_enrich = False
         
-        for row_num, linkedin_url in queued_profiles:
+        from app.integrations.gdocs_uploader import upload_to_gdocs
+        from app.services.email_draft_service import convert_md_to_html
+        gemini_key = env.get("GEMINI_API_KEY")
+        gemini_model = env.get("GEMINI_MODEL", "gemini-1.5-flash")
+
+        for row_num, linkedin_url, company_name, website_val in queued_profiles:
             enhanced_data = get_enhanced_profile_data(linkedin_url)
             
             # Fallback to local Postgres database if sheet row is missing
@@ -156,18 +162,38 @@ def process_qualify_approvals():
                 
                 # Combine experience details as Notes
                 scraped_notes = f"Role: {role}\nHeadline: {headline}\nAbout: {about}\nWork: {work_desc}"
-                if latest_post:
-                    scraped_notes += f"\n\nLatest LinkedIn Post: {latest_post.get('text', '')}"
+                latest_post_txt = latest_post.get('text', '') if latest_post else ''
+                if latest_post_txt:
+                    scraped_notes += f"\n\nLatest LinkedIn Post: {latest_post_txt}"
 
                 a1_notes = gspread.utils.rowcol_to_a1(row_num, header_map["(I) Notes"] + 1)
                 g_enrich_updates.append({"range": a1_notes, "values": [[scraped_notes[:1000]]]})
                 
+                # Generate Prospect Research Brief Document via Gemini and save to 'Outreach Research'
+                if gemini_key:
+                    try:
+                        print(f"  [Research] Generating Outreach Research Brief for {company_name} using Gemini...")
+                        brief_md = _call_gemini_research(
+                            company_name, website_val, role, headline, about, work_desc, 
+                            latest_post_txt, gemini_key, gemini_model
+                        )
+                        brief_html = convert_md_to_html(brief_md)
+                        doc_title = f"Outreach Research: {company_name}"
+                        new_doc_url = upload_to_gdocs(doc_title, brief_html)
+                        
+                        if "Outreach Research" in header_map:
+                            a1_research = gspread.utils.rowcol_to_a1(row_num, header_map["Outreach Research"] + 1)
+                            g_enrich_updates.append({"range": a1_research, "values": [[new_doc_url]]})
+                            print(f"  [Research] Saved link to Outreach Research: {new_doc_url}")
+                    except Exception as re:
+                        print(f"  Warning: Failed to generate/upload Outreach Research Brief ({re})")
+
                 # Update status to Pending Email Review
                 a1_status = gspread.utils.rowcol_to_a1(row_num, header_map["Automation Status"] + 1)
                 a1_updated = gspread.utils.rowcol_to_a1(row_num, header_map["Last Updated"] + 1)
                 g_enrich_updates.append({"range": a1_status, "values": [["Pending Email Review"]]})
                 g_enrich_updates.append({"range": a1_updated, "values": [[datetime.now().strftime("%Y-%m-%dT%H:%M:%S")]]})
-                print(f"  [Enriched] Row {row_num} successfully updated with LinkedIn profiles info.")
+                print(f"  [Enriched] Row {row_num} successfully enriched and set to Pending Email Review.")
                 modified_enrich = True
             else:
                 # Scrape failed or no data - proceed to email phase anyway to not block the pipeline
@@ -180,6 +206,48 @@ def process_qualify_approvals():
                 
             if g_enrich_updates:
                 g_ws.batch_update(g_enrich_updates)
+
+def _call_gemini_research(company_name, website, role, headline, about, work_desc, latest_post_txt, api_key, model) -> str:
+    """Generate a structured markdown brief of research details using Gemini."""
+    prompt = f\"\"\"
+You are a senior sales researcher. Analyze the following company and prospect information to compile a structured, professional **Outreach Research Brief** for our sales development team.
+
+= Prospect Company =
+Company Name: {company_name}
+Website: {website}
+
+= Prospect Contact LinkedIn Bio & Background =
+Name/Headline: {headline}
+Current Role: {role}
+About Biography: {about}
+Work History Summary: {work_desc}
+Latest LinkedIn Post: {latest_post_txt}
+
+Please organize the Research Brief into these clear sections using Markdown headings:
+1. **Prospect Profile**: Analysis of the prospect's background, professional trajectory, and current role responsibilities.
+2. **Company Analysis**: What the company does, their industry focus, value proposition, and potential pain points.
+3. **Common Ground & Personalization Hooks**: Key details from their bio, achievements, or recent posts that we can use to build immediate rapport.
+4. **Custom Sales Angles**: 3 distinct angles/value props we can offer them based on their profile.
+5. **Cold Outreach Conversation Starters**: 3 subject line ideas and opening hook ideas tailored to them.
+
+Format the output clearly as a clean markdown document. Do not include any HTML tags or code blocks.
+\"\"\"
+    if not model.startswith("models/"):
+        model = f"models/{model}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/{model}:generateContent?key={api_key}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+    import requests
+    resp = requests.post(url, json=payload, timeout=90)
+    resp.raise_for_status()
+    data = resp.json()
+    candidates = data.get("candidates", [])
+    if candidates:
+        parts = candidates[0].get("content", {}).get("parts", [])
+        if parts:
+            return parts[0].get("text", "")
+    return ""
 
 if __name__ == "__main__":
     process_qualify_approvals()

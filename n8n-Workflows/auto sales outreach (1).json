@@ -1,0 +1,203 @@
+{
+  "name": "auto sales outreach",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        48
+      ],
+      "id": "ae91665b-7cee-4b0c-acdd-7cb26e8d73d5",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "FEsCJmsBkdSu6dyb",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/FEsCJmsBkdSu6dyb",
+          "cachedResultName": "qualify-agent"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        48
+      ],
+      "name": "Call qualify-agent",
+      "id": "2731b7a6-5427-4381-accc-83045645f0a7"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
+          "mode": "list",
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Raw Data Status",
+              "lookupValue": "Prospect"
+            },
+            {
+              "lookupColumn": "Raw Data Status",
+              "lookupValue": "Suspect"
+            }
+          ]
+        },
+        "combineFilters": "OR",
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "UNFORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        48
+      ],
+      "id": "ad04b738-7c9d-41e9-a22b-beab845f30ef",
+      "name": "Read And Filter Prospects",
+      "credentials": {
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        896,
+        48
+      ],
+      "id": "45f68607-be6d-4edf-a9ed-7973493056e5",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e36cb77b-f418-4596-b969-e896d693d113",
+              "name": "CompanyClean",
+              "value": "={{ $json.Company.toLowerCase().replace(/\\s+/g, '_') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        48
+      ],
+      "id": "2a3c392f-54df-415a-9f01-b74b17589751",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read And Filter Prospects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read And Filter Prospects": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Call qualify-agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "be86aaf2-c08e-4789-8c83-4b106b8610f3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
+  },
+  "nodeGroups": [],
+  "id": "RUoYjGEkXZO0NCuV",
+  "tags": [
+    {
+      "updatedAt": "2025-11-10T06:09:57.233Z",
+      "createdAt": "2025-11-10T06:09:57.233Z",
+      "id": "gVBWHXeZO6yYqYM6",
+      "name": "sales"
+    }
+  ]
+}

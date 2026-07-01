@@ -6,10 +6,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1344,
-        320
+        1392,
+        208
       ],
-      "id": "0bc48bc9-2302-4096-bc6e-d459fb036c62",
+      "id": "fc8a48b1-11c2-4740-9b34-3f62e8dc459b",
       "name": "No Operation, do nothing"
     },
     {
@@ -19,29 +19,29 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -256,
-        208
+        -208,
+        96
       ],
-      "id": "41b43539-7456-4b57-96aa-2b12c62f34b3",
+      "id": "27300a10-8dd2-414a-a2ec-0b7ccabbbbe7",
       "name": "Loop Over Items"
     },
     {
       "parameters": {
         "inputSource": "passthrough"
       },
-      "id": "a0956bde-8cf1-49b7-b667-60e3fe7f1732",
+      "id": "c8948e56-e2da-4dcc-b914-a34a318d48b6",
       "typeVersion": 1.1,
       "name": "Start",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "position": [
-        -912,
-        208
+        -864,
+        96
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://192.168.101.206:8000/execute",
+        "url": "http://localhost:8000/execute",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -64,11 +64,17 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        672,
-        224
+        720,
+        112
       ],
-      "id": "126943dd-42c0-4c8a-a6cc-c3af9daad70c",
-      "name": "Qualify Agent"
+      "id": "e725c098-22db-4bb4-926a-a47a0227d398",
+      "name": "Qualify Agent",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qrdNse5XYDCtIWMu",
+          "name": "Codex-API-Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -97,10 +103,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1120,
-        224
+        1168,
+        112
       ],
-      "id": "bb4833e4-6431-4b44-aca5-ff929ef0cc69",
+      "id": "102c06f9-1be8-43cd-8993-24674ef0d701",
       "name": "Score > 40"
     },
     {
@@ -125,12 +131,17 @@
       "type": "n8n-nodes-md-to-docs.markdownToGoogleDocs",
       "typeVersion": 1,
       "position": [
-        1344,
-        128
+        1392,
+        16
       ],
-      "id": "ee64983f-a17a-48ba-a26f-a36e16a06ee2",
+      "id": "f9e838eb-6a1d-4d80-880c-7e9da012d858",
       "name": "Markdown to Google Docs",
-      "credentials": {}
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "MEWGIk4ZaLQ5LYyX",
+          "name": "Drip Campaign PythonTech3"
+        }
+      }
     },
     {
       "parameters": {
@@ -140,10 +151,10 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -688,
-        208
+        -640,
+        96
       ],
-      "id": "ae7c768e-2313-475d-842a-8c9445bebfbc",
+      "id": "c22d2d1a-6d41-43fb-8525-6cac447085ac",
       "name": "Split Out"
     },
     {
@@ -177,15 +188,22 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        0,
-        224
+        48,
+        112
       ],
-      "id": "a121628a-7a5e-4ab3-8dab-3294e56525a5",
+      "id": "9dc135f3-e9c2-439f-9662-9cd8a56b2b5a",
       "name": "Check Existing Files",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "MEWGIk4ZaLQ5LYyX",
+          "name": "Drip Campaign PythonTech3"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
+        "authentication": "serviceAccount",
         "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
@@ -692,15 +710,15 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1568,
-        304
+        1616,
+        192
       ],
-      "id": "8031ba19-364b-47d2-9852-eec339b47278",
+      "id": "11e2cbf2-b1de-46ef-ab43-b71bb118a5fd",
       "name": "Update Docs Link",
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "rZ0tts2pYWj9oacg",
-          "name": "Google Sheets OAuth2 API"
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
         }
       }
     },
@@ -711,10 +729,10 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        0,
-        0
+        48,
+        -112
       ],
-      "id": "038235b4-8bf6-4c31-83f5-06d53097ec7f",
+      "id": "b3aa5176-79f8-484b-abd7-0fc3ffc1b05c",
       "name": "Notify User",
       "webhookId": "ec8eea70-f0a5-45fe-9e8f-ae3e48bbc36e",
       "disabled": true
@@ -740,10 +758,10 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        448,
-        224
+        496,
+        112
       ],
-      "id": "d6d4781d-5ba9-49bf-9ceb-441b05bf76ed",
+      "id": "ec619a7a-bd81-4a79-9b5b-79bb751f4078",
       "name": "Get Prompt"
     },
     {
@@ -774,10 +792,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        224,
-        224
+        272,
+        112
       ],
-      "id": "46b1fe4d-7870-4716-a6a7-99ca61fc62c9",
+      "id": "06e0102d-1030-4f2e-bb28-7ec6787cb757",
       "name": "Not Processed"
     },
     {
@@ -797,10 +815,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        896,
-        224
+        944,
+        112
       ],
-      "id": "fe48fccc-3a09-4cce-bf7e-a1c58b6600af",
+      "id": "7e7bf086-b105-4e34-86d7-c7f2143bf90c",
       "name": "Get state json"
     },
     {
@@ -808,10 +826,10 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        -480,
-        208
+        -432,
+        96
       ],
-      "id": "35d2a7e1-6b2f-407e-b6f4-2a19efdc0ab0",
+      "id": "88ac57a8-94fc-4042-84c8-8ff0c1d28a81",
       "name": "Limit"
     }
   ],
@@ -1464,30 +1482,29 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": false
+    "binaryMode": "separate"
   },
-  "versionId": "21c43e0d-2d22-4a37-8b5e-d0c865b01c5b",
+  "versionId": "7358c4e6-552b-4cb7-a27a-1996dc8be8ea",
   "meta": {
-    "instanceId": "3f7b9b33d6b00eff559902e2d968e9d9cd1fce1f82fb67208f360a738416dd47"
+    "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
   },
   "nodeGroups": [],
-  "id": "E6Ykxy0jrYzgqmK1",
+  "id": "Pw3ic6OfYLDPnWTK",
   "tags": [
     {
-      "name": "AI Agent",
-      "id": "8W6OG59XSOYEG14t",
-      "updatedAt": "2026-06-30T11:03:58.238Z",
-      "createdAt": "2026-06-30T11:03:58.238Z"
+      "updatedAt": "2025-10-29T05:40:17.666Z",
+      "createdAt": "2025-10-29T05:40:17.666Z",
+      "id": "S2xpazKEex2eVwnl",
+      "name": "AI Agent"
     },
     {
-      "name": "sales",
-      "id": "UjxjMhGtncTtsQxr",
-      "updatedAt": "2026-06-30T11:03:58.284Z",
-      "createdAt": "2026-06-30T11:03:58.284Z"
+      "updatedAt": "2025-11-10T06:09:57.233Z",
+      "createdAt": "2025-11-10T06:09:57.233Z",
+      "id": "gVBWHXeZO6yYqYM6",
+      "name": "sales"
     }
   ]
 }

@@ -11,7 +11,7 @@
         -448,
         80
       ],
-      "id": "52eb3695-8fb1-4ad3-a64a-e34a5a4fd8d6",
+      "id": "b8e68e82-08b5-48a8-8eed-739e99428fd8",
       "name": "When Executed by Another Workflow"
     },
     {
@@ -25,12 +25,12 @@
         0,
         0
       ],
-      "id": "40946516-6a4e-422c-b959-3f4e1faef05a",
+      "id": "3eab5e5e-9bbf-44e9-a35e-1700defd03c1",
       "name": "Get a document",
       "credentials": {
         "googleDocsOAuth2Api": {
-          "id": "ysNOquE9mQ5WjOd9",
-          "name": "Google Docs OAuth2 API"
+          "id": "MEWGIk4ZaLQ5LYyX",
+          "name": "Drip Campaign PythonTech3"
         }
       }
     },
@@ -44,16 +44,16 @@
         -224,
         80
       ],
-      "id": "0e86dd60-1dea-4a44-a4f0-5c4c66c66c5b",
+      "id": "234a2191-ef0e-43d2-89e7-5efa664674f9",
       "name": "Loop Over Items"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "FEsCJmsBkdSu6dyb",
+          "value": "Pw3ic6OfYLDPnWTK",
           "mode": "list",
-          "cachedResultUrl": "/workflow/FEsCJmsBkdSu6dyb",
+          "cachedResultUrl": "/workflow/Pw3ic6OfYLDPnWTK",
           "cachedResultName": "qualify-agent"
         },
         "workflowInputs": {
@@ -72,7 +72,7 @@
         224,
         80
       ],
-      "id": "3f816ea7-727c-4dd9-a365-087b1787787b",
+      "id": "39e351c8-43ec-4561-8690-6bc838b3a99e",
       "name": "Call 'qualify-agent'"
     }
   ],
@@ -124,30 +124,29 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": false
+    "binaryMode": "separate"
   },
-  "versionId": "76e78d40-0005-44b2-9e14-b8344e79047e",
+  "versionId": "dc84c6e2-58d4-4e75-a1c0-003f24606540",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "3f7b9b33d6b00eff559902e2d968e9d9cd1fce1f82fb67208f360a738416dd47"
+    "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
   },
   "nodeGroups": [],
-  "id": "EtNdncYPj8sSm9ga",
+  "id": "LqSSgojBa6YFMdX6",
   "tags": [
     {
-      "updatedAt": "2026-06-30T11:03:58.238Z",
-      "createdAt": "2026-06-30T11:03:58.238Z",
-      "id": "8W6OG59XSOYEG14t",
+      "updatedAt": "2025-10-29T05:40:17.666Z",
+      "createdAt": "2025-10-29T05:40:17.666Z",
+      "id": "S2xpazKEex2eVwnl",
       "name": "AI Agent"
     },
     {
-      "updatedAt": "2026-06-30T11:03:58.284Z",
-      "createdAt": "2026-06-30T11:03:58.284Z",
-      "id": "UjxjMhGtncTtsQxr",
+      "updatedAt": "2025-11-10T06:09:57.233Z",
+      "createdAt": "2025-11-10T06:09:57.233Z",
+      "id": "gVBWHXeZO6yYqYM6",
       "name": "sales"
     }
   ]

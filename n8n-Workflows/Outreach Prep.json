@@ -3,6 +3,7 @@
   "nodes": [
     {
       "parameters": {
+        "authentication": "serviceAccount",
         "documentId": {
           "__rl": true,
           "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
@@ -33,12 +34,12 @@
         -448,
         192
       ],
-      "id": "9e2ad6ba-4f80-4d52-b5f3-d4f17ec3e669",
+      "id": "dcb30b7a-9dac-47f2-abc8-54f5c2f69d66",
       "name": "Get row(s) in sheet",
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "rZ0tts2pYWj9oacg",
-          "name": "Google Sheets OAuth2 API"
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
         }
       }
     },
@@ -52,7 +53,7 @@
         -224,
         192
       ],
-      "id": "c3876e6c-cbdc-400d-bc97-ef72d7625a8b",
+      "id": "d1676ce5-def2-45b0-80cb-7d60bdb1b5ac",
       "name": "Loop Over Items"
     },
     {
@@ -80,12 +81,18 @@
         1120,
         192
       ],
-      "id": "98525a55-9019-40f1-baae-ea81a514f269",
+      "id": "6d6a86de-a580-4b81-ba7f-6e224ea6e4e4",
       "name": "Markdown to Google Docs",
-      "credentials": {}
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "MEWGIk4ZaLQ5LYyX",
+          "name": "Drip Campaign PythonTech3"
+        }
+      }
     },
     {
       "parameters": {
+        "authentication": "serviceAccount",
         "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
@@ -595,12 +602,12 @@
         1344,
         192
       ],
-      "id": "f4efeba7-d15c-4ade-99d3-f0d00a4281d7",
+      "id": "7ace849f-05b4-4a42-b68e-49fb01290361",
       "name": "Append or update row in sheet",
       "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "rZ0tts2pYWj9oacg",
-          "name": "Google Sheets OAuth2 API"
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
         }
       }
     },
@@ -614,7 +621,7 @@
         0,
         0
       ],
-      "id": "306e6147-72dd-4559-8ecf-41b922f85d47",
+      "id": "4068d5a1-15d5-468c-8df4-359cd325a698",
       "name": "Notify User",
       "webhookId": "3fe42871-9b06-4c9e-acb6-0f9f41045515",
       "disabled": true
@@ -622,7 +629,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://192.168.101.206:8000/execute/batch",
+        "url": "http://localhost:8000/execute/batch",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -638,18 +645,24 @@
         448,
         192
       ],
-      "id": "7e5b03db-76be-489a-8e30-de686a8b9fa3",
-      "name": "Research + Contacts"
+      "id": "adbb2a97-39b4-4586-a309-518509c2815c",
+      "name": "Research + Contacts",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qrdNse5XYDCtIWMu",
+          "name": "Codex-API-Key"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "get",
         "dataTableId": {
           "__rl": true,
-          "value": "crSCmYGnNuZ51g7R",
+          "value": "zG1xBeZ319BcFe7U",
           "mode": "list",
           "cachedResultName": "prompts",
-          "cachedResultUrl": "/projects/GIWzjavqhuVKJY2h/datatables/crSCmYGnNuZ51g7R"
+          "cachedResultUrl": "/projects/MGBxbNjjcY5i38sR/datatables/zG1xBeZ319BcFe7U"
         },
         "filters": {
           "conditions": [
@@ -671,7 +684,7 @@
         0,
         192
       ],
-      "id": "c5c11701-4a97-43a2-ae11-0034f5c759fa",
+      "id": "0b11e133-1fcc-4472-bf0c-e0ab67a3b0d5",
       "name": "Get row(s)"
     },
     {
@@ -682,7 +695,7 @@
         -672,
         192
       ],
-      "id": "00ef7857-eae3-409d-a649-9b992a7ed3de",
+      "id": "792bee4d-6379-4dc9-90b4-0f309cac4d4a",
       "name": "When clicking ‘Execute workflow’"
     },
     {
@@ -696,13 +709,13 @@
         224,
         192
       ],
-      "id": "dcc7208f-b319-4584-b5a5-8c24b9b2101e",
+      "id": "dc13ff55-b027-48ed-a477-686b0b7c6b81",
       "name": "Aggregate"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://192.168.101.206:8000/execute",
+        "url": "http://localhost:8000/execute",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -718,8 +731,14 @@
         672,
         192
       ],
-      "id": "8dfa2776-6731-44fe-8355-aac236a74f5b",
-      "name": "Competitors"
+      "id": "6bb86741-b39c-4d71-a3bf-f1838555af4c",
+      "name": "Competitors",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qrdNse5XYDCtIWMu",
+          "name": "Codex-API-Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -741,7 +760,7 @@
         896,
         192
       ],
-      "id": "5dd90b62-c454-4763-ba2d-83dd9e8f29a3",
+      "id": "6576f38b-ad34-47bb-b3ac-499896508598",
       "name": "Edit Fields"
     },
     {
@@ -770,7 +789,7 @@
         1792,
         272
       ],
-      "id": "0bb0c593-ae4a-4a4c-9269-853ea8ee74bc",
+      "id": "d5ddec2d-c461-483e-a68f-8ba01b70a6a3",
       "name": "Call 'Outreach Emails'"
     },
     {
@@ -794,7 +813,7 @@
         1568,
         192
       ],
-      "id": "9f8915aa-f77d-46f2-8303-1eb0a36cfdac",
+      "id": "7ba02d4f-f63b-4144-a6a6-1c80a8fb5c17",
       "name": "Edit Fields1"
     }
   ],
@@ -943,26 +962,25 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": false
+    "binaryMode": "separate"
   },
-  "versionId": "94e60025-2f9b-458c-9c0a-6e045e976297",
+  "versionId": "846ad1e6-10ef-44c2-ace0-e8fd075eca6d",
   "meta": {
-    "instanceId": "3f7b9b33d6b00eff559902e2d968e9d9cd1fce1f82fb67208f360a738416dd47"
+    "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
   },
   "nodeGroups": [],
-  "id": "dSsb7iME6drkLaTX",
+  "id": "MVzT2mv0sbNo6qgQ",
   "tags": [
     {
-      "updatedAt": "2026-06-30T11:03:58.238Z",
-      "createdAt": "2026-06-30T11:03:58.238Z",
-      "id": "8W6OG59XSOYEG14t",
+      "updatedAt": "2025-10-29T05:40:17.666Z",
+      "createdAt": "2025-10-29T05:40:17.666Z",
+      "id": "S2xpazKEex2eVwnl",
       "name": "AI Agent"
     },
     {
-      "updatedAt": "2026-06-30T11:03:58.284Z",
-      "createdAt": "2026-06-30T11:03:58.284Z",
-      "id": "UjxjMhGtncTtsQxr",
+      "updatedAt": "2025-11-10T06:09:57.233Z",
+      "createdAt": "2025-11-10T06:09:57.233Z",
+      "id": "gVBWHXeZO6yYqYM6",
       "name": "sales"
     }
   ]
