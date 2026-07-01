@@ -48,45 +48,46 @@ def main():
     print("==================================================")
     
     interval_seconds = 60 # Check every 60 seconds
+    print("Daemon polling loop is currently COMMENTED OUT (using n8n workflows instead).")
     
-    while True:
-        try:
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n--- [Cycle Start] {now_str} ---")
-            
-            # Step 1: Scrape & Qualify new target websites
-            try:
-                process_pending_qualifications()
-            except Exception as e:
-                logger.error(f"Error in process_pending_qualifications: {e}")
-                
-            # Step 2: process human approved qualify rows (trigger LinkedIn Scraper)
-            try:
-                process_qualify_approvals()
-            except Exception as e:
-                logger.error(f"Error in process_qualify_approvals: {e}")
-                
-            # Step 3: Generate 5-email sequence drafts or revisions
-            try:
-                process_pending_email_drafts()
-            except Exception as e:
-                logger.error(f"Error in process_pending_email_drafts: {e}")
-                
-            # Step 4: Deliver approved initial emails & follow-ups
-            try:
-                process_email_approvals_and_sends()
-            except Exception as e:
-                logger.error(f"Error in process_email_approvals_and_sends: {e}")
-                
-            print(f"--- [Cycle End] Sleeping for {interval_seconds}s ---")
-            time.sleep(interval_seconds)
-            
-        except KeyboardInterrupt:
-            print("\nShutting down Unified Sales Automation Pipeline Daemon.")
-            break
-        except Exception as e:
-            logger.error(f"Unexpected error in daemon main loop: {e}")
-            time.sleep(10)
+    # while True:
+    #     try:
+    #         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #         print(f"\n--- [Cycle Start] {now_str} ---")
+    #         
+    #         # Step 1: Scrape & Qualify new target websites
+    #         try:
+    #             process_pending_qualifications()
+    #         except Exception as e:
+    #             logger.error(f"Error in process_pending_qualifications: {e}")
+    #             
+    #         # Step 2: process human approved qualify rows (trigger LinkedIn Scraper)
+    #         try:
+    #             process_qualify_approvals()
+    #         except Exception as e:
+    #             logger.error(f"Error in process_qualify_approvals: {e}")
+    #             
+    #         # Step 3: Generate 5-email sequence drafts or revisions
+    #         try:
+    #             process_pending_email_drafts()
+    #         except Exception as e:
+    #             logger.error(f"Error in process_pending_email_drafts: {e}")
+    #             
+    #         # Step 4: Deliver approved initial emails & follow-ups
+    #         try:
+    #             process_email_approvals_and_sends()
+    #         except Exception as e:
+    #             logger.error(f"Error in process_email_approvals_and_sends: {e}")
+    #             
+    #         print(f"--- [Cycle End] Sleeping for {interval_seconds}s ---")
+    #         time.sleep(interval_seconds)
+    #         
+    #     except KeyboardInterrupt:
+    #         print("\nShutting down Unified Sales Automation Pipeline Daemon.")
+    #         break
+    #     except Exception as e:
+    #         logger.error(f"Unexpected error in daemon main loop: {e}")
+    #         time.sleep(10)
 
 if __name__ == "__main__":
     main()
