@@ -25,7 +25,11 @@
           "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
         },
         "event": "rowAddedOrUpdated",
-        "options": {}
+        "options": {
+          "triggerColumns": [
+            "Qualify Approval"
+          ]
+        }
       },
       "type": "n8n-nodes-base.googleSheetsTrigger",
       "typeVersion": 1,
