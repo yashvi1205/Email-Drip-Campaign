@@ -84,7 +84,7 @@ def run_bidirectional_sync():
         g_by_profile = {}
         if g_rows:
             for r_idx, r in enumerate(g_rows[1:]):
-                profile_val = r[g_header_map["Profile URL"]].strip().lower()
+                profile_val = normalize_linkedin_url(r[g_header_map["Profile URL"]])
                 if profile_val:
                     g_by_profile[profile_val] = (r_idx + 2, r)
 
@@ -94,7 +94,7 @@ def run_bidirectional_sync():
             if not lead.linkedin_url:
                 continue
                 
-            norm_li = lead.linkedin_url.strip().lower()
+            norm_li = normalize_linkedin_url(lead.linkedin_url)
             
             # Aggregate stats from EmailSequence
             seqs = db.query(EmailSequence).filter(EmailSequence.lead_id == lead.id).all()
