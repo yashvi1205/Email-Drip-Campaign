@@ -681,6 +681,7 @@ def scrape_profile(driver, profile_url):
 
     needs_outreach = is_new_lead or lead_status in ["active", "uncontacted"]
 
+    # 🔁 DETERMINE ACTIVITY DETAILS & HASH
     if latest_item:
         current_content = latest_item.get("text", "")
         current_hash = get_content_hash(current_content)
@@ -695,9 +696,44 @@ def scrape_profile(driver, profile_url):
             last_hash = ""
             if last_event and last_event.additional_data and "content_hash" in last_event.additional_data:
                 last_hash = last_event.additional_data["content_hash"]
+        finally:
+            db.close()
 
-            has_new_activity = current_hash != last_hash
+        has_new_activity = current_hash != last_hash
+        inter_type = latest_item.get("interaction_type")
+        inter_content = latest_item.get("text")
+        inter_activity = "\n".join(activity_list)
+        inter_date = time.strftime("%Y-%m-%d")
+    else:
+        has_new_activity = False
+        inter_type = "None"
+        inter_content = ""
+        inter_activity = "No activity found"
+        inter_date = ""
 
+    # ✅ SAVE TO GOOGLE SHEETS (Always when we scrape details, or if there is new activity, or if it is a new lead)
+    try:
+        save_enhanced_data(
+            full_name=details.get("full_name"),
+            profile_url=target_url,
+            headline=details.get("headline"),
+            company=details.get("company"),
+            about=details.get("about"),
+            email=details.get("email"),
+            interaction_type=inter_type,
+            content=inter_content,
+            interaction_date=inter_date,
+            role=details.get("role", ""),
+            work_description=details.get("work_description", ""),
+            recent_activity=inter_activity
+        )
+    except Exception as se:
+        logger.warning("Could not save enhanced data to Google Sheets: %s", se)
+
+    # 🔁 HANDLE DATABASE EVENTS & RETURNS
+    if latest_item:
+        db = SessionLocal()
+        try:
             if has_new_activity:
                 logger.info("New activity detected for %s", details.get("full_name"))
                 try:
@@ -709,22 +745,6 @@ def scrape_profile(driver, profile_url):
                     })
                 except Exception as e:
                     logger.warning("Could not save interaction_summary event: %s", e)
-
-                # ✅ Save to Google Sheets
-                save_enhanced_data(
-                    full_name=details.get("full_name"),
-                    profile_url=target_url,
-                    headline=details.get("headline"),
-                    company=details.get("company"),
-                    about=details.get("about"),
-                    email=details.get("email"),
-                    interaction_type=latest_item.get("interaction_type"),
-                    content=latest_item.get("text"),
-                    interaction_date=time.strftime("%Y-%m-%d"),
-                    role=details.get("role", ""),
-                    work_description=details.get("work_description", ""),
-                    recent_activity="\n".join(activity_list)
-                )
 
             if has_new_activity or needs_outreach:
                 if not has_new_activity:
@@ -739,7 +759,7 @@ def scrape_profile(driver, profile_url):
                     "email": details.get("email"),
                     "url": profile_url,
                     "is_new_lead": is_new_lead,
-                    "interaction_type": latest_item.get("interaction_type"),
+                    "interaction_type": inter_type,
                     "latest_content": current_content
                 }
             else:
@@ -753,7 +773,6 @@ def scrape_profile(driver, profile_url):
             db.close()
 
     else:
-        # No activity at all
         try:
             save_event(lead_id, "profile_scraped", {"status": "no_activity_found"})
         except Exception as e:
