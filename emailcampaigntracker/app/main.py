@@ -17,6 +17,7 @@ from app.api.routes.profiles import router as profiles_router
 from app.api.routes.scraper import router as scraper_router
 from app.api.routes.tracking import router as tracking_router
 from app.api.routes.webhook import router as webhook_router
+from app.api.routes.email_jobs import router as email_jobs_router
 from app.core.logging import setup_logging, get_logger
 from app.core.auth import require_roles
 from app.core.rate_limit import rate_limit
@@ -154,3 +155,4 @@ app.include_router(
 
 # Workflow webhook — no auth needed (scraper posts here after finishing)
 app.include_router(webhook_router)
+app.include_router(email_jobs_router)
