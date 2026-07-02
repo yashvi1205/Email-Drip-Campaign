@@ -408,7 +408,19 @@ def scrape_profile_details(driver, profile_url):
     if details["role"] and len(details["role"]) > 50:
         details["role"] = details["role"].split("|")[0].strip()
 
-    # 🔥 FORCE ROLE + COMPANY FROM HEADLINE (FINAL FIX)
+    # 🔥 FINAL EXPERIENCE FALLBACK (STRONG FIX)
+    if not details.get("role") or not details.get("company"):
+        logger.info("Trying EXPERIENCE fallback...")
+
+        role_exp, company_exp = extract_from_experience(driver)
+
+        if role_exp and not details.get("role"):
+            details["role"] = role_exp
+
+        if company_exp and not details.get("company"):
+            details["company"] = company_exp
+
+    # 🔥 FORCE ROLE + COMPANY FROM HEADLINE (FALLBACK ONLY)
     h = details.get("headline", "")
     if h and (not details.get("role") or not details.get("company")):
         parts = []
@@ -428,18 +440,6 @@ def scrape_profile_details(driver, profile_url):
                 details["role"] = r_val
             if c_val and not details.get("company"):
                 details["company"] = c_val
-
-    # 🔥 FINAL EXPERIENCE FALLBACK (STRONG FIX)
-    if not details.get("role") or not details.get("company"):
-        logger.info("Trying EXPERIENCE fallback...")
-
-        role_exp, company_exp = extract_from_experience(driver)
-
-        if role_exp and not details.get("role"):
-            details["role"] = role_exp
-
-        if company_exp and not details.get("company"):
-            details["company"] = company_exp
 
     logger.info("Sync ready: %s at %s", details.get("role"), details.get("company"))
 
