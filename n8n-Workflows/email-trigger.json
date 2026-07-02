@@ -1179,7 +1179,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/api/email/send",
+        "url": "http://localhost:8080/api/email/send",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {

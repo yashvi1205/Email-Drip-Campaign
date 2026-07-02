@@ -701,7 +701,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/api/scrape",
+        "url": "http://localhost:8080/api/scrape",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
