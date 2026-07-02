@@ -1,57 +1,188 @@
 {
-  "name": "Outreach Prep",
+  "name": "LinkedIn Scraper Trigger",
   "nodes": [
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json['Qualify Approval'] }}",
+              "rightValue": "Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json['Automation Status'] }}",
+              "rightValue": "Pending Qualify Review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
         "options": {}
       },
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
       "position": [
-        -432,
+        -32,
         192
       ],
-      "id": "d1676ce5-def2-45b0-80cb-7d60bdb1b5ac",
-      "name": "Loop Over Items"
+      "id": "bca0ed49-b459-4c05-81ce-4e2eb3c61590",
+      "name": "Is Approved & Pending Scrape?"
     },
     {
       "parameters": {
-        "driveId": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
           "__rl": true,
-          "value": "My Drive",
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
           "mode": "list",
-          "cachedResultName": "My Drive"
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
         },
-        "folderId": {
+        "sheetName": {
           "__rl": true,
-          "value": "1HToRDMwbiez28r3M6T0mO8bMcbESNYJZ",
+          "value": 1759763915,
           "mode": "list",
-          "cachedResultName": "OutreachResults",
-          "cachedResultUrl": "https://drive.google.com/drive/folders/1HToRDMwbiez28r3M6T0mO8bMcbESNYJZ"
+          "cachedResultName": "Profiles",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1759763915"
         },
-        "markdownInput": "={{ $json.text }}",
-        "documentTitle": "={{ $('Loop Over Items').item.json.Company }}",
-        "additionalOptions": {}
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Profile URL": "={{ $json[\"(I) LinkedIn URL\"] }}",
+            "Email": "={{ $json[\"Email\"] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Profile URL",
+              "displayName": "Profile URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Open Count",
+              "displayName": "Open Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Opened",
+              "displayName": "Last Opened",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Click Count",
+              "displayName": "Click Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Clicked",
+              "displayName": "Last Clicked",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Replied",
+              "displayName": "Replied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Replied",
+              "displayName": "Last Replied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-md-to-docs.markdownToGoogleDocs",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
       "position": [
-        912,
-        192
+        192,
+        0
       ],
-      "id": "6d6a86de-a580-4b81-ba7f-6e224ea6e4e4",
-      "name": "Markdown to Google Docs",
+      "id": "2d7dc448-23bc-4d50-ac6e-4a67c9bcee97",
+      "name": "Add to Profiles Queue",
       "credentials": {
-        "googleDocsOAuth2Api": {
-          "id": "MEWGIk4ZaLQ5LYyX",
-          "name": "Drip Campaign PythonTech3"
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
         }
       }
     },
     {
       "parameters": {
         "authentication": "serviceAccount",
-        "operation": "appendOrUpdate",
+        "operation": "update",
         "documentId": {
           "__rl": true,
           "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
@@ -69,13 +200,12 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Company": "={{ $('Loop Over Items').item.json.Company }}",
-            "Outreach Research": "={{ $json.documentUrl }}",
-            "Automation Status": "Research Complete",
-            "Workflow Path": "Outreach Prep"
+            "Company": "={{ $('Is Approved & Pending Scrape?').item.json.row_number }}",
+            "Automation Status": "LinkedIn Scrape Queued",
+            "row_number": "={{ $('Is Approved & Pending Scrape?').item.json.row_number }}"
           },
           "matchingColumns": [
-            "Company"
+            "row_number"
           ],
           "schema": [
             {
@@ -85,8 +215,7 @@
               "defaultMatch": false,
               "display": true,
               "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "First Name",
@@ -369,16 +498,6 @@
               "removed": true
             },
             {
-              "id": "Workflow Path",
-              "displayName": "Workflow Path",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
               "id": "Qualify Score (0-100)",
               "displayName": "Qualify Score (0-100)",
               "required": false,
@@ -425,8 +544,7 @@
               "defaultMatch": false,
               "display": true,
               "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
+              "canBeUsedToMatch": true
             },
             {
               "id": "Outreach Research",
@@ -436,7 +554,7 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true,
-              "removed": false
+              "removed": true
             },
             {
               "id": "Email Draft Doc Link",
@@ -547,6 +665,17 @@
               "type": "string",
               "canBeUsedToMatch": true,
               "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -555,13 +684,13 @@
         "options": {}
       },
       "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
+      "typeVersion": 4.5,
       "position": [
-        1136,
-        192
+        416,
+        0
       ],
-      "id": "7ace849f-05b4-4a42-b68e-49fb01290361",
-      "name": "Append or update row in sheet",
+      "id": "0cb4cef0-abc7-45c2-a6bd-d8ad861b1a19",
+      "name": "Update Status in Pipeline",
       "credentials": {
         "googleApi": {
           "id": "ZxcHLIDq1mfemGsQ",
@@ -571,40 +700,23 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/scrape",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"source\": \"n8n_scraper_trigger\"\n}",
         "options": {}
       },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
       "position": [
-        -208,
+        640,
         0
       ],
-      "id": "4068d5a1-15d5-468c-8df4-359cd325a698",
-      "name": "Notify User",
-      "webhookId": "3fe42871-9b06-4c9e-acb6-0f9f41045515",
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://localhost:8000/execute/batch",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"prompts\": [\n    {{ ($json.data[0].prompt + $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company).toJsonString() }},\n    {{ ($json.data[1].prompt + $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company).toJsonString() }}\n  ],\n  \"session_id\": {{ $('Loop Over Items').item.json.Company.toLowerCase().replace(/\\s+/g, '_').toJsonString() }},\n  \"include_stdout\": false\n}",
-        "options": {
-          "timeout": 600000
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        240,
-        192
-      ],
-      "id": "adbb2a97-39b4-4586-a309-518509c2815c",
-      "name": "Research + Contacts",
+      "id": "51be2447-eb3b-4072-9d03-5ab8e23f0536",
+      "name": "Trigger Scraper API",
       "credentials": {
         "httpHeaderAuth": {
           "id": "qrdNse5XYDCtIWMu",
@@ -614,110 +726,84 @@
     },
     {
       "parameters": {
-        "operation": "get",
-        "dataTableId": {
+        "authentication": "serviceAccount",
+        "documentId": {
           "__rl": true,
-          "value": "zG1xBeZ319BcFe7U",
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
           "mode": "list",
-          "cachedResultName": "prompts",
-          "cachedResultUrl": "/projects/MGBxbNjjcY5i38sR/datatables/zG1xBeZ319BcFe7U"
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
         },
-        "filters": {
-          "conditions": [
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "filtersUI": {
+          "values": [
             {
-              "keyValue": "2"
-            },
+              "lookupColumn": "Qualify Approval",
+              "lookupValue": "Approve"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -256,
+        192
+      ],
+      "id": "e722ece1-e06c-4f12-890b-916a34a8f713",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
             {
-              "keyValue": "3"
-            },
-            {
-              "keyValue": "4"
+              "field": "minutes"
             }
           ]
         }
       },
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
       "position": [
-        -208,
+        -480,
         192
       ],
-      "id": "0b11e133-1fcc-4472-bf0c-e0ab67a3b0d5",
-      "name": "Get row(s)"
+      "id": "ab56afa5-6b0c-40b0-bfd6-7f64f9a1ba9a",
+      "name": "Schedule Trigger"
     },
     {
-      "parameters": {
-        "aggregate": "aggregateAllItemData",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.aggregate",
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        16,
-        192
+        192,
+        384
       ],
-      "id": "dc13ff55-b027-48ed-a477-686b0b7c6b81",
-      "name": "Aggregate"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://localhost:8000/execute",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"prompt\": {{ ($('Aggregate').item.json.data[2].prompt + $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company).toJsonString() }},\n  \"session_id\": {{ $('Loop Over Items').item.json.Company.toLowerCase().replace(/\\s+/g, '_').toJsonString() }},\n  \"include_stdout\": false\n}",
-        "options": {
-          "timeout": 600000
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        464,
-        192
-      ],
-      "id": "6bb86741-b39c-4d71-a3bf-f1838555af4c",
-      "name": "Competitors",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qrdNse5XYDCtIWMu",
-          "name": "Codex-API-Key"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "da2de0eb-77d3-4a5b-a419-c5c489f9c2bd",
-              "name": "text",
-              "value": "={{ $('Research + Contacts').item.json.results[0].files[0].content + $('Research + Contacts').item.json.results[1].files[1].content + $json.files[1].content}}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        688,
-        192
-      ],
-      "id": "6576f38b-ad34-47bb-b3ac-499896508598",
-      "name": "Edit Fields"
+      "id": "afacca39-c0c9-4c97-a62b-8f907acdcfb8",
+      "name": "No Operation, do nothing"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "0owTomNm6bHH8JGU",
+          "value": "MVzT2mv0sbNo6qgQ",
           "mode": "list",
-          "cachedResultUrl": "/workflow/0owTomNm6bHH8JGU",
-          "cachedResultName": "Outreach Emails"
+          "cachedResultUrl": "/workflow/MVzT2mv0sbNo6qgQ",
+          "cachedResultName": "Outreach Prep"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -728,240 +814,92 @@
           "convertFieldsToString": true
         },
         "mode": "each",
-        "options": {}
+        "options": {
+          "waitForSubWorkflow": false
+        }
       },
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1584,
-        272
-      ],
-      "id": "d5ddec2d-c461-483e-a68f-8ba01b70a6a3",
-      "name": "Call 'Outreach Emails'"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "8bc00b53-aff8-49fd-96cb-23ad6902217a",
-              "name": "Website",
-              "value": "={{ $('Loop Over Items').item.json.Website }}",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1360,
+        192,
         192
       ],
-      "id": "7ba02d4f-f63b-4144-a6a6-1c80a8fb5c17",
-      "name": "Edit Fields1"
-    },
-    {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -656,
-        192
-      ],
-      "id": "9e2caec3-e1bc-4e97-9e88-7484288c09c3",
-      "name": "When Executed by Another Workflow"
+      "id": "acd0be26-4be1-44d0-9d5d-6aee092dd07c",
+      "name": "Call 'Outreach Prep'"
     }
   ],
-  "pinData": {
-    "When Executed by Another Workflow": [
-      {
-        "json": {
-          "row_number": 62,
-          "Company": 62,
-          "First Name": "Jannes",
-          "Last Name": "Hoekman",
-          "Title": "Co-Founder & CEO",
-          "Email": "aabcaaaa3@gmail.com",
-          "Website": "https://www.gymshark.com/",
-          "Raw Data Status": "Active",
-          "Raw Data Name": "",
-          "City": "Amsterdam",
-          "State": "North Holland",
-          "Zip Code": "",
-          "Country": "Netherlands",
-          "Description": "Co-founder of BIQE, specialists in blockchain-based quality engineering for enterprise clients.",
-          "Email Opt Out": "",
-          "Salutation": "Mr.",
-          "Secondary Email": "",
-          "(I) LinkedIn URL": "https://www.linkedin.com/in/jannes-hoekman-biqe2014/",
-          "(C) LinkedIn": "https://www.linkedin.com/company/biqe/",
-          "(C) Phone": "+31 6 12345678",
-          "(C) Email": "test@test-corp-dummy.com",
-          "(I) Other Social Channel URLs": "",
-          "(I) Notes": "Role: None\nHeadline: Jannes (CEO BIQE) Hoekman\nAbout: Role: Jannes (CEO BIQE) Hoekman\nHeadline: Jannes (CEO BIQE) Hoekman\nAbout: Dedicated professional serving as Jannes (CEO BIQE) Hoekman at BIQE Digitizing • DocScanSolutions • Frakturschrift • BnAS • DioNeth. Committed to excellence.\nWork: As the Jannes (CEO BIQE) Hoekman at BIQE Digitizing • DocScanSolutions • Frakturschrift • BnAS • DioNeth, Jannes Hoekman is responsible for driving organizational growth and high-impact solutions.\n\nLatest LinkedIn Post: No text\nWork: As the Jannes (CEO BIQE) Hoekman at BIQE Digitizing • DocScanSolutions • Frakturschrift • BnAS • DioNeth, Jannes Hoekman is responsible for driving organizational growth and high-impact solutions.\n\nLatest LinkedIn Post: No text",
-          "Background & Notes": "Jannes Hoekman is the co-founder of BIQE, a Netherlands-based company providing blockchain-powered quality assurance solutions.",
-          "Raw Data Sub-Status": "",
-          "Business Model": "B2B SaaS",
-          "(I) Country": "Netherlands",
-          "Point of Contacts": "Jannes Hoekman - Co-Founder & CEO",
-          "Row ID": "TEST-001",
-          "Include in Qualify Batch": "Yes",
-          "Qualify Score (0-100)": "",
-          "Pass Score Gate (>=40)": "",
-          "Qualify Doc Link": "",
-          "Qualify Approval": "Approve",
-          "Automation Status": "Pending Qualify Review",
-          "Outreach Research": "",
-          "Email Draft Doc Link": "",
-          "Email Approval": "",
-          "Ready for Outreach (WF B)": "",
-          "Ready for Send (WF C)": "",
-          "Qualify Batch ID": "",
-          "Outreach Batch ID": "",
-          "Send Batch ID": "",
-          "Skip / Reject Reason": "",
-          "Last Updated": "",
-          "Sent Date": "",
-          "CRM Logged": ""
-        },
-        "pairedItem": {
-          "item": 0
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
-    "Loop Over Items": {
+    "Is Approved & Pending Scrape?": {
       "main": [
         [
           {
-            "node": "Notify User",
+            "node": "Add to Profiles Queue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call 'Outreach Prep'",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Get row(s)",
+            "node": "No Operation, do nothing",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Markdown to Google Docs": {
+    "Add to Profiles Queue": {
       "main": [
         [
           {
-            "node": "Append or update row in sheet",
+            "node": "Update Status in Pipeline",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Append or update row in sheet": {
+    "Update Status in Pipeline": {
       "main": [
         [
           {
-            "node": "Edit Fields1",
+            "node": "Trigger Scraper API",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Research + Contacts": {
+    "Get row(s) in sheet": {
       "main": [
         [
           {
-            "node": "Competitors",
+            "node": "Is Approved & Pending Scrape?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get row(s)": {
+    "Schedule Trigger": {
       "main": [
         [
           {
-            "node": "Aggregate",
+            "node": "Get row(s) in sheet",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Aggregate": {
+    "Trigger Scraper API": {
       "main": [
-        [
-          {
-            "node": "Research + Contacts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Competitors": {
-      "main": [
-        [
-          {
-            "node": "Edit Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Edit Fields": {
-      "main": [
-        [
-          {
-            "node": "Markdown to Google Docs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Call 'Outreach Emails'": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Edit Fields1": {
-      "main": [
-        [
-          {
-            "node": "Call 'Outreach Emails'",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "When Executed by Another Workflow": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },
@@ -970,24 +908,12 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "34ffe34a-a8dd-4c24-9bf1-03172b03650e",
+  "versionId": "4464b552-caaa-4cdb-aab9-61c040c6cd6f",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
   },
   "nodeGroups": [],
-  "id": "MVzT2mv0sbNo6qgQ",
-  "tags": [
-    {
-      "updatedAt": "2025-10-29T05:40:17.666Z",
-      "createdAt": "2025-10-29T05:40:17.666Z",
-      "id": "S2xpazKEex2eVwnl",
-      "name": "AI Agent"
-    },
-    {
-      "updatedAt": "2025-11-10T06:09:57.233Z",
-      "createdAt": "2025-11-10T06:09:57.233Z",
-      "id": "gVBWHXeZO6yYqYM6",
-      "name": "sales"
-    }
-  ]
+  "id": "kZtRy5h1fBYqM39O",
+  "tags": []
 }

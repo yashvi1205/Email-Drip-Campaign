@@ -194,6 +194,34 @@ def process_email_approvals_and_sends():
                     {"range": a1_updated, "values": [[datetime.now().strftime("%Y-%m-%dT%H:%M:%S")]]}
                 ])
                 modified = True
+        elif email_approval == "reject" and status == "Pending Email Review":
+            print(f"\n[Send] Row {row_num} Rejected by Human. Setting status to 'Rejected at Email'.")
+            
+            # Find lead in DB and update status
+            lead_db = None
+            if linkedin_url:
+                norm_li = normalize_linkedin_url(linkedin_url)
+                lead_db = db.query(Lead).filter(Lead.linkedin_url == norm_li).first()
+            if not lead_db and email_val:
+                lead_db = db.query(Lead).filter(Lead.email == email_val).first()
+                
+            if lead_db:
+                lead_db.status = "Rejected at Email"
+                db.commit()
+                
+            # Update Google Sheet
+            g_reject_updates = []
+            a1_status = gspread.utils.rowcol_to_a1(row_num, header_map["Automation Status"] + 1)
+            a1_appr = gspread.utils.rowcol_to_a1(row_num, header_map["Email Approval"] + 1)
+            a1_updated = gspread.utils.rowcol_to_a1(row_num, header_map["Last Updated"] + 1)
+            
+            now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            g_reject_updates.append({"range": a1_status, "values": [["Rejected at Email"]]})
+            g_reject_updates.append({"range": a1_appr, "values": [[""]]})
+            g_reject_updates.append({"range": a1_updated, "values": [[now_str]]})
+            
+            g_ws.batch_update(g_reject_updates)
+            modified = True
 
     # --- Part B: Process Scheduled Follow-up Emails (Email 2–5) ---
     print("\n[Send] Checking for scheduled follow-ups ready to deliver...")
@@ -270,7 +298,7 @@ def process_email_approvals_and_sends():
 
     # --- Part C: Check for Inactive Sequences (5 sent and 30 days of inactivity) ---
     print("\n[Send] Checking for sequences with 30-day inactivity post-Email 5...")
-    all_leads = db.query(Lead).filter(Lead.status != "Rejected at Email by Client", Lead.status != "REPLIED").all()
+    all_leads = db.query(Lead).filter(Lead.status != "Rejected at Email By Client", Lead.status != "REPLIED").all()
     for lead in all_leads:
         # Check if Email 5 is sent
         seq5 = db.query(EmailSequence).filter(
@@ -282,7 +310,7 @@ def process_email_approvals_and_sends():
         if seq5 and seq5.sent_at:
             if datetime.utcnow() - seq5.sent_at > timedelta(days=30):
                 print(f"  Lead {lead.name} reached 30 days since Email 5 without reply. Marking as Rejected.")
-                lead.status = "Rejected at Email by Client"
+                lead.status = "Rejected at Email By Client"
                 db.commit()
                 
                 # Update Google Sheet row status
@@ -292,7 +320,7 @@ def process_email_approvals_and_sends():
                         a1_status = gspread.utils.rowcol_to_a1(r_idx + 2, header_map["Automation Status"] + 1)
                         a1_updated = gspread.utils.rowcol_to_a1(r_idx + 2, header_map["Last Updated"] + 1)
                         g_ws.batch_update([
-                            {"range": a1_status, "values": [["Rejected at Email by Client"]]},
+                            {"range": a1_status, "values": [["Rejected at Email By Client"]]},
                             {"range": a1_updated, "values": [[datetime.now().strftime("%Y-%m-%dT%H:%M:%S")]]}
                         ])
                         modified = True

@@ -64,20 +64,11 @@
               "lookupValue": "Prospect"
             },
             {
-              "lookupColumn": "Raw Data Status",
-              "lookupValue": "Suspect"
+              "lookupColumn": "Automation Status"
             }
           ]
         },
-        "combineFilters": "OR",
-        "options": {
-          "outputFormatting": {
-            "values": {
-              "general": "UNFORMATTED_VALUE",
-              "date": "FORMATTED_STRING"
-            }
-          }
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
@@ -185,7 +176,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "be86aaf2-c08e-4789-8c83-4b106b8610f3",
+  "versionId": "4a9ecdc9-d8e2-42f7-8f03-6e9284cb4770",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"

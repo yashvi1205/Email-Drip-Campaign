@@ -1,2058 +1,1269 @@
 {
-  "name": "qualify-agent",
+  "name": "email-trigger",
   "nodes": [
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
       "position": [
-        1376,
-        176
+        -272,
+        -512
       ],
-      "id": "fc8a48b1-11c2-4740-9b34-3f62e8dc459b",
-      "name": "No Operation, do nothing"
+      "id": "e7cbf2fa-7310-4c90-8808-2fe7d0a7d415",
+      "name": "Schedule Trigger"
     },
     {
       "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
+          "mode": "list",
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
         "options": {}
       },
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "position": [
-        -192,
-        320
+        -48,
+        -512
       ],
-      "id": "27300a10-8dd2-414a-a2ec-0b7ccabbbbe7",
-      "name": "Loop Over Items"
+      "id": "7dba4135-e8d0-49a3-b301-e7ec8c28195a",
+      "name": "Get Rows From Sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
+        }
+      }
     },
     {
       "parameters": {
-        "inputSource": "passthrough"
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7b9b3bc2-1ce0-45d8-bf0c-18096f17cd72",
+              "leftValue": "={{ $json['Automation Status'] }}",
+              "rightValue": "Pending Email Review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "9edcb10b-a7df-4c65-876a-401850222784",
+              "leftValue": "={{ $json['Email Approval'] }}",
+              "rightValue": "Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
       },
-      "id": "c8948e56-e2da-4dcc-b914-a34a318d48b6",
-      "typeVersion": 1.1,
-      "name": "Start",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
       "position": [
-        -864,
-        320
-      ]
+        176,
+        -512
+      ],
+      "id": "45d733c0-5682-4371-9ba4-28fc983a86fe",
+      "name": "Check Automation Status and Email Approval Status"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4c547beb-7679-4b4c-9b16-13bee423f251",
+              "leftValue": "={{ $json['Email Approval'] }}",
+              "rightValue": "Approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "b7907dc7-f024-45c9-9cb1-b7a7e551ae8b",
+              "leftValue": "={{ $json['Automation Status'] }}",
+              "rightValue": "Ready to Send",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        624,
+        -512
+      ],
+      "id": "44d6f31c-1424-46ed-8c5d-e180e1464ba3",
+      "name": "Check Automation Status and Email Approval Status1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
+          "mode": "list",
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Automation Status": "Ready to Send"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Status",
+              "displayName": "Raw Data Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Name",
+              "displayName": "Raw Data Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Zip Code",
+              "displayName": "Zip Code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Opt Out",
+              "displayName": "Email Opt Out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Salutation",
+              "displayName": "Salutation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Secondary Email",
+              "displayName": "Secondary Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) LinkedIn URL",
+              "displayName": "(I) LinkedIn URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) LinkedIn",
+              "displayName": "(C) LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Phone",
+              "displayName": "(C) Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Email",
+              "displayName": "(C) Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Other Social Channel URLs",
+              "displayName": "(I) Other Social Channel URLs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Notes",
+              "displayName": "(I) Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Background & Notes",
+              "displayName": "Background & Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Sub-Status",
+              "displayName": "Raw Data Sub-Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Business Model",
+              "displayName": "Business Model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Country",
+              "displayName": "(I) Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Point of Contacts",
+              "displayName": "Point of Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Row ID",
+              "displayName": "Row ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Include in Qualify Batch",
+              "displayName": "Include in Qualify Batch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Score (0-100)",
+              "displayName": "Qualify Score (0-100)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Pass Score Gate (>=40)",
+              "displayName": "Pass Score Gate (>=40)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Doc Link",
+              "displayName": "Qualify Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Approval",
+              "displayName": "Qualify Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Automation Status",
+              "displayName": "Automation Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Outreach Research",
+              "displayName": "Outreach Research",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Draft Doc Link",
+              "displayName": "Email Draft Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Approval",
+              "displayName": "Email Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Outreach (WF B)",
+              "displayName": "Ready for Outreach (WF B)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Send (WF C)",
+              "displayName": "Ready for Send (WF C)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Batch ID",
+              "displayName": "Qualify Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outreach Batch ID",
+              "displayName": "Outreach Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Batch ID",
+              "displayName": "Send Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Skip / Reject Reason",
+              "displayName": "Skip / Reject Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sent Date",
+              "displayName": "Sent Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "CRM Logged",
+              "displayName": "CRM Logged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        -512
+      ],
+      "id": "bb29211c-3d01-474d-bfdc-c31ac465a7e0",
+      "name": "Update Automation Status Row To Ready to Send",
+      "credentials": {
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
+          "mode": "list",
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Automation Status": "Sent"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Status",
+              "displayName": "Raw Data Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Name",
+              "displayName": "Raw Data Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Zip Code",
+              "displayName": "Zip Code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Country",
+              "displayName": "Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Opt Out",
+              "displayName": "Email Opt Out",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Salutation",
+              "displayName": "Salutation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Secondary Email",
+              "displayName": "Secondary Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) LinkedIn URL",
+              "displayName": "(I) LinkedIn URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) LinkedIn",
+              "displayName": "(C) LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Phone",
+              "displayName": "(C) Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(C) Email",
+              "displayName": "(C) Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Other Social Channel URLs",
+              "displayName": "(I) Other Social Channel URLs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Notes",
+              "displayName": "(I) Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Background & Notes",
+              "displayName": "Background & Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Raw Data Sub-Status",
+              "displayName": "Raw Data Sub-Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Business Model",
+              "displayName": "Business Model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "(I) Country",
+              "displayName": "(I) Country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Point of Contacts",
+              "displayName": "Point of Contacts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Row ID",
+              "displayName": "Row ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Include in Qualify Batch",
+              "displayName": "Include in Qualify Batch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Score (0-100)",
+              "displayName": "Qualify Score (0-100)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Pass Score Gate (>=40)",
+              "displayName": "Pass Score Gate (>=40)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Doc Link",
+              "displayName": "Qualify Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Approval",
+              "displayName": "Qualify Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Automation Status",
+              "displayName": "Automation Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Outreach Research",
+              "displayName": "Outreach Research",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Draft Doc Link",
+              "displayName": "Email Draft Doc Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email Approval",
+              "displayName": "Email Approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Outreach (WF B)",
+              "displayName": "Ready for Outreach (WF B)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ready for Send (WF C)",
+              "displayName": "Ready for Send (WF C)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Qualify Batch ID",
+              "displayName": "Qualify Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outreach Batch ID",
+              "displayName": "Outreach Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Batch ID",
+              "displayName": "Send Batch ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Skip / Reject Reason",
+              "displayName": "Skip / Reject Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last Updated",
+              "displayName": "Last Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sent Date",
+              "displayName": "Sent Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "CRM Logged",
+              "displayName": "CRM Logged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        -512
+      ],
+      "id": "e554cbe0-4cd0-49ba-8729-0d7972499c04",
+      "name": "Update Automation Status Row To Sent",
+      "credentials": {
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/execute",
+        "url": "http://localhost:8000/api/email/send",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "prompt",
-              "value": "={{ $json.prompt }}{{ $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company }}"
-            },
-            {
-              "name": "session_id",
-              "value": "={{ $('Loop Over Items').item.json.Company.toLowerCase().replace(/\\s+/g, '_') }}"
-            }
-          ]
-        },
         "options": {
-          "timeout": 600000
+          "timeout": 120000
         }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        704,
-        80
+        880,
+        -512
       ],
-      "id": "e725c098-22db-4bb4-926a-a47a0227d398",
-      "name": "Qualify Agent",
+      "id": "7cb3813f-cd84-4536-9c48-341cb5963076",
+      "name": "Triggers Scrapper",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "qrdNse5XYDCtIWMu",
-          "name": "Codex-API-Key"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "ac17f93c-e791-4b67-a8ae-72b7655b674a",
-              "leftValue": "={{\n  (() => {\n    const findValue = (obj, matcher) => {\n      if (!obj || typeof obj !== 'object') return undefined;\n\n      for (const [key, value] of Object.entries(obj)) {\n        if (matcher(key) && typeof value !== 'object') {\n          return value;\n        }\n\n        const nested = findValue(value, matcher);\n        if (nested !== undefined) return nested;\n      }\n\n      return undefined;\n    };\n\n    const state = $json.state ?? {};\n\n    return (\n      findValue(state, key => key.toLowerCase().includes('bant')) ??\n      findValue(state, key => key.toLowerCase().includes('score'))\n    );\n  })()\n}}",
-              "rightValue": 40,
-              "operator": {
-                "type": "number",
-                "operation": "gte"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        1152,
-        80
-      ],
-      "id": "102c06f9-1be8-43cd-8993-24674ef0d701",
-      "name": "Score > 40"
-    },
-    {
-      "parameters": {
-        "driveId": {
-          "__rl": true,
-          "value": "My Drive",
-          "mode": "list",
-          "cachedResultName": "My Drive"
-        },
-        "folderId": {
-          "__rl": true,
-          "value": "1csXblumP6QxkvAjrpiDpYyhSLTym4JVD",
-          "mode": "list",
-          "cachedResultName": "QualifyResults",
-          "cachedResultUrl": "https://drive.google.com/drive/folders/1csXblumP6QxkvAjrpiDpYyhSLTym4JVD"
-        },
-        "markdownInput": "={{ $('Qualify Agent').item.json.files[0].content }}",
-        "documentTitle": "={{ $('Loop Over Items').item.json.Company }}",
-        "additionalOptions": {}
-      },
-      "type": "n8n-nodes-md-to-docs.markdownToGoogleDocs",
-      "typeVersion": 1,
-      "position": [
-        1376,
-        -16
-      ],
-      "id": "f9e838eb-6a1d-4d80-880c-7e9da012d858",
-      "name": "Markdown to Google Docs",
-      "credentials": {
-        "googleDocsOAuth2Api": {
-          "id": "MEWGIk4ZaLQ5LYyX",
-          "name": "Drip Campaign PythonTech3"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "fieldToSplitOut": "data",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
-      "position": [
-        -640,
-        320
-      ],
-      "id": "c22d2d1a-6d41-43fb-8525-6cac447085ac",
-      "name": "Split Out"
-    },
-    {
-      "parameters": {
-        "url": "https://www.googleapis.com/drive/v3/files",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleDocsOAuth2Api",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "q",
-              "value": "={{\n  \"name = '\" +\n  String($json.Company).replace(/\\\\/g, \"\\\\\\\\\").replace(/'/g, \"\\\\'\") +\n  \"' and '1csXblumP6QxkvAjrpiDpYyhSLTym4JVD' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false\"\n}}"
-            },
-            {
-              "name": "fields",
-              "value": "files(id,name,webViewLink,parents,modifiedTime)"
-            },
-            {
-              "name": "pageSize",
-              "value": "1"
-            },
-            {
-              "name": "spaces",
-              "value": "drive"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        32,
-        80
-      ],
-      "id": "9dc135f3-e9c2-439f-9662-9cd8a56b2b5a",
-      "name": "Check Existing Files",
-      "credentials": {
-        "googleDocsOAuth2Api": {
-          "id": "MEWGIk4ZaLQ5LYyX",
-          "name": "Drip Campaign PythonTech3"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
-          "mode": "list",
-          "cachedResultName": "Sales_Automation_Pipeline",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1423482434,
-          "mode": "list",
-          "cachedResultName": "Pipeline",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Company": "={{ $('Loop Over Items').item.json.Company }}",
-            "Workflow Path": "Qualify",
-            "Qualify Score (0-100)": "={{\n  (() => {\n    const findValue = (obj, matcher) => {\n      if (!obj || typeof obj !== 'object') return undefined;\n\n      for (const [key, value] of Object.entries(obj)) {\n        if (matcher(key) && typeof value !== 'object') {\n          return value;\n        }\n\n        const nested = findValue(value, matcher);\n        if (nested !== undefined) return nested;\n      }\n\n      return undefined;\n    };\n\n    const state = $('Score > 40').item.json.state ?? {};\n\n    return (\n      findValue(state, key => key.toLowerCase().includes('bant')) ??\n      findValue(state, key => key.toLowerCase().includes('score'))\n    );\n  })()\n}}",
-            "Qualify Doc Link": "={{ $json.documentUrl }}",
-            "Last Updated": "={{ $now }}",
-            "Automation Status": "Pending Qualify Review"
-          },
-          "matchingColumns": [
-            "Company"
-          ],
-          "schema": [
-            {
-              "id": "Company",
-              "displayName": "Company",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "First Name",
-              "displayName": "First Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Last Name",
-              "displayName": "Last Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Title",
-              "displayName": "Title",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email",
-              "displayName": "Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Website",
-              "displayName": "Website",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Status",
-              "displayName": "Raw Data Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Name",
-              "displayName": "Raw Data Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "City",
-              "displayName": "City",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "State",
-              "displayName": "State",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Zip Code",
-              "displayName": "Zip Code",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Country",
-              "displayName": "Country",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Description",
-              "displayName": "Description",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Opt Out",
-              "displayName": "Email Opt Out",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Salutation",
-              "displayName": "Salutation",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Secondary Email",
-              "displayName": "Secondary Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) LinkedIn URL",
-              "displayName": "(I) LinkedIn URL",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) LinkedIn",
-              "displayName": "(C) LinkedIn",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) Phone",
-              "displayName": "(C) Phone",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) Email",
-              "displayName": "(C) Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Other Social Channel URLs",
-              "displayName": "(I) Other Social Channel URLs",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Notes",
-              "displayName": "(I) Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Background & Notes",
-              "displayName": "Background & Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Sub-Status",
-              "displayName": "Raw Data Sub-Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Business Model",
-              "displayName": "Business Model",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Country",
-              "displayName": "(I) Country",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Point of Contacts",
-              "displayName": "Point of Contacts",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Row ID",
-              "displayName": "Row ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Include in Qualify Batch",
-              "displayName": "Include in Qualify Batch",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Workflow Path",
-              "displayName": "Workflow Path",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Qualify Score (0-100)",
-              "displayName": "Qualify Score (0-100)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Pass Score Gate (>=40)",
-              "displayName": "Pass Score Gate (>=40)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Doc Link",
-              "displayName": "Qualify Doc Link",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Qualify Approval",
-              "displayName": "Qualify Approval",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Automation Status",
-              "displayName": "Automation Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Outreach Research",
-              "displayName": "Outreach Research",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Draft Doc Link",
-              "displayName": "Email Draft Doc Link",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Approval",
-              "displayName": "Email Approval",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Ready for Outreach (WF B)",
-              "displayName": "Ready for Outreach (WF B)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Ready for Send (WF C)",
-              "displayName": "Ready for Send (WF C)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Batch ID",
-              "displayName": "Qualify Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Outreach Batch ID",
-              "displayName": "Outreach Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Send Batch ID",
-              "displayName": "Send Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Skip / Reject Reason",
-              "displayName": "Skip / Reject Reason",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Last Updated",
-              "displayName": "Last Updated",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Sent Date",
-              "displayName": "Sent Date",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "CRM Logged",
-              "displayName": "CRM Logged",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1600,
-        -16
-      ],
-      "id": "11e2cbf2-b1de-46ef-ab43-b71bb118a5fd",
-      "name": "Update Docs Link",
-      "credentials": {
-        "googleApi": {
-          "id": "ZxcHLIDq1mfemGsQ",
-          "name": "Drip-Campaign-Sheets"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        32,
-        -112
-      ],
-      "id": "b3aa5176-79f8-484b-abd7-0fc3ffc1b05c",
-      "name": "Notify User",
-      "webhookId": "ec8eea70-f0a5-45fe-9e8f-ae3e48bbc36e",
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "crSCmYGnNuZ51g7R",
-          "mode": "list",
-          "cachedResultName": "prompts",
-          "cachedResultUrl": "/projects/GIWzjavqhuVKJY2h/datatables/crSCmYGnNuZ51g7R"
-        },
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "1"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        480,
-        80
-      ],
-      "id": "ec619a7a-bd81-4a79-9b5b-79bb751f4078",
-      "name": "Get Prompt"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "e13f84f3-0601-49c4-883b-b4a809c12471",
-              "leftValue": "={{ $json.files }}",
-              "rightValue": "",
-              "operator": {
-                "type": "array",
-                "operation": "empty",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        256,
-        80
-      ],
-      "id": "06e0102d-1030-4f2e-bb28-7ec6787cb757",
-      "name": "Not Processed"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "80fa063a-e90e-4f89-a58e-122cae4afd58",
-              "name": "state",
-              "value": "={{ $json.files[1].content.parseJson() }}",
-              "type": "object"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        928,
-        80
-      ],
-      "id": "7e7bf086-b105-4e34-86d7-c7f2143bf90c",
-      "name": "Get state json"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.limit",
-      "typeVersion": 1,
-      "position": [
-        -416,
-        320
-      ],
-      "id": "88ac57a8-94fc-4042-84c8-8ff0c1d28a81",
-      "name": "Limit"
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "update",
-        "documentId": {
-          "__rl": true,
-          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
-          "mode": "list",
-          "cachedResultName": "Sales_Automation_Pipeline",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1423482434,
-          "mode": "list",
-          "cachedResultName": "Pipeline",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Automation Status": "Pending Qualify Review",
-            "Company": "={{ $('Loop Over Items').item.json.Company }}"
-          },
-          "matchingColumns": [
-            "Company"
-          ],
-          "schema": [
-            {
-              "id": "Company",
-              "displayName": "Company",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "First Name",
-              "displayName": "First Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Last Name",
-              "displayName": "Last Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Title",
-              "displayName": "Title",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email",
-              "displayName": "Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Website",
-              "displayName": "Website",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Status",
-              "displayName": "Raw Data Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Name",
-              "displayName": "Raw Data Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "City",
-              "displayName": "City",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "State",
-              "displayName": "State",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Zip Code",
-              "displayName": "Zip Code",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Country",
-              "displayName": "Country",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Description",
-              "displayName": "Description",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Opt Out",
-              "displayName": "Email Opt Out",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Salutation",
-              "displayName": "Salutation",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Secondary Email",
-              "displayName": "Secondary Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) LinkedIn URL",
-              "displayName": "(I) LinkedIn URL",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) LinkedIn",
-              "displayName": "(C) LinkedIn",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) Phone",
-              "displayName": "(C) Phone",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) Email",
-              "displayName": "(C) Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Other Social Channel URLs",
-              "displayName": "(I) Other Social Channel URLs",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Notes",
-              "displayName": "(I) Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Background & Notes",
-              "displayName": "Background & Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Sub-Status",
-              "displayName": "Raw Data Sub-Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Business Model",
-              "displayName": "Business Model",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Country",
-              "displayName": "(I) Country",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Point of Contacts",
-              "displayName": "Point of Contacts",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Row ID",
-              "displayName": "Row ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Include in Qualify Batch",
-              "displayName": "Include in Qualify Batch",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Score (0-100)",
-              "displayName": "Qualify Score (0-100)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Pass Score Gate (>=40)",
-              "displayName": "Pass Score Gate (>=40)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Doc Link",
-              "displayName": "Qualify Doc Link",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Approval",
-              "displayName": "Qualify Approval",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Automation Status",
-              "displayName": "Automation Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Outreach Research",
-              "displayName": "Outreach Research",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Draft Doc Link",
-              "displayName": "Email Draft Doc Link",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Approval",
-              "displayName": "Email Approval",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Ready for Outreach (WF B)",
-              "displayName": "Ready for Outreach (WF B)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Ready for Send (WF C)",
-              "displayName": "Ready for Send (WF C)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Batch ID",
-              "displayName": "Qualify Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Outreach Batch ID",
-              "displayName": "Outreach Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Send Batch ID",
-              "displayName": "Send Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Skip / Reject Reason",
-              "displayName": "Skip / Reject Reason",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Last Updated",
-              "displayName": "Last Updated",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Sent Date",
-              "displayName": "Sent Date",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "CRM Logged",
-              "displayName": "CRM Logged",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "row_number",
-              "displayName": "row_number",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "number",
-              "canBeUsedToMatch": true,
-              "readOnly": true,
-              "removed": true
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1824,
-        160
-      ],
-      "id": "1c3879ba-9011-4047-a39b-b989a3364bb2",
-      "name": "Update row in sheet",
-      "credentials": {
-        "googleApi": {
-          "id": "ZxcHLIDq1mfemGsQ",
-          "name": "Drip-Campaign-Sheets"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "update",
-        "documentId": {
-          "__rl": true,
-          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
-          "mode": "list",
-          "cachedResultName": "Sales_Automation_Pipeline",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1423482434,
-          "mode": "list",
-          "cachedResultName": "Pipeline",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Company": "={{ $('Loop Over Items').item.json.Company }}",
-            "Automation Status": "Skipped - Low Score"
-          },
-          "matchingColumns": [
-            "Company"
-          ],
-          "schema": [
-            {
-              "id": "Company",
-              "displayName": "Company",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "First Name",
-              "displayName": "First Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Last Name",
-              "displayName": "Last Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Title",
-              "displayName": "Title",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email",
-              "displayName": "Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Website",
-              "displayName": "Website",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Status",
-              "displayName": "Raw Data Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Name",
-              "displayName": "Raw Data Name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "City",
-              "displayName": "City",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "State",
-              "displayName": "State",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Zip Code",
-              "displayName": "Zip Code",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Country",
-              "displayName": "Country",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Description",
-              "displayName": "Description",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Opt Out",
-              "displayName": "Email Opt Out",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Salutation",
-              "displayName": "Salutation",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Secondary Email",
-              "displayName": "Secondary Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) LinkedIn URL",
-              "displayName": "(I) LinkedIn URL",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) LinkedIn",
-              "displayName": "(C) LinkedIn",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) Phone",
-              "displayName": "(C) Phone",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(C) Email",
-              "displayName": "(C) Email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Other Social Channel URLs",
-              "displayName": "(I) Other Social Channel URLs",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Notes",
-              "displayName": "(I) Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Background & Notes",
-              "displayName": "Background & Notes",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Raw Data Sub-Status",
-              "displayName": "Raw Data Sub-Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Business Model",
-              "displayName": "Business Model",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "(I) Country",
-              "displayName": "(I) Country",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Point of Contacts",
-              "displayName": "Point of Contacts",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Row ID",
-              "displayName": "Row ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Include in Qualify Batch",
-              "displayName": "Include in Qualify Batch",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Score (0-100)",
-              "displayName": "Qualify Score (0-100)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Pass Score Gate (>=40)",
-              "displayName": "Pass Score Gate (>=40)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Doc Link",
-              "displayName": "Qualify Doc Link",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Approval",
-              "displayName": "Qualify Approval",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Automation Status",
-              "displayName": "Automation Status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Outreach Research",
-              "displayName": "Outreach Research",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Draft Doc Link",
-              "displayName": "Email Draft Doc Link",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Email Approval",
-              "displayName": "Email Approval",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Ready for Outreach (WF B)",
-              "displayName": "Ready for Outreach (WF B)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Ready for Send (WF C)",
-              "displayName": "Ready for Send (WF C)",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Qualify Batch ID",
-              "displayName": "Qualify Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Outreach Batch ID",
-              "displayName": "Outreach Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Send Batch ID",
-              "displayName": "Send Batch ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Skip / Reject Reason",
-              "displayName": "Skip / Reject Reason",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Last Updated",
-              "displayName": "Last Updated",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "Sent Date",
-              "displayName": "Sent Date",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "CRM Logged",
-              "displayName": "CRM Logged",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "row_number",
-              "displayName": "row_number",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "number",
-              "canBeUsedToMatch": true,
-              "readOnly": true,
-              "removed": true
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1584,
-        368
-      ],
-      "id": "ebe1959e-58ce-48b7-9362-ae28ad12e06d",
-      "name": "Update row in sheet1",
-      "credentials": {
-        "googleApi": {
-          "id": "ZxcHLIDq1mfemGsQ",
-          "name": "Drip-Campaign-Sheets"
+          "id": "RhAS5htf3bUU1liw",
+          "name": "Email-trigger-Header-Auth"
         }
       }
     }
   ],
   "pinData": {},
   "connections": {
-    "Loop Over Items": {
+    "Schedule Trigger": {
       "main": [
         [
           {
-            "node": "Notify User",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Check Existing Files",
+            "node": "Get Rows From Sheet",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Start": {
+    "Get Rows From Sheet": {
       "main": [
         [
           {
-            "node": "Split Out",
+            "node": "Check Automation Status and Email Approval Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "No Operation, do nothing": {
+    "Check Automation Status and Email Approval Status": {
       "main": [
         [
           {
-            "node": "Update row in sheet1",
+            "node": "Update Automation Status Row To Ready to Send",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Qualify Agent": {
+    "Check Automation Status and Email Approval Status1": {
       "main": [
         [
           {
-            "node": "Get state json",
+            "node": "Triggers Scrapper",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Score > 40": {
+    "Update Automation Status Row To Ready to Send": {
       "main": [
         [
           {
-            "node": "Markdown to Google Docs",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "No Operation, do nothing",
+            "node": "Check Automation Status and Email Approval Status1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Markdown to Google Docs": {
+    "Triggers Scrapper": {
       "main": [
         [
           {
-            "node": "Update Docs Link",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Split Out": {
-      "main": [
-        [
-          {
-            "node": "Limit",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Existing Files": {
-      "main": [
-        [
-          {
-            "node": "Not Processed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update Docs Link": {
-      "main": [
-        [
-          {
-            "node": "Update row in sheet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Prompt": {
-      "main": [
-        [
-          {
-            "node": "Qualify Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Not Processed": {
-      "main": [
-        [
-          {
-            "node": "Get Prompt",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Loop Over Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get state json": {
-      "main": [
-        [
-          {
-            "node": "Score > 40",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Limit": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update row in sheet": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Update row in sheet1": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
+            "node": "Update Automation Status Row To Sent",
             "type": "main",
             "index": 0
           }
@@ -2060,29 +1271,17 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "98afb6ac-8d11-4674-884d-36811e77e8e7",
+  "versionId": "79ff7358-c04f-455e-956d-6d1bdafe97b3",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
   },
   "nodeGroups": [],
-  "id": "Pw3ic6OfYLDPnWTK",
-  "tags": [
-    {
-      "updatedAt": "2025-10-29T05:40:17.666Z",
-      "createdAt": "2025-10-29T05:40:17.666Z",
-      "id": "S2xpazKEex2eVwnl",
-      "name": "AI Agent"
-    },
-    {
-      "updatedAt": "2025-11-10T06:09:57.233Z",
-      "createdAt": "2025-11-10T06:09:57.233Z",
-      "id": "gVBWHXeZO6yYqYM6",
-      "name": "sales"
-    }
-  ]
+  "id": "Nd08R9nrpUcLotJO",
+  "tags": []
 }

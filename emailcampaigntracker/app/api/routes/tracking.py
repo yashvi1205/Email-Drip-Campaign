@@ -176,7 +176,7 @@ def log_event(
         )
 
         # Status Derivation (Source of Truth: sequence actions)
-        status_weights = {"SENT": 1, "OPENED": 2, "CLICKED": 3, "REPLIED": 4, "Rejected at Email by Client": 5}
+        status_weights = {"SENT": 1, "OPENED": 2, "CLICKED": 3, "REPLIED": 4, "Rejected at Email By Client": 5}
         events = [
             (seq.sent_at, "SENT"),
             (seq.last_opened, "OPENED"),
@@ -193,7 +193,7 @@ def log_event(
                 final_status = status
 
         if event_type == "reply" and sentiment == "opt_out":
-            final_status = "Rejected at Email by Client"
+            final_status = "Rejected at Email By Client"
 
         lead = db.query(Lead).filter(Lead.id == lead_id).first()
         status_changed = False

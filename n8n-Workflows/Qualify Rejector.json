@@ -1,57 +1,55 @@
 {
-  "name": "Outreach Prep",
+  "name": "Qualify Rejector",
   "nodes": [
     {
       "parameters": {
-        "options": {}
-      },
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [
-        -432,
-        192
-      ],
-      "id": "d1676ce5-def2-45b0-80cb-7d60bdb1b5ac",
-      "name": "Loop Over Items"
-    },
-    {
-      "parameters": {
-        "driveId": {
-          "__rl": true,
-          "value": "My Drive",
-          "mode": "list",
-          "cachedResultName": "My Drive"
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
         },
-        "folderId": {
+        "documentId": {
           "__rl": true,
-          "value": "1HToRDMwbiez28r3M6T0mO8bMcbESNYJZ",
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
           "mode": "list",
-          "cachedResultName": "OutreachResults",
-          "cachedResultUrl": "https://drive.google.com/drive/folders/1HToRDMwbiez28r3M6T0mO8bMcbESNYJZ"
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
         },
-        "markdownInput": "={{ $json.text }}",
-        "documentTitle": "={{ $('Loop Over Items').item.json.Company }}",
-        "additionalOptions": {}
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "event": "rowUpdate",
+        "options": {
+          "columnsToWatch": [
+            "Qualify Approval"
+          ]
+        }
       },
-      "type": "n8n-nodes-md-to-docs.markdownToGoogleDocs",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
       "typeVersion": 1,
       "position": [
-        912,
-        192
+        0,
+        0
       ],
-      "id": "6d6a86de-a580-4b81-ba7f-6e224ea6e4e4",
-      "name": "Markdown to Google Docs",
+      "id": "0a4f56ea-2e76-48d2-999a-88c1559e0df1",
+      "name": "Google Sheets Trigger",
       "credentials": {
-        "googleDocsOAuth2Api": {
-          "id": "MEWGIk4ZaLQ5LYyX",
-          "name": "Drip Campaign PythonTech3"
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "PASI5YUIx6SeLtYO",
+          "name": "Sheet Trigger Drip-Campaign"
         }
       }
     },
     {
       "parameters": {
         "authentication": "serviceAccount",
-        "operation": "appendOrUpdate",
+        "operation": "update",
         "documentId": {
           "__rl": true,
           "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
@@ -69,13 +67,11 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Company": "={{ $('Loop Over Items').item.json.Company }}",
-            "Outreach Research": "={{ $json.documentUrl }}",
-            "Automation Status": "Research Complete",
-            "Workflow Path": "Outreach Prep"
+            "row_number": "={{ $json.row_number }}",
+            "Automation Status": "Rejected at Qualify"
           },
           "matchingColumns": [
-            "Company"
+            "row_number"
           ],
           "schema": [
             {
@@ -86,7 +82,7 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true,
-              "removed": false
+              "removed": true
             },
             {
               "id": "First Name",
@@ -369,16 +365,6 @@
               "removed": true
             },
             {
-              "id": "Workflow Path",
-              "displayName": "Workflow Path",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
               "id": "Qualify Score (0-100)",
               "displayName": "Qualify Score (0-100)",
               "required": false,
@@ -436,7 +422,7 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true,
-              "removed": false
+              "removed": true
             },
             {
               "id": "Email Draft Doc Link",
@@ -547,6 +533,17 @@
               "type": "string",
               "canBeUsedToMatch": true,
               "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -557,11 +554,11 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1136,
-        192
+        672,
+        0
       ],
-      "id": "7ace849f-05b4-4a42-b68e-49fb01290361",
-      "name": "Append or update row in sheet",
+      "id": "df99d3e5-d47b-42c4-b808-56a57244ddd2",
+      "name": "Update row in sheet",
       "credentials": {
         "googleApi": {
           "id": "ZxcHLIDq1mfemGsQ",
@@ -571,393 +568,87 @@
     },
     {
       "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c",
+          "mode": "list",
+          "cachedResultName": "Sales_Automation_Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1423482434,
+          "mode": "list",
+          "cachedResultName": "Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/128RY8rQ4iWzYaIcVgBHK-uEqurFpp3ncPplwqplut5c/edit#gid=1423482434"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Qualify Approval",
+              "lookupValue": "Reject"
+            }
+          ]
+        },
         "options": {}
       },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "position": [
-        -208,
+        448,
         0
       ],
-      "id": "4068d5a1-15d5-468c-8df4-359cd325a698",
-      "name": "Notify User",
-      "webhookId": "3fe42871-9b06-4c9e-acb6-0f9f41045515",
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://localhost:8000/execute/batch",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"prompts\": [\n    {{ ($json.data[0].prompt + $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company).toJsonString() }},\n    {{ ($json.data[1].prompt + $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company).toJsonString() }}\n  ],\n  \"session_id\": {{ $('Loop Over Items').item.json.Company.toLowerCase().replace(/\\s+/g, '_').toJsonString() }},\n  \"include_stdout\": false\n}",
-        "options": {
-          "timeout": 600000
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        240,
-        192
-      ],
-      "id": "adbb2a97-39b4-4586-a309-518509c2815c",
-      "name": "Research + Contacts",
+      "id": "1d98f594-54cf-40e7-a114-fec100e21771",
+      "name": "Get row(s) in sheet",
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "qrdNse5XYDCtIWMu",
-          "name": "Codex-API-Key"
+        "googleApi": {
+          "id": "ZxcHLIDq1mfemGsQ",
+          "name": "Drip-Campaign-Sheets"
         }
       }
     },
     {
-      "parameters": {
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "zG1xBeZ319BcFe7U",
-          "mode": "list",
-          "cachedResultName": "prompts",
-          "cachedResultUrl": "/projects/MGBxbNjjcY5i38sR/datatables/zG1xBeZ319BcFe7U"
-        },
-        "filters": {
-          "conditions": [
-            {
-              "keyValue": "2"
-            },
-            {
-              "keyValue": "3"
-            },
-            {
-              "keyValue": "4"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        -208,
-        192
-      ],
-      "id": "0b11e133-1fcc-4472-bf0c-e0ab67a3b0d5",
-      "name": "Get row(s)"
-    },
-    {
-      "parameters": {
-        "aggregate": "aggregateAllItemData",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.aggregate",
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        16,
-        192
+        224,
+        0
       ],
-      "id": "dc13ff55-b027-48ed-a477-686b0b7c6b81",
-      "name": "Aggregate"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://localhost:8000/execute",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"prompt\": {{ ($('Aggregate').item.json.data[2].prompt + $('Loop Over Items').item.json.Website.trim() || $('Loop Over Items').item.json.Company).toJsonString() }},\n  \"session_id\": {{ $('Loop Over Items').item.json.Company.toLowerCase().replace(/\\s+/g, '_').toJsonString() }},\n  \"include_stdout\": false\n}",
-        "options": {
-          "timeout": 600000
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        464,
-        192
-      ],
-      "id": "6bb86741-b39c-4d71-a3bf-f1838555af4c",
-      "name": "Competitors",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "qrdNse5XYDCtIWMu",
-          "name": "Codex-API-Key"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "da2de0eb-77d3-4a5b-a419-c5c489f9c2bd",
-              "name": "text",
-              "value": "={{ $('Research + Contacts').item.json.results[0].files[0].content + $('Research + Contacts').item.json.results[1].files[1].content + $json.files[1].content}}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        688,
-        192
-      ],
-      "id": "6576f38b-ad34-47bb-b3ac-499896508598",
-      "name": "Edit Fields"
-    },
-    {
-      "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "0owTomNm6bHH8JGU",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/0owTomNm6bHH8JGU",
-          "cachedResultName": "Outreach Emails"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "mode": "each",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
-      "position": [
-        1584,
-        272
-      ],
-      "id": "d5ddec2d-c461-483e-a68f-8ba01b70a6a3",
-      "name": "Call 'Outreach Emails'"
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "8bc00b53-aff8-49fd-96cb-23ad6902217a",
-              "name": "Website",
-              "value": "={{ $('Loop Over Items').item.json.Website }}",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
-      },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1360,
-        192
-      ],
-      "id": "7ba02d4f-f63b-4144-a6a6-1c80a8fb5c17",
-      "name": "Edit Fields1"
-    },
-    {
-      "parameters": {
-        "inputSource": "passthrough"
-      },
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -656,
-        192
-      ],
-      "id": "9e2caec3-e1bc-4e97-9e88-7484288c09c3",
-      "name": "When Executed by Another Workflow"
+      "id": "65fd1349-e748-4236-8960-3afcbd385492",
+      "name": "Limit"
     }
   ],
-  "pinData": {
-    "When Executed by Another Workflow": [
-      {
-        "json": {
-          "row_number": 62,
-          "Company": 62,
-          "First Name": "Jannes",
-          "Last Name": "Hoekman",
-          "Title": "Co-Founder & CEO",
-          "Email": "aabcaaaa3@gmail.com",
-          "Website": "https://www.gymshark.com/",
-          "Raw Data Status": "Active",
-          "Raw Data Name": "",
-          "City": "Amsterdam",
-          "State": "North Holland",
-          "Zip Code": "",
-          "Country": "Netherlands",
-          "Description": "Co-founder of BIQE, specialists in blockchain-based quality engineering for enterprise clients.",
-          "Email Opt Out": "",
-          "Salutation": "Mr.",
-          "Secondary Email": "",
-          "(I) LinkedIn URL": "https://www.linkedin.com/in/jannes-hoekman-biqe2014/",
-          "(C) LinkedIn": "https://www.linkedin.com/company/biqe/",
-          "(C) Phone": "+31 6 12345678",
-          "(C) Email": "test@test-corp-dummy.com",
-          "(I) Other Social Channel URLs": "",
-          "(I) Notes": "Role: None\nHeadline: Jannes (CEO BIQE) Hoekman\nAbout: Role: Jannes (CEO BIQE) Hoekman\nHeadline: Jannes (CEO BIQE) Hoekman\nAbout: Dedicated professional serving as Jannes (CEO BIQE) Hoekman at BIQE Digitizing • DocScanSolutions • Frakturschrift • BnAS • DioNeth. Committed to excellence.\nWork: As the Jannes (CEO BIQE) Hoekman at BIQE Digitizing • DocScanSolutions • Frakturschrift • BnAS • DioNeth, Jannes Hoekman is responsible for driving organizational growth and high-impact solutions.\n\nLatest LinkedIn Post: No text\nWork: As the Jannes (CEO BIQE) Hoekman at BIQE Digitizing • DocScanSolutions • Frakturschrift • BnAS • DioNeth, Jannes Hoekman is responsible for driving organizational growth and high-impact solutions.\n\nLatest LinkedIn Post: No text",
-          "Background & Notes": "Jannes Hoekman is the co-founder of BIQE, a Netherlands-based company providing blockchain-powered quality assurance solutions.",
-          "Raw Data Sub-Status": "",
-          "Business Model": "B2B SaaS",
-          "(I) Country": "Netherlands",
-          "Point of Contacts": "Jannes Hoekman - Co-Founder & CEO",
-          "Row ID": "TEST-001",
-          "Include in Qualify Batch": "Yes",
-          "Qualify Score (0-100)": "",
-          "Pass Score Gate (>=40)": "",
-          "Qualify Doc Link": "",
-          "Qualify Approval": "Approve",
-          "Automation Status": "Pending Qualify Review",
-          "Outreach Research": "",
-          "Email Draft Doc Link": "",
-          "Email Approval": "",
-          "Ready for Outreach (WF B)": "",
-          "Ready for Send (WF C)": "",
-          "Qualify Batch ID": "",
-          "Outreach Batch ID": "",
-          "Send Batch ID": "",
-          "Skip / Reject Reason": "",
-          "Last Updated": "",
-          "Sent Date": "",
-          "CRM Logged": ""
-        },
-        "pairedItem": {
-          "item": 0
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
-    "Loop Over Items": {
+    "Google Sheets Trigger": {
       "main": [
         [
           {
-            "node": "Notify User",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Get row(s)",
+            "node": "Limit",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Markdown to Google Docs": {
+    "Get row(s) in sheet": {
       "main": [
         [
           {
-            "node": "Append or update row in sheet",
+            "node": "Update row in sheet",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Append or update row in sheet": {
+    "Limit": {
       "main": [
         [
           {
-            "node": "Edit Fields1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Research + Contacts": {
-      "main": [
-        [
-          {
-            "node": "Competitors",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get row(s)": {
-      "main": [
-        [
-          {
-            "node": "Aggregate",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Aggregate": {
-      "main": [
-        [
-          {
-            "node": "Research + Contacts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Competitors": {
-      "main": [
-        [
-          {
-            "node": "Edit Fields",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Edit Fields": {
-      "main": [
-        [
-          {
-            "node": "Markdown to Google Docs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Call 'Outreach Emails'": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Edit Fields1": {
-      "main": [
-        [
-          {
-            "node": "Call 'Outreach Emails'",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "When Executed by Another Workflow": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Items",
+            "node": "Get row(s) in sheet",
             "type": "main",
             "index": 0
           }
@@ -965,29 +656,17 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "34ffe34a-a8dd-4c24-9bf1-03172b03650e",
+  "versionId": "f09405fb-7040-41c1-97e3-f3330e5283da",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "14e4c77104722ab186539dfea5182e419aecc83d85963fe13f6de862c875ebfa"
   },
   "nodeGroups": [],
-  "id": "MVzT2mv0sbNo6qgQ",
-  "tags": [
-    {
-      "updatedAt": "2025-10-29T05:40:17.666Z",
-      "createdAt": "2025-10-29T05:40:17.666Z",
-      "id": "S2xpazKEex2eVwnl",
-      "name": "AI Agent"
-    },
-    {
-      "updatedAt": "2025-11-10T06:09:57.233Z",
-      "createdAt": "2025-11-10T06:09:57.233Z",
-      "id": "gVBWHXeZO6yYqYM6",
-      "name": "sales"
-    }
-  ]
+  "id": "7fwCSrVNUOFLdLOJ",
+  "tags": []
 }
