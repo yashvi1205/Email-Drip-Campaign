@@ -72,7 +72,7 @@ For email tracking to work while you are developing locally, Render needs to "Ta
 1. Open a **new** terminal (keep Docker running in the other one).
 2. Run the tunnel command:
    ```bash
-   untun 8000
+   untun 8080
    ```
 3. Copy the **Public URL** it gives you (e.g., `https://random-words.untun.com`).
 
@@ -93,7 +93,7 @@ If you see the same person twice on your dashboard, it's usually because n8n is 
 
 ### **The Rule**
 - **ALWAYS** use the Backend API to save leads.
-- In n8n, use an **HTTP Request** node to call `POST http://localhost:8000/api/leads`.
+- In n8n, use an **HTTP Request** node to call `POST http://localhost:8080/api/leads`.
 - **NEVER** use the Postgres node to `INSERT` leads directly. The Backend API has the "Cleaner" logic that prevents duplicates; the database does not.
 
 ### **How to Fix Existing Duplicates**
