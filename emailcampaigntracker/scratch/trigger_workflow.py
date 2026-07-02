@@ -60,7 +60,7 @@ def main():
             payload_data.append(profile_data)
             print(f"Adding lead: {lead.name} ({lead.linkedin_url})")
 
-        webhook_url = "http://localhost:8000/webhook/scraper-callback"
+        webhook_url = "http://localhost:8080/webhook/scraper-callback"
         print(f"\nTriggering webhook at {webhook_url} with {len(payload_data)} profiles...")
         response = requests.post(webhook_url, json={"data": payload_data}, timeout=30)
         

@@ -33,7 +33,7 @@ logger = logging.getLogger("workflow1")
 # ---------------------------------------------------------------------------
 # Configuration (mirror what the n8n nodes hard-code)
 # ---------------------------------------------------------------------------
-BACKEND_URL = "http://127.0.0.1:8000"
+BACKEND_URL = "http://127.0.0.1:8080"
 SCRAPER_API_KEY = "scraper-key-789"
 WEBHOOK_URL = f"{BACKEND_URL}/webhook/3aeb822a-2673-401f-9882-ff3dfe88db65"
 

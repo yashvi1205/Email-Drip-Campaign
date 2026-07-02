@@ -81,7 +81,7 @@ def process_email_approvals_and_sends():
     db = SessionLocal()
 
     # Get settings or default tracking backend URL
-    backend_url = env.get("LOCAL_BACKEND_URL", "http://localhost:8000")
+    backend_url = env.get("LOCAL_BACKEND_URL", "http://localhost:8080")
 
     # --- Part A: Handle Human Approvals (Send Email 1) ---
     test_mode = os.environ.get("TEST_MODE", "false").strip().lower() == "true"

@@ -43,7 +43,7 @@ logger = logging.getLogger("workflow2")
 # Configuration
 # ---------------------------------------------------------------------------
 BACKEND_URL = "https://email-drip-campaign-hpo2.onrender.com"
-LOCAL_BACKEND_URL = "http://127.0.0.1:8000"
+LOCAL_BACKEND_URL = "http://127.0.0.1:8080"
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
 CTA_URL = "https://example.com"  # Replace with real CTA URL
 

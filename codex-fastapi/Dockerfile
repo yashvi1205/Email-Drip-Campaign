@@ -18,7 +18,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @openai/codex@0.139.0
+RUN npm install -g @openai/codex
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 

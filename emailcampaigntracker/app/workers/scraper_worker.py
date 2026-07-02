@@ -41,6 +41,7 @@ def _tail_excerpt(stdout: str, stderr: str, limit_chars: int = 20000) -> str:
 def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
     settings = get_settings()
     session = SessionLocal()
+    proc = None
     try:
         now = datetime.utcnow()
         # 1. ATOMIC TRANSITION: queued/retrying -> running
@@ -229,6 +230,20 @@ def execute_scraper_job(scraper_job_id: int, **kwargs) -> None:
             pass
         raise
     finally:
+        if proc is not None and proc.poll() is None:
+            logger.info("Terminating scraper subprocess...")
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                logger.warning("Scraper subprocess did not terminate in time. Killing it...")
+                try:
+                    proc.kill()
+                    proc.wait()
+                except Exception as ke:
+                    logger.warning("Failed to kill scraper subprocess: %s", ke)
+            except Exception as pe:
+                logger.warning("Failed to terminate scraper subprocess: %s", pe)
         session.close()
 
 

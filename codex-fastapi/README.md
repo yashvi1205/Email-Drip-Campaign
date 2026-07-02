@@ -204,7 +204,7 @@ local; it is gitignored because it can contain secrets such as
 |----------|------------------|-----------------|-------------|
 | `WORKSPACE_ROOT` | `/workspace` | `./workspace` | Base directory for per-request `run-*/` and session-scoped `session-*/` folders |
 | `CODEX_HOME` | `/codex-home` | `~/.codex` | Codex CLI config and cached credentials |
-| `EXEC_TIMEOUT_SECONDS` | `600` | `600` | Max Codex runtime per request |
+| `EXEC_TIMEOUT_SECONDS` | `1800` | `1800` | Max Codex runtime per request |
 | `MAX_FILE_BYTES` | `10485760` (10 MB) | `10485760` | Files larger than this are skipped in the response |
 | `AUTH_DB_PATH` | `/workspace/auth.sqlite3` | `./auth.sqlite3` | SQLite database for admin and API key hashes |
 | `ADMIN_USERNAME` | `admin` | `admin` | Admin username for key management |

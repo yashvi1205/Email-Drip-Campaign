@@ -28,7 +28,7 @@ import requests
 
 logger = logging.getLogger("workflow4")
 
-LOCAL_BACKEND_URL = "http://127.0.0.1:8000"
+LOCAL_BACKEND_URL = "http://127.0.0.1:8080"
 
 
 # ---------------------------------------------------------------------------
